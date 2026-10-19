@@ -39,7 +39,7 @@ abstract class ScanDatabase : RoomDatabase() { abstract fun scans(): ScanDao }
 data class ScannerSettings(val harder: Boolean = true, val denoise: Boolean = false,
     val rotate: Boolean = true, val inverted: Boolean = false, val binarizer: String = "LOCAL_AVERAGE",
     val resolution: String = "HD", val speed: String = "NORMAL", val torch: Boolean = false,
-    val tapFocus: Boolean = true, val theme: String = "SYSTEM") {
+    val tapFocus: Boolean = true, val theme: String = "SYSTEM", val goldenTheme: Boolean = false) {
     val intervalMs get() = when (speed) { "FAST" -> 100L; "FASTEST" -> 0L; else -> 300L }
 }
 private val Context.settingsStore by preferencesDataStore("scanner_settings")
@@ -49,11 +49,13 @@ class SettingsRepository(private val context: Context) {
             p[booleanPreferencesKey("rotate")] ?: true, p[booleanPreferencesKey("inverted")] ?: false,
             p[stringPreferencesKey("binarizer")] ?: "LOCAL_AVERAGE", p[stringPreferencesKey("resolution")] ?: "HD",
             p[stringPreferencesKey("speed")] ?: "NORMAL", p[booleanPreferencesKey("torch")] ?: false,
-            p[booleanPreferencesKey("tapFocus")] ?: true, p[stringPreferencesKey("theme")] ?: "SYSTEM")
+            p[booleanPreferencesKey("tapFocus")] ?: true, p[stringPreferencesKey("theme")] ?: "SYSTEM",
+            p[booleanPreferencesKey("goldenTheme")] ?: false)
     }
     suspend fun save(s: ScannerSettings) { context.settingsStore.edit { p ->
         mapOf("harder" to s.harder, "denoise" to s.denoise, "rotate" to s.rotate,
-            "inverted" to s.inverted, "torch" to s.torch, "tapFocus" to s.tapFocus).forEach { (k,v) -> p[booleanPreferencesKey(k)] = v }
+            "inverted" to s.inverted, "torch" to s.torch, "tapFocus" to s.tapFocus,
+            "goldenTheme" to s.goldenTheme).forEach { (k,v) -> p[booleanPreferencesKey(k)] = v }
         mapOf("binarizer" to s.binarizer, "resolution" to s.resolution, "speed" to s.speed, "theme" to s.theme)
             .forEach { (k,v) -> p[stringPreferencesKey(k)] = v }
     } }

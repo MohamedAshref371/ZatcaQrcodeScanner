@@ -10,7 +10,13 @@ This policy describes how Invoice QR Reader (قارئ فاتورة), package `co
 
 With permission, the app uses the camera to read QR codes. Alternatively, it processes an image you select through the system picker. Processing takes place on your device. The app does not record video, save camera frames or retain a copy of the selected image.
 
-The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. The current version does not send this information to the developer or a server, does not require an account and operates without an internet connection. It contains no advertising, tracking or usage analytics SDKs.
+The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. The current version does not send this information to the developer or a server. Invoice features do not require an account and work offline. The app contains no advertising, tracking or usage analytics SDKs.
+
+## Optional supporter purchase
+
+The app is free and ad-free, and all invoice features remain free. An optional one-time Google Play purchase adds a gold theme and supporter badge. Purchasing and restoring require a Google Play account and internet access. Payment is handled by Google Play under its own terms and privacy policy. The app does not receive card numbers or payment-method details. It receives purchase status, product ID, purchase token and signature to verify ownership and acknowledge the purchase with Google Play, and keeps a local entitlement flag and theme preference. Invoice content is not sent as part of billing, and receipts are not sent to a developer server. Restoration uses the Google Play account that bought the product. Clearing app data does not cancel a Google Play purchase; purchases and refund requests are managed through Google Play.
+
+Google Play Billing adds internet, network-state and billing permissions and communicates with Google billing services. Refer to [Google Privacy Policy](https://policies.google.com/privacy) for the store service's data practices.
 
 ## Deletion and export
 

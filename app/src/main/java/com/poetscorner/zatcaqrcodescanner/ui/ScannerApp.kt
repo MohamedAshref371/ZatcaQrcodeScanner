@@ -21,6 +21,14 @@ import androidx.compose.ui.res.stringResource
 import com.poetscorner.zatcaqrcodescanner.BuildConfig
 import com.poetscorner.zatcaqrcodescanner.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
+import androidx.compose.ui.platform.LocalContext
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import com.poetscorner.zatcaqrcodescanner.billing.SupporterViewModel
+import com.poetscorner.zatcaqrcodescanner.billing.SupporterState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
 import com.poetscorner.zatcaqrcodescanner.domain.Invoice
@@ -32,12 +40,15 @@ import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScannerApp(vm: ScannerViewModel = viewModel()) {
+fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel = viewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val history by vm.history.collectAsStateWithLifecycle()
     val result by vm.result.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
+    val support by supporter.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { supporter.refresh() }
     var screen by rememberSaveable { mutableStateOf("الماسح") }
     var clearDialog by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
@@ -47,7 +58,8 @@ fun ScannerApp(vm: ScannerViewModel = viewModel()) {
     LaunchedEffect(result) { if (result != null) screen = "النتيجة" }
     LaunchedEffect(message) { message?.let { snackbar.showSnackbar(it); vm.message.value = null } }
     BackHandler(screen != "الماسح") { vm.result.value = null; screen = "الماسح" }
-    ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() }) {
+    ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() },
+        goldenTheme = support.owned && settings.goldenTheme) {
         Scaffold(topBar = { TopAppBar(title = { Column {
             Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold)
             Text("ZATCA · $screen", style = MaterialTheme.typography.labelMedium)
@@ -92,7 +104,8 @@ fun ScannerApp(vm: ScannerViewModel = viewModel()) {
                             }
                         }
                     }
-                    else -> SettingsScreen(settings, vm::update)
+                    else -> SettingsScreen(settings, vm::update, support,
+                        onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh)
                 }
             }
         }
@@ -138,9 +151,11 @@ private fun ResultScreen(invoice: Invoice, again: () -> Unit) {
 }
 
 @Composable
-private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit) {
+private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
+    support: SupporterState, onPurchase: () -> Unit, onRestore: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { SupporterCard(support, s.goldenTheme, onPurchase, onRestore) { value -> update { it.copy(goldenTheme = value) } } }
         item { Text("خيارات محرك القراءة", style = MaterialTheme.typography.titleLarge) }
         item { Toggle("Try harder · بحث مكثّف", s.harder) { v -> update { it.copy(harder = v) } } }
         item { Toggle("Try denoise · تقليل التشويش", s.denoise) { v -> update { it.copy(denoise = v) } } }
@@ -159,8 +174,52 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         title = { Text(stringResource(R.string.app_name)) },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE))
+            if (support.owned) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
+                Text("داعم التطبيق · شكرًا لك", Modifier.padding(10.dp))
+            }
             Text(stringResource(R.string.about_details))
         } }, confirmButton = { TextButton(onClick = { showAbout = false }) { Text("إغلاق") } })
+}
+
+@Composable
+private fun SupporterCard(state: SupporterState, golden: Boolean, onPurchase: () -> Unit,
+    onRestore: () -> Unit, onGolden: (Boolean) -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("التطبيق مجاني وبدون إعلانات", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("جميع وظائف المسح والتحليل والسجل والتصدير متاحة مجانًا.")
+            Text("باقة داعم التطبيق", style = MaterialTheme.typography.titleMedium)
+            Text("ادعم استمرار التطوير واحصل على مظهر ذهبي اختياري وشارة داعم في صفحة حول التطبيق. شراء مرة واحدة، بدون اشتراك.")
+            if (state.owned) {
+                Text("شكرًا لدعمك! الباقة مفعّلة.", color = MaterialTheme.colorScheme.primary)
+                Toggle("المظهر الذهبي", golden, onGolden)
+            } else {
+                Button(onClick = onPurchase,
+                    enabled = state.available && !state.loading && !state.purchasing && !state.pending,
+                    modifier = Modifier.fillMaxWidth()) {
+                    Text(when {
+                        state.pending -> "الشراء قيد الانتظار"
+                        state.purchasing -> "جارٍ إتمام الشراء"
+                        state.loading -> "جارٍ الاتصال بالمتجر"
+                        state.price != null -> "دعم التطبيق · ${state.price}"
+                        else -> "الشراء غير متاح حاليًا"
+                    })
+                }
+            }
+            if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            state.message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            TextButton(onClick = onRestore, enabled = !state.loading && !state.purchasing) {
+                Text("استعادة المشتريات / إعادة المحاولة")
+            }
+            Text("الشراء والاستعادة يتطلبان Google Play واتصالًا بالإنترنت. استخدام الفواتير يظل متاحًا دون إنترنت.", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+private fun Context.activity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.activity()
+    else -> null
 }
 @Composable
 private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
