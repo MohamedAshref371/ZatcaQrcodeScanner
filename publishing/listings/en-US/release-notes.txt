@@ -1,0 +1,1 @@
+Initial release: scan invoice QR codes with your camera or from images, review invoice details and local checks, save a local history and export JSON or CSV. Includes scanner settings and light and dark themes. App interface is in Arabic.

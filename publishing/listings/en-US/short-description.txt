@@ -1,0 +1,1 @@
+Scan Saudi e-invoice QR codes offline and keep a local invoice history

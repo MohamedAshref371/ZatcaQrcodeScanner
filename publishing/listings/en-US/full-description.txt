@@ -1,0 +1,20 @@
+Invoice QR Reader helps you scan Saudi e-invoice QR codes using your camera or an image saved on your device. The app interface is currently in Arabic, with a right-to-left layout and light and dark themes.
+
+Review invoice details
+View the seller name, VAT registration number, invoice timestamp, total including VAT and VAT amount. The app also displays the invoice hash, signature, public key and stamp when these fields are included in the QR code.
+
+Adjust your scanner
+Use the torch, zoom and tap to focus. Choose scan resolution, scan frequency and image-processing options to suit your device and the QR code. Results depend on camera capability and image quality.
+
+Keep a local history
+Open previous scans and export your history as JSON or CSV to a location you choose. Clear the history from the History screen when you no longer need it.
+
+Offline operation
+Scanning and analysis work without an internet connection or an account. Scans and preferences stay in the app's local storage. This version includes no advertising, analytics or tracking SDKs. Exported files are saved to the destination you select.
+
+Understand the checks
+The app checks data structure, required fields, VAT number format, timestamps and numeric amounts. It labels a scan as a simplified tax invoice when the stamp field is present, or a tax invoice when it is absent. This classification uses the available QR data.
+
+Invoice QR Reader is an independent app. It is not affiliated with, endorsed by or approved by the Zakat, Tax and Customs Authority (ZATCA). Its checks are local and structural. They do not establish the cryptographic authenticity of a signature or official acceptance of an invoice. The app does not connect to the Fatoora platform.
+
+Requires Android 8 or later. Camera permission is requested for live scanning. You can also select an image through the system picker without granting access to your entire photo library.

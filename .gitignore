@@ -1,0 +1,96 @@
+# ============================================
+# Android Studio / Kotlin / Gradle / NDK
+# (with Visual Studio entries)
+# ============================================
+
+# ---- Gradle ----
+.gradle/
+.gradle-user-home/
+build/
+/build
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/**/build/
+
+# ---- Local config (machine-specific, never commit) ----
+local.properties
+/local.properties
+
+# ---- Android Studio / IntelliJ ----
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetSelector.xml
+.idea/deploymentTargetDropdown.xml
+.idea/gradle.xml
+.idea/misc.xml
+.idea/other.xml
+.idea/AndroidProjectSystem.xml
+.idea/runConfigurations.xml
+.idea/vcs.xml
+.idea/appInsightsSettings.xml
+.idea/studiobot.xml
+.idea/inspectionProfiles/
+.idea/dictionaries/
+.idea/shelf/
+captures/
+/captures
+
+# ---- Native build (NDK / CMake) - needed for zxing-cpp ----
+.externalNativeBuild/
+.externalNativeBuild
+.cxx/
+.cxx
+
+# ---- Visual Studio ----
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ---- OS files ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Build output / APK / AAB ----
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+release/
+output.json
+
+# ---- Signing keys & secrets (NEVER commit) ----
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+*.pem
+*.p12
+# google-services.json   # فعّله لو ما تبغى ترفع ملف Firebase
+
+# ---- Logs & temp ----
+*.log
+build-check.log
+*.tmp
+*.swp
+*~
+
+# ---- Lint / tests / profiling ----
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+*.hprof
+*.trace
+.kotlin/
