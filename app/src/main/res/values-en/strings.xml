@@ -1,7 +1,0 @@
-<resources>
-    <string name="app_name">Invoice QR Reader</string>
-    <string name="app_description">Scan Saudi e-invoice QR codes, view their details and keep a local history.</string>
-    <string name="about_app">About this app</string>
-    <string name="about_version">Version %1$s (%2$d)</string>
-    <string name="about_details">Scan invoice QR codes with your camera or from an image, review the details and keep a local history with JSON or CSV export.\n\nScanning and analysis work offline without an account. The main app interface is in Arabic.\n\nThis is an independent app, not affiliated with or approved by ZATCA. Its local, structural checks do not establish signature authenticity or official invoice acceptance.</string>
-</resources>

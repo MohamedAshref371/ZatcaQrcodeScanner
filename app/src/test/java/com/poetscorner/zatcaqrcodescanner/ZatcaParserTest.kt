@@ -80,7 +80,7 @@ class ZatcaParserTest {
     }
     @Test fun malformedCalendarDateFails() {
         val bytes = tlv(1,"متجر") + tlv(2,"310123456789013") + tlv(3,"2026-02-30T12:00:00Z") + tlv(4,"10") + tlv(5,"1")
-        assertFalse(parse(bytes).checks.first { it.label.startsWith("التاريخ ISO") }.passed)
+        assertFalse(parse(bytes).checks.first { it.label.id == R.string.check_date }.passed)
     }
     @Test fun saudiLocalTimestampAndUtcRepresentTheSameInstant() {
         val local = ZatcaParser.parseTimestamp("2024-11-29T14:25:00")

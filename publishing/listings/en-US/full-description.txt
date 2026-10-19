@@ -1,4 +1,4 @@
-Invoice QR Reader helps you scan Saudi e-invoice QR codes using your camera or an image saved on your device. The app interface is currently in Arabic, with a right-to-left layout and light and dark themes.
+Invoice QR Reader helps you scan Saudi e-invoice QR codes using your camera or an image saved on your device. The app supports English and Arabic, with the appropriate layout direction and light and dark themes.
 
 Review invoice details
 View the seller name, VAT registration number, invoice timestamp, total including VAT and VAT amount. The app also displays the invoice hash, signature, public key and stamp when these fields are included in the QR code.

@@ -40,6 +40,10 @@ android {
         compose = true
         buildConfig = true
     }
+    androidResources {
+        generateLocaleConfig = true
+        localeFilters += listOf("en", "ar")
+    }
 }
 
 dependencies {

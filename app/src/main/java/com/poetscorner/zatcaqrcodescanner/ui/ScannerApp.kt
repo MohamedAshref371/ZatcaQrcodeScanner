@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.poetscorner.zatcaqrcodescanner.BuildConfig
@@ -24,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -37,6 +39,7 @@ import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
 import com.poetscorner.zatcaqrcodescanner.ui.theme.ZatcaQrcodeScannerTheme
 import java.text.DateFormat
 import java.util.Date
+import com.poetscorner.zatcaqrcodescanner.ui.text.localized
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,57 +51,58 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     val message by vm.message.collectAsStateWithLifecycle()
     val support by supporter.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { supporter.refresh() }
-    var screen by rememberSaveable { mutableStateOf("الماسح") }
+    var screen by rememberSaveable { mutableIntStateOf(0) }
     var clearDialog by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(vm::gallery) }
     val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let { uri -> vm.export(uri, false) } }
     val csv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { it?.let { uri -> vm.export(uri, true) } }
-    LaunchedEffect(result) { if (result != null) screen = "النتيجة" }
-    LaunchedEffect(message) { message?.let { snackbar.showSnackbar(it); vm.message.value = null } }
-    BackHandler(screen != "الماسح") { vm.result.value = null; screen = "الماسح" }
+    LaunchedEffect(result) { if (result != null) screen = 1 }
+    LaunchedEffect(message, configuration) { message?.let { snackbar.showSnackbar(it.resolve(context)); vm.message.value = null } }
+    BackHandler(screen != 0) { vm.result.value = null; screen = 0 }
     ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() },
         goldenTheme = support.owned && settings.goldenTheme) {
         Scaffold(topBar = { TopAppBar(title = { Column {
             Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold)
-            Text("ZATCA · $screen", style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.toolbar_subtitle, stringResource(listOf(R.string.nav_scanner, R.string.nav_result, R.string.nav_history, R.string.nav_settings)[screen])), style = MaterialTheme.typography.labelMedium)
         } }) }, bottomBar = { NavigationBar {
-            listOf("الماسح", "النتيجة", "السجل", "الإعدادات").forEachIndexed { index, label ->
-                NavigationBarItem(selected = screen == label, onClick = {
-                    if (label == "الماسح") vm.result.value = null
-                    screen = label
-                }, icon = { Text(listOf("▣", "✓", "≡", "⚙")[index]) }, label = { Text(label) })
+            listOf(R.string.nav_scanner, R.string.nav_result, R.string.nav_history, R.string.nav_settings).forEachIndexed { index, label ->
+                NavigationBarItem(selected = screen == index, onClick = {
+                    if (index == 0) vm.result.value = null
+                    screen = index
+                }, icon = { Text(listOf("▣", "✓", "≡", "⚙")[index]) }, label = { Text(stringResource(label)) })
             }
         } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
             Column(Modifier.padding(padding).fillMaxSize()) {
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 when(screen) {
-                    "الماسح" -> {
+                    0 -> {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("قراءة محلية • QR فقط", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 16.dp))
-                            TextButton(onClick = { gallery.launch("image/*") }, enabled = !busy) { Text("صورة من المعرض") }
+                            Text(stringResource(R.string.scan_local), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f).padding(top = 16.dp))
+                            TextButton(onClick = { gallery.launch("image/*") }, enabled = !busy) { Text(stringResource(R.string.gallery_pick)) }
                         }
                         if (!busy) CameraScanner(settings, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
                     }
-                    "النتيجة" -> if (result == null) EmptyState("لم تُقرأ فاتورة بعد") else ResultScreen(result!!) {
-                        vm.result.value = null; screen = "الماسح"
+                    1 -> if (result == null) EmptyState(stringResource(R.string.no_invoice)) else ResultScreen(result!!) {
+                        vm.result.value = null; screen = 0
                     }
-                    "السجل" -> {
+                    2 -> {
                         Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { json.launch("zatca-history.json") }) { Text("تصدير JSON") }
-                            TextButton(onClick = { csv.launch("zatca-history.csv") }) { Text("تصدير CSV") }
-                            TextButton(onClick = { clearDialog = true }, enabled = history.isNotEmpty()) { Text("مسح") }
+                            TextButton(onClick = { json.launch("zatca-history.json") }) { Text(stringResource(R.string.export_json)) }
+                            TextButton(onClick = { csv.launch("zatca-history.csv") }) { Text(stringResource(R.string.export_csv)) }
+                            TextButton(onClick = { clearDialog = true }, enabled = history.isNotEmpty()) { Text(stringResource(R.string.clear)) }
                         }
-                        if (history.isEmpty()) EmptyState("لا توجد قراءات محفوظة")
+                        if (history.isEmpty()) EmptyState(stringResource(R.string.no_history))
                         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             items(history, key = { it.id }) { row ->
-                                Card(Modifier.fillMaxWidth().clickable { vm.open(row); screen = "النتيجة" }) {
+                                Card(Modifier.fillMaxWidth().clickable { vm.open(row); screen = 1 }) {
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(row.seller.ifBlank { "رمز غير صالح / بلا اسم" }, fontWeight = FontWeight.Bold)
-                                        Text(if (row.invoiceType == InvoiceType.SIMPLIFIED.name) InvoiceType.SIMPLIFIED.label else InvoiceType.STANDARD.label)
-                                        Text(DateFormat.getDateTimeInstance().format(Date(row.scannedAt)), style = MaterialTheme.typography.bodySmall)
-                                        Text(if(row.passed) "اجتاز الفحوص المحلية · المرحلة ${row.phase}" else "لم يجتز الفحوص المحلية", color = if(row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                        Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) }, fontWeight = FontWeight.Bold)
+                                        Text(stringResource(if (row.invoiceType == InvoiceType.SIMPLIFIED.name) InvoiceType.SIMPLIFIED.label else InvoiceType.STANDARD.label))
+                                        Text(DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, configuration.locales[0]).format(Date(row.scannedAt)), style = MaterialTheme.typography.bodySmall)
+                                        Text(if(row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed), color = if(row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
                                     }
                                 }
                             }
@@ -109,8 +113,8 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                 }
             }
         }
-        if (clearDialog) AlertDialog(onDismissRequest = { clearDialog = false }, title = { Text("مسح السجل؟") }, text = { Text("ستُحذف كل القراءات المحفوظة على هذا الجهاز.") },
-            confirmButton = { TextButton(onClick = { vm.clear(); clearDialog = false }) { Text("حذف الكل") } }, dismissButton = { TextButton(onClick = { clearDialog = false }) { Text("إلغاء") } })
+        if (clearDialog) AlertDialog(onDismissRequest = { clearDialog = false }, title = { Text(stringResource(R.string.clear_title)) }, text = { Text(stringResource(R.string.clear_body)) },
+            confirmButton = { TextButton(onClick = { vm.clear(); clearDialog = false }) { Text(stringResource(R.string.delete_all)) } }, dismissButton = { TextButton(onClick = { clearDialog = false }) { Text(stringResource(R.string.cancel)) } })
     }
 }
 
@@ -122,31 +126,31 @@ private fun ResultScreen(invoice: Invoice, again: () -> Unit) {
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Card(colors = CardDefaults.cardColors(containerColor = if(invoice.passed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer)) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if(invoice.passed) "اجتاز فحوص QR المحلية" else "لم يجتز فحوص QR المحلية", style = MaterialTheme.typography.titleLarge)
-                Text("${invoice.type.label} · ${if (invoice.phase2) "المرحلة الثانية" else "المرحلة الأولى"}")
-                invoice.error?.let { Text(it) }
+                Text(if(invoice.passed) stringResource(R.string.result_passed) else stringResource(R.string.result_failed), style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.invoice_summary, stringResource(invoice.type.label), stringResource(if (invoice.phase2) R.string.phase_two else R.string.phase_one)))
+                invoice.error?.let { Text(it.localized()) }
             }
         } }
-        item { Text("الفحص محلي وبنيوي. وجود Hash والتوقيع والمفتاح والختم لا يثبت صحة التوقيع أو اعتماد الفاتورة لدى الهيئة.", style = MaterialTheme.typography.bodySmall) }
+        item { Text(stringResource(R.string.structural_disclaimer), style = MaterialTheme.typography.bodySmall) }
         item {
-            Text("المرحلة الأولى: ${if (invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }) "اجتازت الفحوص" else "لم تجتز"}")
-            Text("المرحلة الثانية: ${if (invoice.error == null && invoice.checks.all { it.passed }) "اجتازت الفحوص البنيوية" else "لم تجتز"}")
+            Text(stringResource(R.string.phase_one_report, stringResource(if (invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }) R.string.checks_passed else R.string.checks_failed)))
+            Text(stringResource(R.string.phase_two_report, stringResource(if (invoice.error == null && invoice.checks.all { it.passed }) R.string.structural_passed else R.string.checks_failed)))
         }
         items((1..9).toList()) { tag ->
             Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
-                Text("$tag · ${ZatcaParser.names[tag]}", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.tag_title, tag, stringResource(ZatcaParser.names.getValue(tag))), fontWeight = FontWeight.Bold)
                 SelectionContainer { Text(invoice.value(tag).ifBlank {
-                    if (tag == 9 && invoice.type == InvoiceType.STANDARD) "غير موجود · اختياري للفاتورة الضريبية" else "غير موجود"
-                }) }
-                if(tag in 6..7) Text("نص Base64 الأصلي", style = MaterialTheme.typography.labelSmall)
-                if(tag >= 8) Text("عرض البيانات الثنائية بصيغة Base64", style = MaterialTheme.typography.labelSmall)
+                    if (tag == 9 && invoice.type == InvoiceType.STANDARD) stringResource(R.string.stamp_optional) else stringResource(R.string.missing)
+                }, style = if (tag >= 2 && invoice.value(tag).isNotBlank()) MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr) else MaterialTheme.typography.bodyLarge) }
+                if(tag in 6..7) Text(stringResource(R.string.base64_original), style = MaterialTheme.typography.labelSmall)
+                if(tag >= 8) Text(stringResource(R.string.base64_binary), style = MaterialTheme.typography.labelSmall)
             } }
         }
-        item { Text("تفاصيل الفحص", style = MaterialTheme.typography.titleMedium) }
-        items(invoice.checks) { check -> Text("${if(check.passed) "✓" else "✕"} ${check.label} · م${check.phase}", color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
-        item { Text("فحوص المرحلة الثانية معروضة حتى عند غياب حقولها؛ تدخل في الشارة عند وجود أي حقل من 6 إلى 9.", style = MaterialTheme.typography.bodySmall) }
-        item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text("مسح فاتورة أخرى") } }
-        item { Text("محتوى QR الأصلي", fontWeight = FontWeight.Bold); SelectionContainer { Text(invoice.raw, style = MaterialTheme.typography.bodySmall) } }
+        item { Text(stringResource(R.string.check_details), style = MaterialTheme.typography.titleMedium) }
+        items(invoice.checks) { check -> Text(stringResource(R.string.check_status, if(check.passed) "✓" else "✕", check.label.localized(), check.phase), color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
+        item { Text(stringResource(R.string.phase_explanation), style = MaterialTheme.typography.bodySmall) }
+        item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.scan_again)) } }
+        item { Text(stringResource(R.string.raw_qr), fontWeight = FontWeight.Bold); SelectionContainer { Text(invoice.raw, style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr)) } }
     }
 }
 
@@ -156,18 +160,18 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     var showAbout by remember { mutableStateOf(false) }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SupporterCard(support, s.goldenTheme, onPurchase, onRestore) { value -> update { it.copy(goldenTheme = value) } } }
-        item { Text("خيارات محرك القراءة", style = MaterialTheme.typography.titleLarge) }
-        item { Toggle("Try harder · بحث مكثّف", s.harder) { v -> update { it.copy(harder = v) } } }
-        item { Toggle("Try denoise · تقليل التشويش", s.denoise) { v -> update { it.copy(denoise = v) } } }
-        item { Toggle("Try rotate · دوران ±90°", s.rotate) { v -> update { it.copy(rotate = v) } } }
-        item { Toggle("Try inverted · ألوان معكوسة", s.inverted) { v -> update { it.copy(inverted = v) } } }
-        item { Choice("Binarizer", s.binarizer, listOf("LOCAL_AVERAGE" to "Local average", "GLOBAL_HISTOGRAM" to "Global histogram", "FIXED_THRESHOLD" to "Fixed threshold", "BOOL_CAST" to "Bool cast")) { v -> update { it.copy(binarizer = v) } } }
-        item { Choice("دقة المسح", s.resolution, listOf("HD" to "HD · 720p", "FHD" to "FHD · 1080p", "QHD" to "QHD · 1440p")) { v -> update { it.copy(resolution = v) } } }
-        item { Choice("تردد المسح", s.speed, listOf("NORMAL" to "عادي · كل 300ms", "FAST" to "سريع · كل 100ms", "FASTEST" to "الأسرع · كل إطار متاح")) { v -> update { it.copy(speed = v) } } }
-        item { Toggle("تشغيل الكشاف", s.torch) { v -> update { it.copy(torch = v) } } }
-        item { Toggle("التركيز بالضغط", s.tapFocus) { v -> update { it.copy(tapFocus = v) } } }
-        item { Choice("المظهر", s.theme, listOf("SYSTEM" to "حسب النظام", "LIGHT" to "فاتح", "DARK" to "داكن")) { v -> update { it.copy(theme = v) } } }
-        item { Text("الدقة الفعلية حسب الكاميرا. الخيارات المكثفة والدقة العالية قد تزيد استهلاك البطارية ووقت القراءة. الزوم متاح أسفل الكاميرا.", style = MaterialTheme.typography.bodySmall) }
+        item { Text(stringResource(R.string.reader_options), style = MaterialTheme.typography.titleLarge) }
+        item { Toggle(stringResource(R.string.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
+        item { Toggle(stringResource(R.string.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }
+        item { Toggle(stringResource(R.string.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
+        item { Toggle(stringResource(R.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
+        item { Choice(stringResource(R.string.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(R.string.bin_local), "GLOBAL_HISTOGRAM" to stringResource(R.string.bin_global), "FIXED_THRESHOLD" to stringResource(R.string.bin_fixed), "BOOL_CAST" to stringResource(R.string.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
+        item { Choice(stringResource(R.string.resolution), s.resolution, listOf("HD" to stringResource(R.string.resolution_hd), "FHD" to stringResource(R.string.resolution_fhd), "QHD" to stringResource(R.string.resolution_qhd))) { v -> update { it.copy(resolution = v) } } }
+        item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest))) { v -> update { it.copy(speed = v) } } }
+        item { Toggle(stringResource(R.string.torch_enable), s.torch) { v -> update { it.copy(torch = v) } } }
+        item { Toggle(stringResource(R.string.tap_focus), s.tapFocus) { v -> update { it.copy(tapFocus = v) } } }
+        item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark))) { v -> update { it.copy(theme = v) } } }
+        item { Text(stringResource(R.string.camera_settings_note), style = MaterialTheme.typography.bodySmall) }
         item { HorizontalDivider(); TextButton(onClick = { showAbout = true }) { Text(stringResource(R.string.about_app)) } }
     }
     if (showAbout) AlertDialog(onDismissRequest = { showAbout = false },
@@ -175,10 +179,10 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE))
             if (support.owned) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
-                Text("داعم التطبيق · شكرًا لك", Modifier.padding(10.dp))
+                Text(stringResource(R.string.supporter_badge), Modifier.padding(10.dp))
             }
             Text(stringResource(R.string.about_details))
-        } }, confirmButton = { TextButton(onClick = { showAbout = false }) { Text("إغلاق") } })
+        } }, confirmButton = { TextButton(onClick = { showAbout = false }) { Text(stringResource(R.string.close)) } })
 }
 
 @Composable
@@ -186,32 +190,32 @@ private fun SupporterCard(state: SupporterState, golden: Boolean, onPurchase: ()
     onRestore: () -> Unit, onGolden: (Boolean) -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("التطبيق مجاني وبدون إعلانات", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("جميع وظائف المسح والتحليل والسجل والتصدير متاحة مجانًا.")
-            Text("باقة داعم التطبيق", style = MaterialTheme.typography.titleMedium)
-            Text("ادعم استمرار التطوير واحصل على مظهر ذهبي اختياري وشارة داعم في صفحة حول التطبيق. شراء مرة واحدة، بدون اشتراك.")
+            Text(stringResource(R.string.free_no_ads), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.free_features))
+            Text(stringResource(R.string.supporter_pack), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.supporter_description))
             if (state.owned) {
-                Text("شكرًا لدعمك! الباقة مفعّلة.", color = MaterialTheme.colorScheme.primary)
-                Toggle("المظهر الذهبي", golden, onGolden)
+                Text(stringResource(R.string.supporter_active), color = MaterialTheme.colorScheme.primary)
+                Toggle(stringResource(R.string.gold_theme), golden, onGolden)
             } else {
                 Button(onClick = onPurchase,
                     enabled = state.available && !state.loading && !state.purchasing && !state.pending,
                     modifier = Modifier.fillMaxWidth()) {
                     Text(when {
-                        state.pending -> "الشراء قيد الانتظار"
-                        state.purchasing -> "جارٍ إتمام الشراء"
-                        state.loading -> "جارٍ الاتصال بالمتجر"
-                        state.price != null -> "دعم التطبيق · ${state.price}"
-                        else -> "الشراء غير متاح حاليًا"
+                        state.pending -> stringResource(R.string.purchase_pending)
+                        state.purchasing -> stringResource(R.string.purchase_processing)
+                        state.loading -> stringResource(R.string.store_connecting)
+                        state.price != null -> stringResource(R.string.support_price, state.price.orEmpty())
+                        else -> stringResource(R.string.purchase_unavailable)
                     })
                 }
             }
             if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            state.message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            state.message?.let { Text(it.localized(), style = MaterialTheme.typography.bodySmall) }
             TextButton(onClick = onRestore, enabled = !state.loading && !state.purchasing) {
-                Text("استعادة المشتريات / إعادة المحاولة")
+                Text(stringResource(R.string.restore_retry))
             }
-            Text("الشراء والاستعادة يتطلبان Google Play واتصالًا بالإنترنت. استخدام الفواتير يظل متاحًا دون إنترنت.", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.billing_connection_note), style = MaterialTheme.typography.bodySmall)
         }
     }
 }

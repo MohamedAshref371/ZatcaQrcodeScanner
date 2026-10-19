@@ -1,5 +1,9 @@
 package com.poetscorner.zatcaqrcodescanner.ui
 
+import androidx.compose.ui.res.stringResource
+import com.poetscorner.zatcaqrcodescanner.R
+import com.poetscorner.zatcaqrcodescanner.ui.text.UiText
+import com.poetscorner.zatcaqrcodescanner.ui.text.localized
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.SystemClock
@@ -43,15 +47,15 @@ fun CameraScanner(settings: ScannerSettings, onScan: (String) -> Unit, onTorch: 
     LaunchedEffect(Unit) { if (!permission) launcher.launch(Manifest.permission.CAMERA) }
     if (!permission) {
         Column(Modifier.padding(24.dp)) {
-            Text("اسمح بالكاميرا لقراءة الفاتورة. يمكنك استخدام المعرض أيضًا.")
-            Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) { Text("السماح بالكاميرا") }
-            TextButton(onClick = { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))) }) { Text("فتح إعدادات الصلاحية") }
+            Text(stringResource(R.string.camera_permission_note))
+            Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) { Text(stringResource(R.string.camera_allow)) }
+            TextButton(onClick = { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))) }) { Text(stringResource(R.string.permission_settings)) }
         }
         return
     }
     val previewView = remember { PreviewView(context) }
     var camera by remember { mutableStateOf<Camera?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<UiText?>(null) }
     var zoom by remember { mutableFloatStateOf(0f) }
     val currentSettings by rememberUpdatedState(settings)
     val currentOnScan by rememberUpdatedState(onScan)
@@ -83,12 +87,12 @@ fun CameraScanner(settings: ScannerSettings, onScan: (String) -> Unit, onTorch: 
                             }
                         }
                     } catch (_: Exception) {
-                        ContextCompat.getMainExecutor(context).execute { if (!disposed) error = "تعذّرت معالجة إطار الكاميرا" }
+                        ContextCompat.getMainExecutor(context).execute { if (!disposed) error = UiText(R.string.camera_frame_error) }
                     } finally { image.close() }
                 }
                 camera = p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, pv, a)
                 zoom = 0f; error = null
-            } catch (_: Exception) { error = "تعذّر تشغيل الكاميرا. أغلق أي تطبيق يستخدمها وجرّب مجددًا." }
+            } catch (_: Exception) { error = UiText(R.string.camera_start_error) }
         }, ContextCompat.getMainExecutor(context))
         onDispose {
             disposed = true; analysis?.clearAnalyzer()
@@ -101,8 +105,8 @@ fun CameraScanner(settings: ScannerSettings, onScan: (String) -> Unit, onTorch: 
         if (camera?.cameraInfo?.hasFlashUnit() == true) camera?.cameraControl?.enableTorch(settings.torch)
     }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("وجّه الكاميرا إلى QR الفاتورة • اضغط للتركيز", Modifier.padding(horizontal = 16.dp))
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
+        Text(stringResource(R.string.camera_hint), Modifier.padding(horizontal = 16.dp))
+        error?.let { Text(it.localized(), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
         AndroidView(factory = { previewView }, modifier = Modifier.weight(1f).fillMaxWidth(), update = { view ->
             view.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_UP) {
@@ -116,9 +120,9 @@ fun CameraScanner(settings: ScannerSettings, onScan: (String) -> Unit, onTorch: 
             }
         })
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("الزوم")
+            Text(stringResource(R.string.zoom))
             Slider(zoom, onValueChange = { zoom = it; camera?.cameraControl?.setLinearZoom(it) }, modifier = Modifier.weight(1f), enabled = camera != null)
-            TextButton(onClick = onTorch, enabled = camera?.cameraInfo?.hasFlashUnit() == true) { Text(if(settings.torch) "إطفاء الكشاف" else "الكشاف") }
+            TextButton(onClick = onTorch, enabled = camera?.cameraInfo?.hasFlashUnit() == true) { Text(if(settings.torch) stringResource(R.string.torch_off) else stringResource(R.string.torch)) }
         }
     }
 }

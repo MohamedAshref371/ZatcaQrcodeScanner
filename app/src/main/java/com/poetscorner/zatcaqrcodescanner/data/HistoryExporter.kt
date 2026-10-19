@@ -5,13 +5,13 @@ import org.json.JSONObject
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
 
 object HistoryExporter {
-    fun json(rows: List<ScanEntity>): String = JSONArray().apply {
+    fun json(rows: List<ScanEntity>, names: Map<Int, String>): String = JSONArray().apply {
         rows.map { it.revalidated() }.forEach { row -> put(JSONObject().apply {
             put("id", row.id); put("scannedAt", row.scannedAt); put("raw", row.raw)
             put("seller", row.seller); put("localChecksPassed", row.passed); put("phase", row.phase)
             put("invoiceType", row.invoiceType)
             put("fields", JSONArray().apply { ZatcaParser.parse(row.raw).fields.forEach { f ->
-                put(JSONObject().put("tag", f.tag).put("name", ZatcaParser.names[f.tag]).put("value", f.value))
+                put(JSONObject().put("tag", f.tag).put("name", names[f.tag]).put("value", f.value))
             } })
         }) }
     }.toString(2)

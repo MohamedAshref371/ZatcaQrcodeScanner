@@ -1,2 +1,2 @@
-Initial release: scan invoice QR codes with your camera or from images, review invoice details and local checks, save a local history and export JSON or CSV. Includes scanner settings and light and dark themes. App interface is in Arabic.
+Initial release: scan invoice QR codes with your camera or from images, review invoice details and local checks, save a local history and export JSON or CSV. Includes scanner settings, Arabic and English, and light and dark themes.
 Optional supporter pack with a gold theme and badge. All invoice features remain free and ad-free.

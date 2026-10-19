@@ -2,6 +2,8 @@ package com.poetscorner.zatcaqrcodescanner.billing
 
 import android.app.Activity
 import android.app.Application
+import com.poetscorner.zatcaqrcodescanner.R
+import com.poetscorner.zatcaqrcodescanner.ui.text.UiText
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.*
@@ -20,7 +22,7 @@ import kotlin.coroutines.resume
 
 data class SupporterState(val owned: Boolean = false, val loading: Boolean = false,
     val purchasing: Boolean = false, val pending: Boolean = false, val price: String? = null,
-    val available: Boolean = false, val message: String? = null)
+    val available: Boolean = false, val message: UiText? = null)
 
 class SupporterViewModel(app: Application) : AndroidViewModel(app) {
     companion object { const val PRODUCT_ID = "supporter_pack" }
@@ -43,16 +45,16 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
                 mutableState.value = state.value.copy(purchasing = false)
                 when (result.responseCode) {
                     BillingClient.BillingResponseCode.OK -> process(purchases.orEmpty(), false)
-                    BillingClient.BillingResponseCode.USER_CANCELED -> mutableState.value = state.value.copy(message = "تم إلغاء الشراء؛ يمكنك الاستمرار باستخدام التطبيق مجانًا.")
+                    BillingClient.BillingResponseCode.USER_CANCELED -> mutableState.value = state.value.copy(message = UiText(R.string.billing_cancelled))
                     BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> refresh()
-                    else -> failed("تعذّر إتمام الشراء. لم تتغير وظائف التطبيق المجانية.")
+                    else -> failed(UiText(R.string.billing_failed))
                 }
             }
         }.build()
 
     fun refresh() {
         if (closed || state.value.purchasing || state.value.loading || connecting || querying) return
-        if (!configured) { failed("باقة الداعم غير متاحة حاليًا. جميع وظائف التطبيق مجانية وبدون إعلانات."); return }
+        if (!configured) { failed(UiText(R.string.billing_unconfigured)); return }
         mutableState.value = state.value.copy(loading = true, message = null)
         if (client.isReady) queryStore() else {
             connecting = true
@@ -61,11 +63,11 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
                     connecting = false
                     if (closed) return
                     if (result.responseCode == BillingClient.BillingResponseCode.OK) queryStore()
-                    else failed("تعذّر الاتصال بـ Google Play. يمكنك المحاولة مجددًا، واستخدام التطبيق دون إنترنت.")
+                    else failed(UiText(R.string.billing_connect_error))
                 }
                 override fun onBillingServiceDisconnected() {
                     connecting = false
-                    if (!closed) failed("انقطع الاتصال بـ Google Play. أعد المحاولة عند توفر الاتصال.")
+                    if (!closed) failed(UiText(R.string.billing_disconnected))
                 }
             })
         }
@@ -81,7 +83,7 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                     process(purchases, generation == purchaseGeneration)
                     mutableState.value = state.value.copy(loading = false)
-                } else failed("تعذّرت استعادة المشتريات. احتفظنا بالمظهر المتاح على هذا الجهاز؛ أعد المحاولة لاحقًا.")
+                } else failed(UiText(R.string.billing_restore_error))
             }
         }
         client.queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(listOf(
@@ -92,7 +94,7 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
                     products.productDetailsList.firstOrNull { it.productId == PRODUCT_ID } else null
                 val offer = details?.oneTimePurchaseOfferDetailsList?.firstOrNull()
                 mutableState.value = state.value.copy(price = offer?.formattedPrice, available = offer != null)
-                if (offer == null && !state.value.owned) mutableState.value = state.value.copy(message = "باقة الداعم غير متاحة حاليًا لهذا الحساب أو البلد. يمكنك إعادة المحاولة لاحقًا.")
+                if (offer == null && !state.value.owned) mutableState.value = state.value.copy(message = UiText(R.string.billing_region_unavailable))
             }
         }
     }
@@ -109,7 +111,7 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
             mutableState.value = state.value.copy(purchasing = false)
             if (result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) refresh()
-            else failed("تعذّر فتح نافذة الشراء في Google Play. أعد المحاولة لاحقًا.")
+            else failed(UiText(R.string.billing_launch_error))
         }
     }
 
@@ -144,11 +146,11 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
         if (authoritative && !verifiedOwner && !invalid) setOwned(false)
         mutableState.value = state.value.copy(pending = relevant.any { it.purchaseState == Purchase.PurchaseState.PENDING },
             message = when {
-                invalid -> "تعذّر التحقق من الشراء. جرّب استعادة المشتريات من حساب Google Play الذي اشترى الباقة."
-                acknowledgementFailed -> "تم تفعيل الباقة، لكن تأكيد الشراء يحتاج اتصالًا. اضغط استعادة المشتريات لإعادة المحاولة."
-                verifiedOwner -> "شكرًا لدعمك! المظهر الذهبي وشارة الداعم متاحان الآن."
-                relevant.any { it.purchaseState == Purchase.PurchaseState.PENDING } -> "الشراء قيد الانتظار في Google Play. ستُفعّل الباقة بعد اكتمال الدفع."
-                authoritative -> "لا توجد باقة داعم مفعّلة على حساب المتجر الحالي. يمكنك استخدام جميع وظائف التطبيق مجانًا."
+                invalid -> UiText(R.string.billing_verify_error)
+                acknowledgementFailed -> UiText(R.string.billing_ack_error)
+                verifiedOwner -> UiText(R.string.billing_thanks)
+                relevant.any { it.purchaseState == Purchase.PurchaseState.PENDING } -> UiText(R.string.billing_pending_note)
+                authoritative -> UiText(R.string.billing_not_owned)
                 else -> state.value.message
             })
     }
@@ -157,7 +159,7 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("owned", owned).apply()
         mutableState.value = state.value.copy(owned = owned)
     }
-    private fun failed(message: String) {
+    private fun failed(message: UiText) {
         mutableState.value = state.value.copy(loading = false, available = false, message = message)
     }
     override fun onCleared() { closed = true; client.endConnection() }
