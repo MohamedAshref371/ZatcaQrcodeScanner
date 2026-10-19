@@ -127,7 +127,7 @@
     <string name="check_present">%1$s is present</string>
     <string name="check_stamp">%1$s is present (required for simplified invoices)</string>
     <string name="check_vat">VAT number: 15 digits starting with 3</string>
-    <string name="check_date">ISO 8601 timestamp (no time zone means Saudi time, UTC+3)</string>
+    <string name="check_date">ISO 8601 timestamp</string>
     <string name="check_total">Non-negative total with up to two decimal places</string>
     <string name="check_tax">Non-negative VAT with up to two decimal places</string>
     <string name="check_tax_total">VAT does not exceed the total</string>

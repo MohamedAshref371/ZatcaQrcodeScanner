@@ -127,7 +127,7 @@
     <string name="check_present">وجود %1$s</string>
     <string name="check_stamp">وجود %1$s (مطلوب للمبسطة)</string>
     <string name="check_vat">الرقم الضريبي: 15 رقمًا ويبدأ بـ 3</string>
-    <string name="check_date">التاريخ ISO 8601 (بدون منطقة زمنية = توقيت السعودية UTC+3)</string>
+    <string name="check_date">التاريخ بصيغة ISO 8601</string>
     <string name="check_total">الإجمالي رقم غير سالب (حتى منزلتين)</string>
     <string name="check_tax">الضريبة رقم غير سالب (حتى منزلتين)</string>
     <string name="check_tax_total">الضريبة لا تتجاوز الإجمالي</string>
