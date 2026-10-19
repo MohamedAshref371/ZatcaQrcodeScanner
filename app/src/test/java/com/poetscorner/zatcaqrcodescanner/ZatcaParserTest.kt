@@ -6,6 +6,7 @@ import com.poetscorner.zatcaqrcodescanner.data.ScanEntity
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.Base64
+import java.time.ZoneOffset
 
 class ZatcaParserTest {
     private fun tlv(tag: Int, text: String): ByteArray = text.toByteArray().let { byteArrayOf(tag.toByte(), it.size.toByte()) + it }
@@ -80,6 +81,30 @@ class ZatcaParserTest {
     @Test fun malformedCalendarDateFails() {
         val bytes = tlv(1,"متجر") + tlv(2,"310123456789013") + tlv(3,"2026-02-30T12:00:00Z") + tlv(4,"10") + tlv(5,"1")
         assertFalse(parse(bytes).checks.first { it.label.startsWith("التاريخ ISO") }.passed)
+    }
+    @Test fun saudiLocalTimestampAndUtcRepresentTheSameInstant() {
+        val local = ZatcaParser.parseTimestamp("2024-11-29T14:25:00")
+        val utc = ZatcaParser.parseTimestamp("2024-11-29T11:25:00Z")
+        val explicit = ZatcaParser.parseTimestamp("2024-11-29T14:25:00+03:00")
+        assertEquals(ZoneOffset.ofHours(3), local.offset)
+        assertEquals(ZoneOffset.UTC, utc.offset)
+        assertEquals(utc.toInstant(), local.toInstant())
+        assertEquals(explicit.toInstant(), local.toInstant())
+        val text = "2024-11-29T14:25:00"
+        val invoice = parse(tlv(1, "متجر") + tlv(2, "310123456789013") + tlv(3, text) + tlv(4, "115") + tlv(5, "15"))
+        assertTrue(invoice.passed)
+        assertEquals(text, invoice.value(3))
+    }
+    @Test fun timestampsAcceptFractionsAndExplicitOffsets() {
+        listOf("2024-11-29T14:25:00.123", "2024-11-29T11:25:00.123Z",
+            "2024-11-29T14:25:00.123+03:00", "2024-11-29T06:25:00-05:00",
+            "2024-02-29T14:25:00").forEach { assertTrue(it, runCatching { ZatcaParser.parseTimestamp(it) }.isSuccess) }
+    }
+    @Test fun zoneLessTimestampsStillRejectInvalidDatesAndTimes() {
+        listOf("2024-11-31T14:25:00", "2023-02-29T14:25:00", "2024-11-29T24:25:00",
+            "2024-11-29T14:60:00", "2024-11-29T14:25:60", "2024-11-29", "2024-11-29T14:25",
+            "2024-11-29 14:25:00", "2024-11-29T14:25:00+25:00", "2024-11-29T14:25:00junk")
+            .forEach { assertTrue(it, runCatching { ZatcaParser.parseTimestamp(it) }.isFailure) }
     }
     @Test fun berLengths81And82() {
         val data = "A".repeat(300).toByteArray()

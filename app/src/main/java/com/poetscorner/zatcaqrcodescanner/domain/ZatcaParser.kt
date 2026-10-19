@@ -4,6 +4,8 @@ import java.math.BigDecimal
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.time.OffsetDateTime
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Base64
 
@@ -35,9 +37,8 @@ object ZatcaParser {
             checks += Check("وجود ${names[9]} (مطلوب للمبسطة)", value(9).isNotBlank(), 2)
         }
         checks += Check("الرقم الضريبي: 15 رقمًا ويبدأ بـ 3", value(2).matches(Regex("3[0-9]{14}")))
-        checks += Check("التاريخ ISO 8601 مع المنطقة الزمنية", runCatching {
-            require(value(3).matches(Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})")))
-            OffsetDateTime.parse(value(3), DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        checks += Check("التاريخ ISO 8601 (بدون منطقة زمنية = توقيت السعودية UTC+3)", runCatching {
+            parseTimestamp(value(3))
         }.isSuccess)
         fun amount(tag: Int): BigDecimal? = value(tag).takeIf { it.matches(Regex("[0-9]+(\\.[0-9]{1,2})?")) }?.toBigDecimalOrNull()
         checks += Check("الإجمالي رقم غير سالب (حتى منزلتين)", amount(4) != null)
@@ -46,6 +47,18 @@ object ZatcaParser {
         Invoice(raw, fields, checks)
     } catch (e: IllegalArgumentException) {
         Invoice(raw, emptyList(), listOf(Check("بنية Base64 وTLV سليمة", false)), e.message ?: "بيانات غير صالحة")
+    }
+
+    private val timestampPattern = Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})?")
+
+    /** Preserve Tag 3 text for display; interpret zone-less timestamps at Saudi UTC+03:00. */
+    fun parseTimestamp(value: String): OffsetDateTime {
+        val match = requireNotNull(timestampPattern.matchEntire(value)) { "صيغة تاريخ ISO 8601 غير صالحة" }
+        return if (match.groupValues[1].isEmpty()) {
+            LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atOffset(ZoneOffset.ofHours(3))
+        } else {
+            OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        }
     }
 
     /** Standard ZATCA one-byte lengths first; BER 0x81/0x82 is an interoperability fallback.
