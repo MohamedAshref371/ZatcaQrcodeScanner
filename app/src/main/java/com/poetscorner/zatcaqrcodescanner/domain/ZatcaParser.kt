@@ -40,20 +40,24 @@ object ZatcaParser {
         val fields = decodeTlv(bytes)
         val type = if (fields.any { it.tag == 9 }) InvoiceType.SIMPLIFIED else InvoiceType.STANDARD
         fun value(tag: Int) = fields.firstOrNull { it.tag == tag }?.value.orEmpty()
+        fun amount(tag: Int): BigDecimal? = value(tag).takeIf { it.matches(Regex("[0-9]+(\\.[0-9]{1,2})?")) }?.toBigDecimalOrNull()
         val checks = mutableListOf<Check>()
         checks += Check(UiText(R.string.check_structure), true)
-        (1..8).forEach { tag -> checks += Check(UiText(R.string.check_present, UiText(names.getValue(tag))), value(tag).isNotBlank(), if (tag > 5) 2 else 1) }
-        if (type == InvoiceType.SIMPLIFIED) {
-            checks += Check(UiText(R.string.check_stamp, UiText(names.getValue(9))), value(9).isNotBlank(), 2)
+        // Keep each tag's presence and value checks together, regardless of the TLV input order.
+        (1..9).forEach { tag ->
+            if (tag == 9 && type != InvoiceType.SIMPLIFIED) return@forEach
+            val presenceLabel = if (tag == 9) R.string.check_stamp else R.string.check_present
+            checks += Check(UiText(presenceLabel, UiText(names.getValue(tag))), value(tag).isNotBlank(), if (tag > 5) 2 else 1)
+            when (tag) {
+                2 -> checks += Check(UiText(R.string.check_vat), value(2).matches(Regex("3[0-9]{14}")))
+                3 -> checks += Check(UiText(R.string.check_date), runCatching { parseTimestamp(value(3)) }.isSuccess)
+                4 -> checks += Check(UiText(R.string.check_total), amount(4) != null)
+                5 -> {
+                    checks += Check(UiText(R.string.check_tax), amount(5) != null)
+                    checks += Check(UiText(R.string.check_tax_total), amount(4)?.let { total -> amount(5)?.let { it <= total } } == true)
+                }
+            }
         }
-        checks += Check(UiText(R.string.check_vat), value(2).matches(Regex("3[0-9]{14}")))
-        checks += Check(UiText(R.string.check_date), runCatching {
-            parseTimestamp(value(3))
-        }.isSuccess)
-        fun amount(tag: Int): BigDecimal? = value(tag).takeIf { it.matches(Regex("[0-9]+(\\.[0-9]{1,2})?")) }?.toBigDecimalOrNull()
-        checks += Check(UiText(R.string.check_total), amount(4) != null)
-        checks += Check(UiText(R.string.check_tax), amount(5) != null)
-        checks += Check(UiText(R.string.check_tax_total), amount(4)?.let { total -> amount(5)?.let { it <= total } } == true)
         Invoice(raw, fields, checks)
     } catch (e: IllegalArgumentException) {
         Invoice(raw, emptyList(), listOf(Check(UiText(R.string.check_structure), false)),
