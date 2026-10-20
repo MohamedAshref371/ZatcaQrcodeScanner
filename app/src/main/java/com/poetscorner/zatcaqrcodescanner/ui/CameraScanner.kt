@@ -5,10 +5,13 @@ import com.poetscorner.zatcaqrcodescanner.R
 import com.poetscorner.zatcaqrcodescanner.ui.text.UiText
 import com.poetscorner.zatcaqrcodescanner.ui.text.localized
 import android.Manifest
+import android.graphics.Rect
 import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.util.Size
+import android.util.Rational
 import android.view.MotionEvent
+import android.view.Surface
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
@@ -16,11 +19,25 @@ import androidx.camera.core.resolutionselector.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size as ComposeSize
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -28,6 +45,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
 import com.poetscorner.zatcaqrcodescanner.scanner.reader
+import com.poetscorner.zatcaqrcodescanner.scanner.scanWindow
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
@@ -54,14 +72,21 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
         }
         return
     }
-    val previewView = remember { PreviewView(context) }
+    val previewView = remember {
+        PreviewView(context).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+        }
+    }
+    var previewSize by remember { mutableStateOf(IntSize.Zero) }
     var camera by remember { mutableStateOf<Camera?>(null) }
     var error by remember { mutableStateOf<UiText?>(null) }
     var zoom by remember { mutableFloatStateOf(0f) }
     val currentSettings by rememberUpdatedState(settings)
     val currentOnScan by rememberUpdatedState(onScan)
     val scope = rememberCoroutineScope()
-    DisposableEffect(owner, settings.resolution) {
+    DisposableEffect(owner, settings.resolution, previewSize) {
+        if (previewSize.width == 0 || previewSize.height == 0) return@DisposableEffect onDispose { }
         val executor = Executors.newSingleThreadExecutor()
         val providerFuture = ProcessCameraProvider.getInstance(context)
         val delivered = AtomicBoolean(false)
@@ -85,6 +110,13 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
                         val now = SystemClock.elapsedRealtime()
                         if (!delivered.get() && now - last >= currentSettings.intervalMs) {
                             last = now
+                            // The shared ViewPort maps this crop to the preview's visible sensor area.
+                            // ZXing reads ImageProxy.cropRect, so pixels outside the guide are never scanned.
+                            val visible = image.cropRect
+                            val window = scanWindow(visible.width(), visible.height())
+                            val left = visible.left + window.left
+                            val top = visible.top + window.top
+                            image.setCropRect(Rect(left, top, left + window.size, top + window.size))
                             val result = currentSettings.reader().read(image).firstOrNull { it.error == null && it.text != null }
                             // Suppress repeated warnings for the same rejected QR while allowing a different one immediately.
                             if (result != null && (result.text != lastCandidate || now - lastCandidateAt >= 4000L)
@@ -102,7 +134,10 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
                         ContextCompat.getMainExecutor(context).execute { if (!disposed) error = UiText(R.string.camera_frame_error) }
                     } finally { image.close() }
                 }
-                camera = p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, pv, a)
+                val viewPort = ViewPort.Builder(Rational(previewSize.width, previewSize.height),
+                    previewView.display?.rotation ?: Surface.ROTATION_0).setScaleType(ViewPort.FILL_CENTER).build()
+                val group = UseCaseGroup.Builder().setViewPort(viewPort).addUseCase(pv).addUseCase(a).build()
+                camera = p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, group)
                 zoom = 0f; error = null
             } catch (_: Exception) { error = UiText(R.string.camera_start_error) }
         }, ContextCompat.getMainExecutor(context))
@@ -117,21 +152,41 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
         if (camera?.cameraInfo?.hasFlashUnit() == true) camera?.cameraControl?.enableTorch(settings.torch)
     }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(R.string.camera_hint), Modifier.padding(horizontal = 16.dp))
-        error?.let { Text(it.localized(), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
-        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxWidth().aspectRatio(1f), update = { view ->
-            view.setOnTouchListener { _, event ->
-                if (event.action == MotionEvent.ACTION_UP) {
-                    if (currentSettings.tapFocus) {
-                        val point = view.meteringPointFactory.createPoint(event.x, event.y)
-                        camera?.cameraControl?.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
+        Box(Modifier.weight(1f).fillMaxWidth().clipToBounds().onSizeChanged { previewSize = it }) {
+            AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize(), update = { view ->
+                view.setOnTouchListener { _, event ->
+                    if (event.action == MotionEvent.ACTION_UP) {
+                        if (currentSettings.tapFocus) {
+                            val point = view.meteringPointFactory.createPoint(event.x, event.y)
+                            camera?.cameraControl?.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
+                        }
+                        view.performClick()
                     }
-                    view.performClick()
+                    true
                 }
-                true
+            })
+            Canvas(Modifier.fillMaxSize()) {
+                if (size.width < 1 || size.height < 1) return@Canvas
+                val window = scanWindow(size.width.toInt(), size.height.toInt())
+                val left = window.left.toFloat()
+                val top = window.top.toFloat()
+                val side = window.size.toFloat()
+                val radius = CornerRadius(20.dp.toPx())
+                val shade = Path().apply {
+                    fillType = PathFillType.EvenOdd
+                    addRect(androidx.compose.ui.geometry.Rect(Offset.Zero, size))
+                    addRoundRect(RoundRect(left, top, left + side, top + side, radius))
+                }
+                drawPath(shade, Color.Black.copy(alpha = 0.5f))
+                drawRoundRect(Color.White, Offset(left, top), ComposeSize(side, side), radius, style = Stroke(3.dp.toPx()))
             }
-        })
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(stringResource(R.string.camera_hint), Modifier.align(Alignment.TopCenter).padding(20.dp),
+                color = Color.White, textAlign = TextAlign.Center)
+            error?.let { Text(it.localized(), color = Color.White,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)) }
+        }
+        Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.zoom))
             Slider(zoom, onValueChange = { zoom = it; camera?.cameraControl?.setLinearZoom(it) }, modifier = Modifier.weight(1f), enabled = camera != null)
             TextButton(onClick = onTorch, enabled = camera?.cameraInfo?.hasFlashUnit() == true) { Text(if(settings.torch) stringResource(R.string.torch_off) else stringResource(R.string.torch)) }

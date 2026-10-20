@@ -91,7 +91,7 @@
     <string name="permission_settings">فتح إعدادات الصلاحية</string>
     <string name="camera_frame_error">تعذّرت معالجة إطار الكاميرا</string>
     <string name="camera_start_error">تعذّر تشغيل الكاميرا. أغلق أي تطبيق يستخدمها وجرّب مجددًا.</string>
-    <string name="camera_hint">وجّه الكاميرا إلى QR الفاتورة • اضغط للتركيز</string>
+    <string name="camera_hint">ضع رمز QR الفاتورة داخل المربع • اضغط للتركيز</string>
     <string name="zoom">الزوم</string>
     <string name="torch_off">إطفاء الكشاف</string>
     <string name="torch">الكشاف</string>

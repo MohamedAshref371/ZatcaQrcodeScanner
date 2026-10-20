@@ -91,7 +91,7 @@
     <string name="permission_settings">Open permission settings</string>
     <string name="camera_frame_error">Unable to process a camera frame</string>
     <string name="camera_start_error">Unable to start the camera. Close other apps using it and try again.</string>
-    <string name="camera_hint">Point at the invoice QR code • Tap to focus</string>
+    <string name="camera_hint">Place the invoice QR code inside the square • Tap to focus</string>
     <string name="zoom">Zoom</string>
     <string name="torch_off">Turn torch off</string>
     <string name="torch">Torch</string>
