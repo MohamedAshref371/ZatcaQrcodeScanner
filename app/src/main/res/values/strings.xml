@@ -14,6 +14,7 @@
     <string name="no_invoice">No invoice scanned yet</string>
     <string name="export_json">Export JSON</string>
     <string name="export_csv">Export CSV</string>
+    <string name="export_invoice_date">Invoice date</string>
     <string name="clear">Delete</string>
     <string name="no_history">No saved scans</string>
     <string name="unknown_seller">Invalid code / no seller name</string>

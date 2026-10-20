@@ -14,6 +14,7 @@
     <string name="no_invoice">لم تُقرأ فاتورة بعد</string>
     <string name="export_json">تصدير JSON</string>
     <string name="export_csv">تصدير CSV</string>
+    <string name="export_invoice_date">تاريخ الفاتورة</string>
     <string name="clear">حذف</string>
     <string name="no_history">لا توجد قراءات محفوظة</string>
     <string name="unknown_seller">رمز غير صالح / بلا اسم</string>

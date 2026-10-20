@@ -61,8 +61,12 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
     fun export(uri: Uri, csv: Boolean) { viewModelScope.launch {
         try { withContext(Dispatchers.IO) {
             val rows = db.scans().all()
+            val names = mapOf(1 to R.string.tag_seller, 2 to R.string.tag_vat,
+                3 to R.string.export_invoice_date, 4 to R.string.tag_total,
+                5 to R.string.tag_tax, 6 to R.string.tag_hash)
+                .mapValues { getApplication<Application>().getString(it.value) }
             requireNotNull(getApplication<Application>().contentResolver.openOutputStream(uri, "wt")).bufferedWriter(Charsets.UTF_8).use {
-                it.write(if (csv) HistoryExporter.csv(rows) else HistoryExporter.json(rows, ZatcaParser.names.mapValues { getApplication<Application>().getString(it.value) }))
+                it.write(if (csv) HistoryExporter.csv(rows, names) else HistoryExporter.json(rows, names))
             }
         }; message.value = UiText(R.string.export_success) }
         catch (_: Exception) { message.value = UiText(R.string.export_error) }

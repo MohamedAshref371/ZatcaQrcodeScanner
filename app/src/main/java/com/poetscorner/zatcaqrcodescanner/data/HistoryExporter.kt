@@ -5,24 +5,31 @@ import org.json.JSONObject
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
 
 object HistoryExporter {
+    private fun fields(row: ScanEntity): Map<Int, String> {
+        val invoice = ZatcaParser.parse(row.raw)
+        return (1..6).associateWith { invoice.value(it) }
+    }
+
     fun json(rows: List<ScanEntity>, names: Map<Int, String>): String = JSONArray().apply {
-        rows.map { it.revalidated() }.forEach { row -> put(JSONObject().apply {
-            put("id", row.id); put("scannedAt", row.scannedAt); put("raw", row.raw)
-            put("seller", row.seller); put("localChecksPassed", row.passed); put("phase", row.phase)
-            put("invoiceType", row.invoiceType)
-            put("fields", JSONArray().apply { ZatcaParser.parse(row.raw).fields.forEach { f ->
-                put(JSONObject().put("tag", f.tag).put("name", names[f.tag]).put("value", f.value))
-            } })
-        }) }
+        rows.forEach { row ->
+            put(JSONObject().apply {
+                fields(row).forEach { (tag, value) ->
+                    if (tag != 6 || value.isNotBlank()) put(names.getValue(tag), value)
+                }
+            })
+        }
     }.toString(2)
-    fun csv(rows: List<ScanEntity>): String {
+    fun csv(rows: List<ScanEntity>, names: Map<Int, String>): String {
         fun quote(value: String): String {
             // Prevent spreadsheet formula execution in exported untrusted QR text.
             val safe = if (value.trimStart().firstOrNull() in listOf('=', '+', '-', '@', '\t', '\r')) "'$value" else value
             return "\"${safe.replace("\"", "\"\"")}\""
         }
-        return "\uFEFFid,scannedAt,seller,phase,localChecksPassed,raw,invoiceType\r\n" + rows.map { it.revalidated() }.joinToString("\r\n") {
-            listOf(it.id.toString(), it.scannedAt.toString(), it.seller, it.phase.toString(), it.passed.toString(), it.raw, it.invoiceType).joinToString(",", transform = ::quote)
+        val invoices = rows.map(::fields)
+        val tags = if (invoices.any { it.getValue(6).isNotBlank() }) (1..6) else (1..5)
+        val header = tags.joinToString(",") { quote(names.getValue(it)) }
+        return "\uFEFF$header\r\n" + invoices.joinToString("\r\n") { invoice ->
+            tags.joinToString(",") { quote(invoice.getValue(it)) }
         }
     }
 }
