@@ -64,6 +64,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
+    // Runtime dependencies already select Foundation 1.9.2; compile against the same ABI.
+    implementation("androidx.compose.foundation:foundation:1.9.2")
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)

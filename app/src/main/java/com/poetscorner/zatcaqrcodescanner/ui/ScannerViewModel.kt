@@ -22,7 +22,7 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
     private val db = Room.databaseBuilder(app, ScanDatabase::class.java, "invoices.db").addMigrations(MIGRATION_1_2).build()
     private val repository = SettingsRepository(app)
     val settings = repository.settings.stateIn(viewModelScope, SharingStarted.Eagerly, ScannerSettings())
-    val history = db.scans().observe().map { rows -> rows.map { it.revalidated() } }.flowOn(Dispatchers.Default)
+    val historyEntries = db.scans().observe().map { rows -> rows.map { HistoryEntry.from(it) } }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val result = MutableStateFlow<Invoice?>(null)
     val message = MutableStateFlow<UiText?>(null)

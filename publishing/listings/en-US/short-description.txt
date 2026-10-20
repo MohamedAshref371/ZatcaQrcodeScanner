@@ -1,1 +1,1 @@
-Scan Saudi e-invoice QR codes offline and keep a local invoice history
+Read Saudi invoice QR codes offline, inspect Base64 and search your scan history

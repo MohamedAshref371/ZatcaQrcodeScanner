@@ -3,8 +3,8 @@ package com.poetscorner.zatcaqrcodescanner.ui
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -40,19 +40,18 @@ import com.poetscorner.zatcaqrcodescanner.billing.SupporterState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
 import com.poetscorner.zatcaqrcodescanner.data.ScanEngine
+import com.poetscorner.zatcaqrcodescanner.data.HistoryDateSource
 import com.poetscorner.zatcaqrcodescanner.domain.Invoice
 import com.poetscorner.zatcaqrcodescanner.domain.InvoiceType
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
 import com.poetscorner.zatcaqrcodescanner.ui.theme.ZatcaQrcodeScannerTheme
-import java.text.DateFormat
-import java.util.Date
 import com.poetscorner.zatcaqrcodescanner.ui.text.localized
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel = viewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val history by vm.history.collectAsStateWithLifecycle()
+    val history by vm.historyEntries.collectAsStateWithLifecycle()
     val result by vm.result.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
@@ -62,6 +61,11 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { supporter.refresh() }
     var screen by rememberSaveable { mutableIntStateOf(0) }
     var clearDialog by remember { mutableStateOf(false) }
+    var historyQuery by rememberSaveable { mutableStateOf("") }
+    var historyFrom by rememberSaveable { mutableStateOf<Long?>(null) }
+    var historyTo by rememberSaveable { mutableStateOf<Long?>(null) }
+    var historyDateSource by rememberSaveable { mutableStateOf(HistoryDateSource.INVOICE) }
+    var historyFilterDialog by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(vm::gallery) }
     val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let { uri -> vm.export(uri, false) } }
@@ -96,35 +100,25 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         vm.result.value = null; screen = 0
                     }
                     2 -> {
-                        Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             TextButton(onClick = { json.launch("zatca-history.json") }) { Text(stringResource(R.string.export_json)) }
                             TextButton(onClick = { csv.launch("zatca-history.csv") }) { Text(stringResource(R.string.export_csv)) }
+                            TextButton(onClick = { historyFilterDialog = true }) { Text(stringResource(R.string.history_filter_search)) }
                             TextButton(onClick = { clearDialog = true }, enabled = history.isNotEmpty()) { Text(stringResource(R.string.clear)) }
                         }
-                        if (history.isEmpty()) EmptyState(stringResource(R.string.no_history))
-                        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            items(history, key = { it.id }) { row ->
-                                Card(Modifier.fillMaxWidth().clickable { vm.open(row); screen = 1 }) {
-                                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) }, fontWeight = FontWeight.Bold)
-                                            Text(DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, configuration.locales[0]).format(Date(row.scannedAt)), style = MaterialTheme.typography.bodySmall)
-                                            Text(if(row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed), color = if(row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-                                        }
-                                        TextButton(onClick = { vm.delete(row) }) {
-                                            Text(stringResource(R.string.clear), color = MaterialTheme.colorScheme.error)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        HistoryScreen(history, historyQuery, { historyQuery = it }, historyFrom, historyTo, historyDateSource,
+                            onOpen = { vm.open(it); screen = 1 }, onDelete = vm::delete)
                     }
                     else -> SettingsScreen(settings, vm::update, support,
                         onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh)
                 }
             }
         }
+        if (historyFilterDialog) HistoryFilterDialog(historyDateSource, historyFrom, historyTo,
+            onDismiss = { historyFilterDialog = false }, onApply = { source, from, to ->
+                historyDateSource = source; historyFrom = from; historyTo = to; historyFilterDialog = false
+            })
         if (clearDialog) AlertDialog(onDismissRequest = { clearDialog = false }, title = { Text(stringResource(R.string.clear_title)) }, text = { Text(stringResource(R.string.clear_body)) },
             confirmButton = {
                 Column(horizontalAlignment = Alignment.End) {
@@ -136,9 +130,6 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             }, dismissButton = { TextButton(onClick = { clearDialog = false }) { Text(stringResource(R.string.cancel)) } })
     }
 }
-
-@Composable
-private fun EmptyState(text: String) { Box(Modifier.fillMaxWidth().padding(32.dp)) { Text(text) } }
 
 @Composable
 private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
@@ -171,40 +162,73 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
 
 @Composable
 private fun ResultScreen(invoice: Invoice, again: () -> Unit) {
+    var advanced by rememberSaveable(invoice.raw) { mutableStateOf(false) }
+    var checks by rememberSaveable(invoice.raw) { mutableStateOf(false) }
+    var raw by rememberSaveable(invoice.raw) { mutableStateOf(false) }
+    val relevantChecks = invoice.checks.filter { invoice.phase2 || it.phase == 1 }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Card(colors = CardDefaults.cardColors(containerColor = if(invoice.passed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer)) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if(invoice.passed) stringResource(R.string.result_passed) else stringResource(R.string.result_failed), style = MaterialTheme.typography.titleLarge)
                 Text(stringResource(R.string.invoice_summary, stringResource(invoice.type.label), stringResource(if (invoice.phase2) R.string.phase_two else R.string.phase_one)))
                 invoice.error?.let { Text(it.localized()) }
+                if (!invoice.passed) Text(stringResource(R.string.result_review_hint), style = MaterialTheme.typography.bodyMedium)
+                relevantChecks.filterNot { it.passed }.forEach { check ->
+                    Text(stringResource(R.string.check_status, "✕", check.label.localized(), check.phase),
+                        style = MaterialTheme.typography.bodySmall)
+                }
             }
         } }
         item { Text(stringResource(R.string.structural_disclaimer), style = MaterialTheme.typography.bodySmall) }
-        item {
-            Text(stringResource(R.string.phase_one_report, stringResource(if (invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }) R.string.checks_passed else R.string.checks_failed)))
-            Text(stringResource(R.string.phase_two_report, stringResource(if (invoice.error == null && invoice.checks.all { it.passed }) R.string.structural_passed else R.string.checks_failed)))
+        items((1..if (invoice.phase2) 6 else 5).toList()) { tag -> InvoiceField(invoice, tag) }
+        if (invoice.phase2) {
+            item {
+                OutlinedButton(onClick = { advanced = !advanced }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(if (advanced) R.string.result_hide_advanced else R.string.result_show_advanced))
+                }
+            }
+            if (advanced) items((7..9).toList()) { tag -> InvoiceField(invoice, tag) }
         }
-        items((1..9).toList()) { tag ->
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.tag_title, tag, stringResource(ZatcaParser.names.getValue(tag))), fontWeight = FontWeight.Bold)
-                SelectionContainer { Text(invoice.value(tag).ifBlank {
-                    if (tag == 9 && invoice.type == InvoiceType.STANDARD) stringResource(R.string.stamp_optional) else stringResource(R.string.missing)
-                }, style = if (tag >= 2 && invoice.value(tag).isNotBlank()) MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr) else MaterialTheme.typography.bodyLarge) }
-                if(tag in 6..7) Text(stringResource(R.string.base64_original), style = MaterialTheme.typography.labelSmall)
-                if(tag >= 8) Text(stringResource(R.string.base64_binary), style = MaterialTheme.typography.labelSmall)
-            } }
-        }
-        item { Text(stringResource(R.string.check_details), style = MaterialTheme.typography.titleMedium) }
-        items(invoice.checks) { check -> Text(stringResource(R.string.check_status, if(check.passed) "✓" else "✕", check.label.localized(), check.phase), color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
-        item { Text(stringResource(R.string.phase_explanation), style = MaterialTheme.typography.bodySmall) }
-        item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.scan_again)) } }
         item {
-            Text(stringResource(R.string.raw_qr), fontWeight = FontWeight.Bold)
+            TextButton(onClick = { checks = !checks }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(if (checks) R.string.result_hide_checks else R.string.check_details))
+            }
+        }
+        if (checks) {
+            item {
+                Text(stringResource(R.string.phase_one_report, stringResource(if (invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }) R.string.checks_passed else R.string.checks_failed)))
+                if (invoice.phase2) Text(stringResource(R.string.phase_two_report, stringResource(if (invoice.error == null && relevantChecks.all { it.passed }) R.string.structural_passed else R.string.checks_failed)))
+            }
+            items(relevantChecks) { check -> Text(stringResource(R.string.check_status, if(check.passed) "✓" else "✕", check.label.localized(), check.phase), color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
+        }
+        item {
+            TextButton(onClick = { raw = !raw }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(if (raw) R.string.result_hide_raw else R.string.raw_qr))
+            }
+        }
+        if (raw) item {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 RawQrText(invoice.raw, Modifier.fillMaxWidth())
             }
         }
+        item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.scan_again)) } }
     }
+}
+
+@Composable
+private fun InvoiceField(invoice: Invoice, tag: Int) {
+    Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(ZatcaParser.names.getValue(tag)), style = MaterialTheme.typography.labelLarge)
+        SelectionContainer {
+            Text(invoice.value(tag).ifBlank {
+                if (tag == 9 && invoice.type == InvoiceType.STANDARD) stringResource(R.string.stamp_optional) else stringResource(R.string.missing)
+            }, style = (if (tag == 4) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge).let {
+                if (tag >= 2 && invoice.value(tag).isNotBlank()) it.copy(textDirection = TextDirection.Ltr) else it
+            }, fontWeight = if (tag == 1 || tag == 4) FontWeight.Bold else FontWeight.Normal)
+        }
+        if (tag in 6..7) Text(stringResource(R.string.base64_original), style = MaterialTheme.typography.labelSmall)
+        if (tag >= 8) Text(stringResource(R.string.base64_binary), style = MaterialTheme.typography.labelSmall)
+    } }
 }
 
 @Composable

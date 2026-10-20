@@ -1,1 +1,1 @@
-Invoice QR Reader
+Saudi Invoice QR Reader
