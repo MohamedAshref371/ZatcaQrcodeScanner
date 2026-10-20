@@ -23,25 +23,15 @@ import com.poetscorner.zatcaqrcodescanner.R
 import com.poetscorner.zatcaqrcodescanner.data.HistoryEntry
 import com.poetscorner.zatcaqrcodescanner.data.HistoryDateSource
 import com.poetscorner.zatcaqrcodescanner.data.ScanEntity
-import com.poetscorner.zatcaqrcodescanner.data.filterHistory
-import java.text.DateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.util.Date
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @Composable
-internal fun HistoryScreen(entries: List<HistoryEntry>, query: String, onQuery: (String) -> Unit,
-    fromDay: Long?, toDay: Long?, dateSource: HistoryDateSource,
+internal fun HistoryScreen(entries: List<HistoryEntry>, hasHistory: Boolean, query: String, onQuery: (String) -> Unit,
     onOpen: (ScanEntity) -> Unit, onDelete: (ScanEntity) -> Unit) {
-    val locale = LocalConfiguration.current.locales[0]
-    val filtered by produceState(emptyList<HistoryEntry>(), entries, query, fromDay, toDay, dateSource) {
-        value = withContext(Dispatchers.Default) { filterHistory(entries, query, fromDay, toDay, dateSource = dateSource) }
-    }
     LazyColumn(Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
@@ -53,12 +43,12 @@ internal fun HistoryScreen(entries: List<HistoryEntry>, query: String, onQuery: 
                 }) else null)
         }
         item {
-            Text(stringResource(R.string.history_export_all), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.history_export_filtered), style = MaterialTheme.typography.bodySmall)
         }
-        if (filtered.isEmpty()) item {
-            Text(stringResource(if (entries.isEmpty()) R.string.no_history else R.string.history_no_matches))
+        if (entries.isEmpty()) item {
+            Text(stringResource(if (!hasHistory) R.string.no_history else R.string.history_no_matches))
         }
-        items(filtered, key = { it.scan.id }) { entry ->
+        items(entries, key = { it.scan.id }) { entry ->
             val row = entry.scan
             Card(Modifier.fillMaxWidth().clickable { onOpen(row) }) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
@@ -67,7 +57,8 @@ internal fun HistoryScreen(entries: List<HistoryEntry>, query: String, onQuery: 
                         Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) }, fontWeight = FontWeight.Bold)
                         if (entry.vat.isNotBlank()) Text(stringResource(R.string.history_vat, entry.vat),
                             style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content))
-                        Text(DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, locale).format(Date(row.scannedAt)),
+                        Text(stringResource(R.string.history_invoice_total,
+                            entry.total.ifBlank { stringResource(R.string.missing) }),
                             style = MaterialTheme.typography.bodySmall)
                         Text(if (row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed),
                             color = if (row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)

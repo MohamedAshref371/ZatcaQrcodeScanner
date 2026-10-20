@@ -36,7 +36,8 @@
     <string name="history_reset_filters">مسح البحث والفلاتر</string>
     <string name="history_no_matches">لا توجد قراءات تطابق البحث والفترة المحددة. جرّب تغيير البحث أو مسح الفلاتر.</string>
     <string name="history_vat">الرقم الضريبي: %1$s</string>
-    <string name="history_export_all">التصدير يشمل السجل بالكامل.</string>
+    <string name="history_invoice_total">إجمالي الفاتورة: %1$s</string>
+    <string name="history_export_filtered">التصدير يشمل القراءات المطابقة للبحث وفلتر التاريخ المطبّق.</string>
     <string name="unknown_seller">رمز غير صالح / بلا اسم</string>
     <string name="history_passed">اجتاز الفحوص المحلية · المرحلة %1$d</string>
     <string name="history_failed">لم يجتز الفحوص المحلية</string>

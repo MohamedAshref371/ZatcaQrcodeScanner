@@ -41,6 +41,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
 import com.poetscorner.zatcaqrcodescanner.data.ScanEngine
 import com.poetscorner.zatcaqrcodescanner.data.HistoryDateSource
+import com.poetscorner.zatcaqrcodescanner.data.HistoryFilter
+import com.poetscorner.zatcaqrcodescanner.data.HistoryEntry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.poetscorner.zatcaqrcodescanner.domain.Invoice
 import com.poetscorner.zatcaqrcodescanner.domain.InvoiceType
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
@@ -66,10 +70,18 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     var historyTo by rememberSaveable { mutableStateOf<Long?>(null) }
     var historyDateSource by rememberSaveable { mutableStateOf(HistoryDateSource.INVOICE) }
     var historyFilterDialog by rememberSaveable { mutableStateOf(false) }
+    var exportFilter by rememberSaveable { mutableStateOf(HistoryFilter()) }
+    val activeHistoryFilter = remember(historyQuery, historyFrom, historyTo, historyDateSource) {
+        HistoryFilter(historyQuery, historyFrom, historyTo, historyDateSource)
+    }
+    var filteredHistory by remember(history, activeHistoryFilter) { mutableStateOf(emptyList<HistoryEntry>()) }
+    LaunchedEffect(history, activeHistoryFilter) {
+        filteredHistory = withContext(Dispatchers.Default) { activeHistoryFilter.apply(history) }
+    }
     val snackbar = remember { SnackbarHostState() }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(vm::gallery) }
-    val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let { uri -> vm.export(uri, false) } }
-    val csv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { it?.let { uri -> vm.export(uri, true) } }
+    val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let { uri -> vm.export(uri, false, exportFilter) } }
+    val csv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { it?.let { uri -> vm.export(uri, true, exportFilter) } }
     LaunchedEffect(result) { if (result != null) screen = 1 }
     LaunchedEffect(message, configuration) { message?.let { snackbar.showSnackbar(it.resolve(context)); vm.message.value = null } }
     BackHandler(screen != 0) { vm.result.value = null; screen = 0 }
@@ -102,12 +114,18 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                     2 -> {
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            TextButton(onClick = { json.launch("zatca-history.json") }) { Text(stringResource(R.string.export_json)) }
-                            TextButton(onClick = { csv.launch("zatca-history.csv") }) { Text(stringResource(R.string.export_csv)) }
+                            TextButton(onClick = {
+                                exportFilter = activeHistoryFilter
+                                json.launch("zatca-history.json")
+                            }, enabled = filteredHistory.isNotEmpty()) { Text(stringResource(R.string.export_json)) }
+                            TextButton(onClick = {
+                                exportFilter = activeHistoryFilter
+                                csv.launch("zatca-history.csv")
+                            }, enabled = filteredHistory.isNotEmpty()) { Text(stringResource(R.string.export_csv)) }
                             TextButton(onClick = { historyFilterDialog = true }) { Text(stringResource(R.string.history_filter_search)) }
                             TextButton(onClick = { clearDialog = true }, enabled = history.isNotEmpty()) { Text(stringResource(R.string.clear)) }
                         }
-                        HistoryScreen(history, historyQuery, { historyQuery = it }, historyFrom, historyTo, historyDateSource,
+                        HistoryScreen(filteredHistory, history.isNotEmpty(), historyQuery, { historyQuery = it },
                             onOpen = { vm.open(it); screen = 1 }, onDelete = vm::delete)
                     }
                     else -> SettingsScreen(settings, vm::update, support,

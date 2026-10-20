@@ -62,6 +62,7 @@ class HistorySearchTest {
         val scan = ScanEntity(raw = Base64.getEncoder().encodeToString(data), seller = "البائع", passed = false, phase = 2)
         val indexed = HistoryEntry.from(scan)
         assertEquals("310123456789013", indexed.vat)
+        assertEquals("115.00", indexed.total)
         assertEquals(1, indexed.scan.phase)
         assertTrue(indexed.scan.passed)
         assertEquals(scan.raw, indexed.scan.raw)

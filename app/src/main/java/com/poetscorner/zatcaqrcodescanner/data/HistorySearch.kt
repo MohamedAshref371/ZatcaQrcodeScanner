@@ -3,16 +3,26 @@ package com.poetscorner.zatcaqrcodescanner.data
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
 import java.time.LocalDate
 import java.time.ZoneId
+import java.io.Serializable
 
 enum class HistoryDateSource { INVOICE, SCAN }
 
-data class HistoryEntry(val scan: ScanEntity, val vat: String, val invoiceDay: Long? = null) {
+/** Snapshot taken when export starts, retained while the system file picker is open. */
+data class HistoryFilter(val query: String = "", val fromDay: Long? = null, val toDay: Long? = null,
+    val dateSource: HistoryDateSource = HistoryDateSource.INVOICE,
+    val zoneId: String = ZoneId.systemDefault().id) : Serializable {
+    fun apply(entries: List<HistoryEntry>): List<HistoryEntry> =
+        filterHistory(entries, query, fromDay, toDay, ZoneId.of(zoneId), dateSource)
+}
+
+data class HistoryEntry(val scan: ScanEntity, val vat: String, val invoiceDay: Long? = null, val total: String = "") {
     companion object {
         fun from(scan: ScanEntity): HistoryEntry {
             val invoice = ZatcaParser.parse(scan.raw)
             return HistoryEntry(scan.copy(passed = invoice.passed,
                 phase = if (invoice.phase2) 2 else 1, invoiceType = invoice.type.name), invoice.value(2),
-                runCatching { ZatcaParser.parseTimestamp(invoice.value(3)).toLocalDate().toEpochDay() }.getOrNull())
+                runCatching { ZatcaParser.parseTimestamp(invoice.value(3)).toLocalDate().toEpochDay() }.getOrNull(),
+                invoice.value(4))
         }
     }
 }

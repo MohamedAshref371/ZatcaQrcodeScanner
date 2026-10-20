@@ -66,9 +66,10 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
         } catch (_: Exception) { message.value = UiText(R.string.gallery_error) }
         finally { busy.value = false }
     } }
-    fun export(uri: Uri, csv: Boolean) { viewModelScope.launch {
+    fun export(uri: Uri, csv: Boolean, filter: HistoryFilter) { viewModelScope.launch {
         try { withContext(Dispatchers.IO) {
-            val rows = db.scans().all()
+            val entries = db.scans().all().map { HistoryEntry.from(it) }
+            val rows = filter.apply(entries).map { it.scan }
             val names = mapOf(1 to R.string.tag_seller, 2 to R.string.tag_vat,
                 3 to R.string.export_invoice_date, 4 to R.string.tag_total,
                 5 to R.string.tag_tax, 6 to R.string.tag_hash)
