@@ -33,6 +33,14 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
     } }
     // Keep saving an accepted scan even when showing its result disposes the camera.
     suspend fun scanned(raw: String): Boolean = viewModelScope.async { process(raw) }.await()
+    fun inspectBase64(raw: String) {
+        if (busy.value || raw.isBlank()) return
+        busy.value = true
+        viewModelScope.launch {
+            try { process(raw) }
+            finally { busy.value = false }
+        }
+    }
     private suspend fun process(raw: String): Boolean {
         val invoice = withContext(Dispatchers.Default) { ZatcaParser.parse(raw) }
         if (invoice.error != null) {

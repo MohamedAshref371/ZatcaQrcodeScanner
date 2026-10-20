@@ -12,6 +12,9 @@
     <string name="scan_local">Offline scanning • QR only</string>
     <string name="gallery_pick">Choose an image</string>
     <string name="no_invoice">No invoice scanned yet</string>
+    <string name="manual_base64_hint">Have the invoice QR code as Base64 from another app? Paste it below and tap Inspect to view the invoice result.</string>
+    <string name="manual_base64_label">Invoice QR Base64</string>
+    <string name="manual_base64_inspect">Inspect</string>
     <string name="export_json">Export JSON</string>
     <string name="export_csv">Export CSV</string>
     <string name="export_invoice_date">Invoice date</string>

@@ -12,6 +12,9 @@
     <string name="scan_local">قراءة محلية • QR فقط</string>
     <string name="gallery_pick">صورة من المعرض</string>
     <string name="no_invoice">لم تُقرأ فاتورة بعد</string>
+    <string name="manual_base64_hint">هل لديك نص Base64 لرمز QR الخاص بالفاتورة من برنامج آخر؟ الصقه في الصندوق أدناه واضغط «فحص» لعرض نتيجة الفاتورة.</string>
+    <string name="manual_base64_label">نص Base64 للفاتورة</string>
+    <string name="manual_base64_inspect">فحص</string>
     <string name="export_json">تصدير JSON</string>
     <string name="export_csv">تصدير CSV</string>
     <string name="export_invoice_date">تاريخ الفاتورة</string>

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -18,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.poetscorner.zatcaqrcodescanner.BuildConfig
@@ -89,7 +92,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         }
                         if (!busy) CameraScanner(settings, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
                     }
-                    1 -> if (result == null) EmptyState(stringResource(R.string.no_invoice)) else ResultScreen(result!!) {
+                    1 -> if (result == null) ManualInvoiceEntry(busy, vm::inspectBase64) else ResultScreen(result!!) {
                         vm.result.value = null; screen = 0
                     }
                     2 -> {
@@ -136,6 +139,35 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
 
 @Composable
 private fun EmptyState(text: String) { Box(Modifier.fillMaxWidth().padding(32.dp)) { Text(text) } }
+
+@Composable
+private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
+    var raw by rememberSaveable { mutableStateOf("") }
+    val keyboard = LocalSoftwareKeyboardController.current
+    Column(
+        Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(stringResource(R.string.no_invoice), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.manual_base64_hint))
+        OutlinedTextField(
+            value = raw,
+            onValueChange = { raw = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.manual_base64_label)) },
+            textStyle = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+            minLines = 4,
+            maxLines = 8,
+            enabled = !busy
+        )
+        Button(
+            onClick = { keyboard?.hide(); inspect(raw.trim()) },
+            enabled = raw.isNotBlank() && !busy,
+            modifier = Modifier.fillMaxWidth()
+        ) { Text(stringResource(R.string.manual_base64_inspect)) }
+    }
+}
 
 @Composable
 private fun ResultScreen(invoice: Invoice, again: () -> Unit) {
