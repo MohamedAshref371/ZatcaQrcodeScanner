@@ -119,7 +119,7 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(R.string.camera_hint), Modifier.padding(horizontal = 16.dp))
         error?.let { Text(it.localized(), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
-        AndroidView(factory = { previewView }, modifier = Modifier.weight(1f).fillMaxWidth(), update = { view ->
+        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxWidth().aspectRatio(1f), update = { view ->
             view.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_UP) {
                     if (currentSettings.tapFocus) {
