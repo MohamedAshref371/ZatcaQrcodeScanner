@@ -14,13 +14,14 @@
     <string name="no_invoice">لم تُقرأ فاتورة بعد</string>
     <string name="export_json">تصدير JSON</string>
     <string name="export_csv">تصدير CSV</string>
-    <string name="clear">مسح</string>
+    <string name="clear">حذف</string>
     <string name="no_history">لا توجد قراءات محفوظة</string>
     <string name="unknown_seller">رمز غير صالح / بلا اسم</string>
     <string name="history_passed">اجتاز الفحوص المحلية · المرحلة %1$d</string>
     <string name="history_failed">لم يجتز الفحوص المحلية</string>
-    <string name="clear_title">مسح السجل؟</string>
-    <string name="clear_body">ستُحذف كل القراءات المحفوظة على هذا الجهاز.</string>
+    <string name="clear_title">حذف السجل</string>
+    <string name="clear_body">يمكنك إبقاء قراءات آخر يوم قرأت فيه وحذف باقي القراءات، أو حذف السجل بالكامل. يُحدَّد اليوم حسب تاريخ القراءة والتوقيت المحلي للجهاز.</string>
+    <string name="keep_latest_day">إبقاء قراءات آخر يوم</string>
     <string name="delete_all">حذف الكل</string>
     <string name="cancel">إلغاء</string>
     <string name="result_passed">اجتاز فحوص QR المحلية</string>

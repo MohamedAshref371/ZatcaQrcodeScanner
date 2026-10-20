@@ -68,5 +68,13 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
         catch (_: Exception) { message.value = UiText(R.string.export_error) }
     } }
     fun clear() { viewModelScope.launch { runCatching { db.scans().clear() }.onFailure { message.value = UiText(R.string.history_delete_error) } } }
+    fun keepLatestDay() { viewModelScope.launch {
+        runCatching { db.scans().keepLatestDay() }
+            .onFailure { message.value = UiText(R.string.history_delete_error) }
+    } }
+    fun delete(scan: ScanEntity) { viewModelScope.launch {
+        runCatching { db.scans().delete(scan.id) }
+            .onFailure { message.value = UiText(R.string.history_delete_error) }
+    } }
     override fun onCleared() { db.close() }
 }

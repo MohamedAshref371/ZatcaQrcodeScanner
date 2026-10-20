@@ -14,13 +14,14 @@
     <string name="no_invoice">No invoice scanned yet</string>
     <string name="export_json">Export JSON</string>
     <string name="export_csv">Export CSV</string>
-    <string name="clear">Clear</string>
+    <string name="clear">Delete</string>
     <string name="no_history">No saved scans</string>
     <string name="unknown_seller">Invalid code / no seller name</string>
     <string name="history_passed">Local checks passed · Phase %1$d</string>
     <string name="history_failed">Local checks failed</string>
-    <string name="clear_title">Clear history?</string>
-    <string name="clear_body">All scans saved on this device will be deleted.</string>
+    <string name="clear_title">Delete history</string>
+    <string name="clear_body">Keep scans from the most recent day you scanned and delete the rest, or delete the entire history. The day is based on the scan date and the device’s local time.</string>
+    <string name="keep_latest_day">Keep the latest day’s scans</string>
     <string name="delete_all">Delete all</string>
     <string name="cancel">Cancel</string>
     <string name="result_passed">Local QR checks passed</string>
@@ -104,7 +105,7 @@
     <string name="gallery_error">Unable to read the image. Try a clearer or smaller image.</string>
     <string name="export_success">History exported</string>
     <string name="export_error">Unable to export history</string>
-    <string name="history_delete_error">Unable to clear history</string>
+    <string name="history_delete_error">Unable to delete history</string>
     <string name="billing_cancelled">Purchase cancelled. You can continue using the app for free.</string>
     <string name="billing_failed">Unable to complete the purchase. All free features remain available.</string>
     <string name="billing_unconfigured">The supporter pack is currently unavailable. All app features are free and ad-free.</string>

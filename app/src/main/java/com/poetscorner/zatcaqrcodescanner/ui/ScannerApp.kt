@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
@@ -26,6 +27,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -99,11 +102,16 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             items(history, key = { it.id }) { row ->
                                 Card(Modifier.fillMaxWidth().clickable { vm.open(row); screen = 1 }) {
-                                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) }, fontWeight = FontWeight.Bold)
-                                        Text(stringResource(if (row.invoiceType == InvoiceType.SIMPLIFIED.name) InvoiceType.SIMPLIFIED.label else InvoiceType.STANDARD.label))
-                                        Text(DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, configuration.locales[0]).format(Date(row.scannedAt)), style = MaterialTheme.typography.bodySmall)
-                                        Text(if(row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed), color = if(row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) }, fontWeight = FontWeight.Bold)
+                                            Text(DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, configuration.locales[0]).format(Date(row.scannedAt)), style = MaterialTheme.typography.bodySmall)
+                                            Text(if(row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed), color = if(row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                                        }
+                                        TextButton(onClick = { vm.delete(row) }) {
+                                            Text(stringResource(R.string.clear), color = MaterialTheme.colorScheme.error)
+                                        }
                                     }
                                 }
                             }
@@ -115,7 +123,14 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             }
         }
         if (clearDialog) AlertDialog(onDismissRequest = { clearDialog = false }, title = { Text(stringResource(R.string.clear_title)) }, text = { Text(stringResource(R.string.clear_body)) },
-            confirmButton = { TextButton(onClick = { vm.clear(); clearDialog = false }) { Text(stringResource(R.string.delete_all)) } }, dismissButton = { TextButton(onClick = { clearDialog = false }) { Text(stringResource(R.string.cancel)) } })
+            confirmButton = {
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(onClick = { vm.keepLatestDay(); clearDialog = false }) { Text(stringResource(R.string.keep_latest_day)) }
+                    TextButton(onClick = { vm.clear(); clearDialog = false }) {
+                        Text(stringResource(R.string.delete_all), color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }, dismissButton = { TextButton(onClick = { clearDialog = false }) { Text(stringResource(R.string.cancel)) } })
     }
 }
 
@@ -151,7 +166,12 @@ private fun ResultScreen(invoice: Invoice, again: () -> Unit) {
         items(invoice.checks) { check -> Text(stringResource(R.string.check_status, if(check.passed) "✓" else "✕", check.label.localized(), check.phase), color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
         item { Text(stringResource(R.string.phase_explanation), style = MaterialTheme.typography.bodySmall) }
         item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.scan_again)) } }
-        item { Text(stringResource(R.string.raw_qr), fontWeight = FontWeight.Bold); SelectionContainer { Text(invoice.raw, style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr)) } }
+        item {
+            Text(stringResource(R.string.raw_qr), fontWeight = FontWeight.Bold)
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                RawQrText(invoice.raw, Modifier.fillMaxWidth())
+            }
+        }
     }
 }
 

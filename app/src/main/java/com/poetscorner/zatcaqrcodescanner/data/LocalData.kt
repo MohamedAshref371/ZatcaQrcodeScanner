@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
+import java.time.Instant
+import java.time.ZoneId
 
 enum class ScanEngine {
     ZXING, ML_KIT;
@@ -35,6 +37,17 @@ interface ScanDao {
     @Query("SELECT * FROM scans ORDER BY scannedAt DESC, id DESC") suspend fun all(): List<ScanEntity>
     @Insert suspend fun insert(scan: ScanEntity)
     @Query("DELETE FROM scans") suspend fun clear()
+    @Query("DELETE FROM scans WHERE id = :id") suspend fun delete(id: Long)
+    @Query("DELETE FROM scans WHERE scannedAt < :startOfDay OR scannedAt >= :startOfNextDay")
+    suspend fun deleteOutsideDay(startOfDay: Long, startOfNextDay: Long)
+    @Query("SELECT MAX(scannedAt) FROM scans") suspend fun latestScanTime(): Long?
+    @Transaction
+    suspend fun keepLatestDay(zone: ZoneId = ZoneId.systemDefault()) {
+        val latest = latestScanTime() ?: return
+        val day = Instant.ofEpochMilli(latest).atZone(zone).toLocalDate()
+        deleteOutsideDay(day.atStartOfDay(zone).toInstant().toEpochMilli(),
+            day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+    }
 }
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
