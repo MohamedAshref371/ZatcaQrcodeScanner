@@ -47,6 +47,9 @@
     <string name="scan_again">Scan another invoice</string>
     <string name="raw_qr">Original QR content</string>
     <string name="reader_options">Reader options</string>
+    <string name="scan_engine">Scan engine</string>
+    <string name="engine_zxing">ZXing</string>
+    <string name="engine_ml_kit">Google ML Kit</string>
     <string name="try_harder">Try harder</string>
     <string name="try_denoise">Try denoise</string>
     <string name="try_rotate">Try rotate · ±90°</string>

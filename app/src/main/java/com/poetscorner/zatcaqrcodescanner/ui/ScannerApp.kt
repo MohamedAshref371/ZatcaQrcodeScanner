@@ -33,6 +33,7 @@ import com.poetscorner.zatcaqrcodescanner.billing.SupporterViewModel
 import com.poetscorner.zatcaqrcodescanner.billing.SupporterState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
+import com.poetscorner.zatcaqrcodescanner.data.ScanEngine
 import com.poetscorner.zatcaqrcodescanner.domain.Invoice
 import com.poetscorner.zatcaqrcodescanner.domain.InvoiceType
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
@@ -161,11 +162,18 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SupporterCard(support, s.goldenTheme, onPurchase, onRestore) { value -> update { it.copy(goldenTheme = value) } } }
         item { Text(stringResource(R.string.reader_options), style = MaterialTheme.typography.titleLarge) }
-        item { Toggle(stringResource(R.string.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
-        item { Toggle(stringResource(R.string.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }
-        item { Toggle(stringResource(R.string.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
-        item { Toggle(stringResource(R.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
-        item { Choice(stringResource(R.string.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(R.string.bin_local), "GLOBAL_HISTOGRAM" to stringResource(R.string.bin_global), "FIXED_THRESHOLD" to stringResource(R.string.bin_fixed), "BOOL_CAST" to stringResource(R.string.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
+        item { Choice(stringResource(R.string.scan_engine), s.scanEngine.name,
+            listOf(ScanEngine.ZXING.name to stringResource(R.string.engine_zxing),
+                ScanEngine.ML_KIT.name to stringResource(R.string.engine_ml_kit))) { v ->
+            update { it.copy(scanEngine = ScanEngine.fromPreference(v)) }
+        } }
+        if (s.scanEngine == ScanEngine.ZXING) {
+            item { Toggle(stringResource(R.string.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
+            item { Toggle(stringResource(R.string.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }
+            item { Toggle(stringResource(R.string.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
+            item { Toggle(stringResource(R.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
+            item { Choice(stringResource(R.string.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(R.string.bin_local), "GLOBAL_HISTOGRAM" to stringResource(R.string.bin_global), "FIXED_THRESHOLD" to stringResource(R.string.bin_fixed), "BOOL_CAST" to stringResource(R.string.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
+        }
         item { Choice(stringResource(R.string.resolution), s.resolution, listOf("HD" to stringResource(R.string.resolution_hd), "FHD" to stringResource(R.string.resolution_fhd), "QHD" to stringResource(R.string.resolution_qhd))) { v -> update { it.copy(resolution = v) } } }
         item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest))) { v -> update { it.copy(speed = v) } } }
         item { Toggle(stringResource(R.string.torch_enable), s.torch) { v -> update { it.copy(torch = v) } } }

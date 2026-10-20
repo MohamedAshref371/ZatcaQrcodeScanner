@@ -44,7 +44,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
-import com.poetscorner.zatcaqrcodescanner.scanner.reader
+import com.poetscorner.zatcaqrcodescanner.scanner.decoder
 import com.poetscorner.zatcaqrcodescanner.scanner.scanWindow
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -85,9 +85,10 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
     val currentSettings by rememberUpdatedState(settings)
     val currentOnScan by rememberUpdatedState(onScan)
     val scope = rememberCoroutineScope()
-    DisposableEffect(owner, settings.resolution, previewSize) {
+    DisposableEffect(owner, settings.resolution, settings.scanEngine, previewSize) {
         if (previewSize.width == 0 || previewSize.height == 0) return@DisposableEffect onDispose { }
         val executor = Executors.newSingleThreadExecutor()
+        val decoder = settings.scanEngine.decoder()
         val providerFuture = ProcessCameraProvider.getInstance(context)
         val delivered = AtomicBoolean(false)
         var disposed = false
@@ -111,21 +112,21 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
                         if (!delivered.get() && now - last >= currentSettings.intervalMs) {
                             last = now
                             // The shared ViewPort maps this crop to the preview's visible sensor area.
-                            // ZXing reads ImageProxy.cropRect, so pixels outside the guide are never scanned.
+                            // Both engines read only this crop, excluding pixels outside the guide.
                             val visible = image.cropRect
                             val window = scanWindow(visible.width(), visible.height())
                             val left = visible.left + window.left
                             val top = visible.top + window.top
                             image.setCropRect(Rect(left, top, left + window.size, top + window.size))
-                            val result = currentSettings.reader().read(image).firstOrNull { it.error == null && it.text != null }
+                            val result = decoder.read(image, currentSettings)
                             // Suppress repeated warnings for the same rejected QR while allowing a different one immediately.
-                            if (result != null && (result.text != lastCandidate || now - lastCandidateAt >= 4000L)
+                            if (result != null && (result != lastCandidate || now - lastCandidateAt >= 4000L)
                                 && delivered.compareAndSet(false, true)) {
-                                lastCandidate = result.text
+                                lastCandidate = result
                                 lastCandidateAt = now
                                 scope.launch {
                                     var accepted = false
-                                    try { if (!disposed) accepted = currentOnScan(result.text!!) }
+                                    try { if (!disposed) accepted = currentOnScan(result) }
                                     finally { if (!accepted) delivered.set(false) }
                                 }
                             }
@@ -145,6 +146,8 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
             disposed = true; analysis?.clearAnalyzer()
             val uses = listOfNotNull(preview, analysis).toTypedArray()
             if (uses.isNotEmpty()) provider?.unbind(*uses)
+            // Close after the in-flight frame finishes, including any asynchronous ML Kit task.
+            executor.execute { decoder.close() }
             executor.shutdown(); camera = null
         }
     }

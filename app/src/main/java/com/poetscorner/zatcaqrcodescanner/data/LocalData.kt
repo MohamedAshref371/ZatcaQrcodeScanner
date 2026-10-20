@@ -12,6 +12,14 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
+enum class ScanEngine {
+    ZXING, ML_KIT;
+
+    companion object {
+        fun fromPreference(value: String?): ScanEngine = entries.firstOrNull { it.name == value } ?: ZXING
+    }
+}
+
 @Entity(tableName = "scans")
 data class ScanEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val raw: String,
     val seller: String, val scannedAt: Long = System.currentTimeMillis(), val passed: Boolean, val phase: Int,
@@ -39,7 +47,8 @@ abstract class ScanDatabase : RoomDatabase() { abstract fun scans(): ScanDao }
 data class ScannerSettings(val harder: Boolean = true, val denoise: Boolean = false,
     val rotate: Boolean = true, val inverted: Boolean = false, val binarizer: String = "LOCAL_AVERAGE",
     val resolution: String = "HD", val speed: String = "NORMAL", val torch: Boolean = false,
-    val tapFocus: Boolean = true, val theme: String = "SYSTEM", val goldenTheme: Boolean = false) {
+    val tapFocus: Boolean = true, val theme: String = "SYSTEM", val goldenTheme: Boolean = false,
+    val scanEngine: ScanEngine = ScanEngine.ZXING) {
     val intervalMs get() = when (speed) { "FAST" -> 100L; "FASTEST" -> 0L; else -> 300L }
 }
 private val Context.settingsStore by preferencesDataStore("scanner_settings")
@@ -50,13 +59,15 @@ class SettingsRepository(private val context: Context) {
             p[stringPreferencesKey("binarizer")] ?: "LOCAL_AVERAGE", p[stringPreferencesKey("resolution")] ?: "HD",
             p[stringPreferencesKey("speed")] ?: "NORMAL", p[booleanPreferencesKey("torch")] ?: false,
             p[booleanPreferencesKey("tapFocus")] ?: true, p[stringPreferencesKey("theme")] ?: "SYSTEM",
-            p[booleanPreferencesKey("goldenTheme")] ?: false)
+            p[booleanPreferencesKey("goldenTheme")] ?: false,
+            ScanEngine.fromPreference(p[stringPreferencesKey("scan_engine")]))
     }
     suspend fun save(s: ScannerSettings) { context.settingsStore.edit { p ->
         mapOf("harder" to s.harder, "denoise" to s.denoise, "rotate" to s.rotate,
             "inverted" to s.inverted, "torch" to s.torch, "tapFocus" to s.tapFocus,
             "goldenTheme" to s.goldenTheme).forEach { (k,v) -> p[booleanPreferencesKey(k)] = v }
-        mapOf("binarizer" to s.binarizer, "resolution" to s.resolution, "speed" to s.speed, "theme" to s.theme)
+        mapOf("binarizer" to s.binarizer, "resolution" to s.resolution, "speed" to s.speed, "theme" to s.theme,
+            "scan_engine" to s.scanEngine.name)
             .forEach { (k,v) -> p[stringPreferencesKey(k)] = v }
     } }
 }

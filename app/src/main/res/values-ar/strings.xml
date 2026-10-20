@@ -47,6 +47,9 @@
     <string name="scan_again">مسح فاتورة أخرى</string>
     <string name="raw_qr">محتوى QR الأصلي</string>
     <string name="reader_options">خيارات محرك القراءة</string>
+    <string name="scan_engine">محرك المسح</string>
+    <string name="engine_zxing">ZXing</string>
+    <string name="engine_ml_kit">Google ML Kit</string>
     <string name="try_harder">Try harder · بحث مكثّف</string>
     <string name="try_denoise">Try denoise · تقليل التشويش</string>
     <string name="try_rotate">Try rotate · دوران ±90°</string>

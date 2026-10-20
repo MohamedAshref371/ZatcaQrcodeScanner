@@ -32,7 +32,9 @@
 implementation("io.github.zxing-cpp:android:3.1.1")
 ```
 
-هذا هو Android wrapper الرسمي ويحتوي AAR على مكتبات C++/JNI؛ لا يلزم CMake أو NDK لمستهلك AAR، ولا تستخدم ML Kit أو ZXing Java. `scanner/QrScanner.kt` يضبط `BarcodeReader.Options(formats = setOf(BarcodeReader.Format.QR_CODE))`؛ يحوّل الـ JNI ذلك إلى `ReaderOptions` مع `QRCode` فقط. تستخدم الكاميرا والمعرض الخيارات نفسها، بما فيها Try harder / denoise / rotate / invert وBinarizer، مع downscale مفعّل.
+هذا هو Android wrapper الرسمي ويحتوي AAR على مكتبات C++/JNI؛ لا يلزم CMake أو NDK لمستهلك AAR. `scanner/QrScanner.kt` يضبط `BarcodeReader.Options(formats = setOf(BarcodeReader.Format.QR_CODE))`؛ يحوّل الـ JNI ذلك إلى `ReaderOptions` مع `QRCode` فقط. عند اختيار ZXing تستخدم الكاميرا والمعرض خيارات Try harder / denoise / rotate / invert وBinarizer، مع downscale مفعّل.
+
+يمكن التبديل من الإعدادات ← «محرك المسح» بين ZXing (الافتراضي) وGoogle ML Kit. يُحفظ الاختيار في DataStore ويُستخدم للكاميرا وصور المعرض. إعدادات ZXing الخاصة تظهر عند اختياره فقط؛ إعدادات الكاميرا المشتركة متاحة للمحركين. يعتمد ML Kit على `com.google.mlkit:barcode-scanning:17.3.0` بنموذج مضمّن في التطبيق، لذلك لا يحتاج تنزيل نموذج عند أول مسح. راجع [دليل Google الرسمي](https://developers.google.com/ml-kit/vision/barcode-scanning/android). يقصر المحركان فحص الكاميرا على المربع الظاهر؛ يُنسخ جزء الإضاءة داخل المربع إلى NV21 لمحرك ML Kit، مع مراعاة دوران الإطار وstride. لا تدخل القراءات غير الصالحة بصيغة Base64/TLV إلى صفحة النتيجة أو السجل، بصرف النظر عن المحرك المختار.
 
 ### بناء الـ wrapper من المصدر بـ CMake وNDK (بديل اختياري)
 

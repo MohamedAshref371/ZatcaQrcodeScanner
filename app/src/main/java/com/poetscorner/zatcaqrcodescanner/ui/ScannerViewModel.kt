@@ -49,8 +49,9 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
         busy.value = true
         try {
             val raw = withContext(Dispatchers.IO) {
+                val scanSettings = settings.value
                 val bitmap = decodeGallery(getApplication(), uri)
-                try { settings.value.reader().read(bitmap).firstOrNull { it.error == null }?.text }
+                try { scanSettings.scanEngine.decoder().use { it.read(bitmap, scanSettings) } }
                 finally { bitmap.recycle() }
             }
             if (raw == null) message.value = UiText(R.string.gallery_no_qr) else process(raw)
