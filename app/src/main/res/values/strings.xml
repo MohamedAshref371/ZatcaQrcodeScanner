@@ -97,6 +97,7 @@
     <string name="torch">Torch</string>
     <string name="history_save_error">Scanned successfully, but unable to save history</string>
     <string name="gallery_no_qr">No QR code found in the image</string>
+    <string name="scan_invalid">Invalid invoice QR code</string>
     <string name="gallery_error">Unable to read the image. Try a clearer or smaller image.</string>
     <string name="export_success">History exported</string>
     <string name="export_error">Unable to export history</string>

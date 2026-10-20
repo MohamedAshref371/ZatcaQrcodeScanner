@@ -97,6 +97,7 @@
     <string name="torch">الكشاف</string>
     <string name="history_save_error">تمت القراءة، لكن تعذّر حفظ السجل</string>
     <string name="gallery_no_qr">لم يُعثر على QR Code في الصورة</string>
+    <string name="scan_invalid">رمز QR غير صالح للفاتورة</string>
     <string name="gallery_error">تعذّرت قراءة الصورة؛ جرّب صورة أوضح أو أصغر</string>
     <string name="export_success">تم تصدير السجل</string>
     <string name="export_error">تعذّر تصدير السجل</string>

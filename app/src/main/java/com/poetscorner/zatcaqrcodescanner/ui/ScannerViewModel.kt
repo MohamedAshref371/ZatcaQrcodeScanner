@@ -11,6 +11,7 @@ import com.poetscorner.zatcaqrcodescanner.data.*
 import com.poetscorner.zatcaqrcodescanner.domain.*
 import com.poetscorner.zatcaqrcodescanner.scanner.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,12 +31,18 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
     fun update(change: (ScannerSettings) -> ScannerSettings) { viewModelScope.launch {
         settingsMutex.withLock { repository.save(change(repository.settings.first())) }
     } }
-    fun scanned(raw: String) { viewModelScope.launch { process(raw) } }
-    private suspend fun process(raw: String) {
+    // Keep saving an accepted scan even when showing its result disposes the camera.
+    suspend fun scanned(raw: String): Boolean = viewModelScope.async { process(raw) }.await()
+    private suspend fun process(raw: String): Boolean {
         val invoice = withContext(Dispatchers.Default) { ZatcaParser.parse(raw) }
+        if (invoice.error != null) {
+            message.value = UiText(R.string.scan_invalid)
+            return false
+        }
         result.value = invoice
         try { db.scans().insert(ScanEntity(raw = raw, seller = invoice.value(1), passed = invoice.passed, phase = if (invoice.phase2) 2 else 1, invoiceType = invoice.type.name)) }
         catch (_: Exception) { message.value = UiText(R.string.history_save_error) }
+        return true
     }
     fun open(scan: ScanEntity) { viewModelScope.launch { result.value = withContext(Dispatchers.Default) { ZatcaParser.parse(scan.raw) } } }
     fun gallery(uri: Uri) { viewModelScope.launch {

@@ -30,9 +30,10 @@ import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
 import com.poetscorner.zatcaqrcodescanner.scanner.reader
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.launch
 
 @Composable
-fun CameraScanner(settings: ScannerSettings, onScan: (String) -> Unit, onTorch: () -> Unit) {
+fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean, onTorch: () -> Unit) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     var permission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
@@ -59,6 +60,7 @@ fun CameraScanner(settings: ScannerSettings, onScan: (String) -> Unit, onTorch: 
     var zoom by remember { mutableFloatStateOf(0f) }
     val currentSettings by rememberUpdatedState(settings)
     val currentOnScan by rememberUpdatedState(onScan)
+    val scope = rememberCoroutineScope()
     DisposableEffect(owner, settings.resolution) {
         val executor = Executors.newSingleThreadExecutor()
         val providerFuture = ProcessCameraProvider.getInstance(context)
@@ -76,14 +78,24 @@ fun CameraScanner(settings: ScannerSettings, onScan: (String) -> Unit, onTorch: 
                 val a = ImageAnalysis.Builder().setResolutionSelector(selector)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build(); analysis = a
                 var last = 0L
+                var lastCandidate: String? = null
+                var lastCandidateAt = 0L
                 a.setAnalyzer(executor) { image ->
                     try {
                         val now = SystemClock.elapsedRealtime()
                         if (!delivered.get() && now - last >= currentSettings.intervalMs) {
                             last = now
-                            val result = currentSettings.reader().read(image).firstOrNull { it.error == null && !it.text.isNullOrBlank() }
-                            if (result != null && delivered.compareAndSet(false, true)) {
-                                ContextCompat.getMainExecutor(context).execute { if (!disposed) currentOnScan(result.text!!) }
+                            val result = currentSettings.reader().read(image).firstOrNull { it.error == null && it.text != null }
+                            // Suppress repeated warnings for the same rejected QR while allowing a different one immediately.
+                            if (result != null && (result.text != lastCandidate || now - lastCandidateAt >= 4000L)
+                                && delivered.compareAndSet(false, true)) {
+                                lastCandidate = result.text
+                                lastCandidateAt = now
+                                scope.launch {
+                                    var accepted = false
+                                    try { if (!disposed) accepted = currentOnScan(result.text!!) }
+                                    finally { if (!accepted) delivered.set(false) }
+                                }
                             }
                         }
                     } catch (_: Exception) {

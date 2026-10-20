@@ -9,6 +9,16 @@ import java.util.Base64
 import java.time.ZoneOffset
 
 class ZatcaParserTest {
+    @Test fun scanRejectionDistinguishesMalformedPayloadsFromInvoiceCheckFailures() {
+        listOf("https://example.org", "%%%", "", "aGVsbG8=", "AQVB").forEach { raw ->
+            assertNotNull(raw, ZatcaParser.parse(raw).error)
+        }
+        // A readable invoice with failing business checks should still open its report.
+        val invoice = parse(tlv(1, "Seller") + tlv(2, "invalid VAT"))
+        assertNull(invoice.error)
+        assertFalse(invoice.passed)
+        assertNull(parse(valid()).error)
+    }
     private fun tlv(tag: Int, text: String): ByteArray = text.toByteArray().let { byteArrayOf(tag.toByte(), it.size.toByte()) + it }
     private fun valid() = tlv(1, "متجر الاختبار") + tlv(2, "310123456789013") + tlv(3, "2026-10-19T12:30:00Z") + tlv(4, "115.00") + tlv(5, "15.00")
     private fun parse(bytes: ByteArray) = ZatcaParser.parse(Base64.getEncoder().encodeToString(bytes))
