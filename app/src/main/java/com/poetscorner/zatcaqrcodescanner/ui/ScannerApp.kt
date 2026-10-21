@@ -32,6 +32,9 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
@@ -54,6 +57,7 @@ import com.poetscorner.zatcaqrcodescanner.domain.InvoiceType
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
 import com.poetscorner.zatcaqrcodescanner.ui.theme.ZatcaQrcodeScannerTheme
 import com.poetscorner.zatcaqrcodescanner.ui.text.localized
+import com.poetscorner.zatcaqrcodescanner.ui.text.UiText
 import java.text.DateFormat
 import java.util.Date
 
@@ -75,8 +79,12 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     LaunchedEffect(vm, haptic) {
         vm.scanFeedback.collect { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
     }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { supporter.refresh() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        supporter.refresh()
+        vm.recordReviewUse()
+    }
     var screen by rememberSaveable { mutableIntStateOf(0) }
+    var reviewOpportunity by remember { mutableIntStateOf(0) }
     var clearDialog by remember { mutableStateOf(false) }
     var invoiceToDelete by remember { mutableStateOf<HistorySummary?>(null) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
@@ -92,6 +100,24 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     var historyTo by rememberSaveable { mutableStateOf<Long?>(null) }
     var historyDateSource by rememberSaveable { mutableStateOf(HistoryDateSource.INVOICE) }
     var historyFilterDialog by rememberSaveable { mutableStateOf(false) }
+    val lifecycleState by lifecycle.currentStateAsState()
+    val reviewAllowed = reviewOpportunity > 0 && screen == 2 && !busy && message == null &&
+        snackbar.currentSnackbarData == null && !clearDialog && invoiceToDelete == null &&
+        !historyFilterDialog && !support.purchasing && lifecycleState == Lifecycle.State.RESUMED
+    val reviewStillAllowed by rememberUpdatedState(reviewAllowed)
+    LaunchedEffect(reviewOpportunity, reviewAllowed) {
+        if (!reviewAllowed) return@LaunchedEffect
+        // Let navigation settle; never overlap the camera, results, messages or dialogs.
+        delay(600)
+        val activity = context.activity() ?: return@LaunchedEffect
+        try {
+            if (vm.claimReviewAttempt()) requestAppReview(activity) { reviewStillAllowed }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Play review failures are silent and do not cause another automatic attempt.
+        }
+    }
     var exportFilter by rememberSaveable { mutableStateOf(HistoryFilter()) }
     val activeHistoryFilter = remember(historyQuery, historyFrom, historyTo, historyDateSource) {
         HistoryFilter(historyQuery, historyFrom, historyTo, historyDateSource)
@@ -134,6 +160,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
         } }) }, bottomBar = { NavigationBar {
             listOf(R.string.nav_scanner, R.string.nav_result, R.string.nav_history, R.string.nav_settings).forEachIndexed { index, label ->
                 NavigationBarItem(selected = screen == index, onClick = {
+                    if (index == 2 && (screen == 0 || screen == 1)) reviewOpportunity++
                     if (index == 0) vm.result.value = null
                     screen = index
                 }, icon = { Text(listOf("▣", "✓", "≡", "⚙")[index]) }, label = { Text(stringResource(label)) })
@@ -175,7 +202,8 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                             })
                     }
                     else -> SettingsScreen(settings, vm::update, support,
-                        onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh)
+                        onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh,
+                        onRate = { if (!openAppStore(context)) vm.message.value = UiText(R.string.store_open_error) })
                 }
             }
         }
@@ -311,7 +339,7 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
 
 @Composable
 private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
-    support: SupporterState, onPurchase: () -> Unit, onRestore: () -> Unit) {
+    support: SupporterState, onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SupporterCard(support, s.goldenTheme, onPurchase, onRestore) { value -> update { it.copy(goldenTheme = value) } } }
@@ -334,6 +362,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { Toggle(stringResource(R.string.tap_focus), s.tapFocus) { v -> update { it.copy(tapFocus = v) } } }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark))) { v -> update { it.copy(theme = v) } } }
         item { Text(stringResource(R.string.camera_settings_note), style = MaterialTheme.typography.bodySmall) }
+        item { TextButton(onClick = onRate) { Text(stringResource(R.string.rate_app)) } }
         item { HorizontalDivider(); TextButton(onClick = { showAbout = true }) { Text(stringResource(R.string.about_app)) } }
     }
     if (showAbout) AlertDialog(onDismissRequest = { showAbout = false },

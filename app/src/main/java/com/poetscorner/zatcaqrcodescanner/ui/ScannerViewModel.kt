@@ -25,6 +25,13 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
     private val db = Room.databaseBuilder(app, ScanDatabase::class.java, "invoices.db")
         .fallbackToDestructiveMigration(dropAllTables = true).build()
     private val repository = SettingsRepository(app)
+    private val reviewRepository = ReviewRepository(app)
+    fun recordReviewUse() { viewModelScope.launch {
+        try { reviewRepository.recordUse() } catch (_: java.io.IOException) { /* Optional tracking. */ }
+    } }
+    suspend fun claimReviewAttempt(): Boolean = try {
+        reviewRepository.claimAttempt()
+    } catch (_: java.io.IOException) { false }
     val settings = repository.settings.stateIn(viewModelScope, SharingStarted.Eagerly, ScannerSettings())
     private val historyPager = HistoryPager(db.scans(), viewModelScope)
     val historyState = historyPager.state
@@ -86,6 +93,10 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
         val checkedAt = System.currentTimeMillis()
         try {
             val saved = withContext(Dispatchers.Default) { db.scans().saveIfNew(ScanEntity.from(invoice, checkedAt)) }
+            if (!saved.alreadyExists) {
+                try { reviewRepository.recordSavedInvoice(saved.scan.payloadKey) }
+                catch (_: java.io.IOException) { /* Review tracking must not affect scan results. */ }
+            }
             val savedInvoice = if (saved.alreadyExists) withContext(Dispatchers.Default) {
                 ZatcaParser.parse(saved.scan.raw)
             } else invoice

@@ -53,6 +53,7 @@ android {
 }
 
 dependencies {
+    implementation("com.google.android.play:review:2.0.2")
     implementation("com.android.billingclient:billing:9.1.0")
     implementation("io.github.zxing-cpp:android:3.1.1")
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
