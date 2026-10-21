@@ -6,6 +6,7 @@ build IDs. It never fabricates symbols or modifies a signed app bundle.
 """
 from pathlib import Path
 import argparse
+import hashlib
 import json
 import struct
 import zipfile
@@ -44,21 +45,27 @@ def main():
     merged = ROOT / "app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib"
     output = ROOT / "app/build/outputs/native-debug-symbols/release"
     output.mkdir(parents=True, exist_ok=True)
-    included, stripped = [], []
+    included, stripped, unavailable = [], [], []
     payloads = {}
     with zipfile.ZipFile(args.bundle) as bundle:
-        for path in sorted(merged.glob("*/*.so")):
-            name = path.relative_to(merged).as_posix()
+        native_names = sorted(name for name in bundle.namelist()
+                              if name.startswith("base/lib/") and name.endswith(".so"))
+        for bundle_name in native_names:
+            name = bundle_name.removeprefix("base/lib/")
+            path = merged / name
+            if not path.is_file():
+                unavailable.append(name)
+                continue
             data = path.read_bytes()
             sections = elf_sections(data)
-            if not sections.get(".symtab") and not sections.get(".debug_info"):
-                stripped.append(name)
-                continue
-            packaged_data = bundle.read("base/lib/" + name)
+            packaged_data = bundle.read(bundle_name)
             packaged = elf_sections(packaged_data)
             build_id = sections.get(".note.gnu.build-id")
             if data != packaged_data and (not build_id or build_id != packaged.get(".note.gnu.build-id")):
                 raise ValueError(f"Native build ID does not match the AAB: {name}")
+            if not sections.get(".symtab") and not sections.get(".debug_info"):
+                stripped.append(name)
+                continue
             payloads[name] = data
             included.append(name)
     if not payloads:
@@ -67,9 +74,11 @@ def main():
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
         for name, data in payloads.items():
             archive.writestr(name, data)
-    report = {"bundle": str(args.bundle.resolve()), "included": included, "already_stripped": stripped}
+    report = {"bundle": str(args.bundle.resolve()),
+              "bundle_sha256": hashlib.sha256(args.bundle.read_bytes()).hexdigest(),
+              "included": included, "already_stripped": stripped, "unavailable": unavailable}
     (output / "coverage.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(f"Packaged {len(included)} native binaries with real symbols; {len(stripped)} already stripped.")
+    print(f"Packaged {len(included)} native binaries with real symbols; {len(stripped)} already stripped; {len(unavailable)} unavailable.")
     print(target.relative_to(ROOT))
 
 
