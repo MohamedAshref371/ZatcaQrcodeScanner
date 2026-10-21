@@ -1,3 +1,9 @@
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -6,6 +12,23 @@ plugins {
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+abstract class PreparePrivacyAssetsTask : DefaultTask() {
+    @get:InputFiles abstract val policies: ConfigurableFileCollection
+    @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction fun prepare() {
+        val destination = outputDirectory.get().asFile
+        destination.mkdirs()
+        policies.files.forEach { it.copyTo(destination.resolve(it.name), overwrite = true) }
+    }
+}
+
+// The offline view uses the same canonical files as the public policy.
+val preparePrivacyAssets = tasks.register<PreparePrivacyAssetsTask>("preparePrivacyAssets") {
+    policies.from(rootProject.file("publishing/privacy-policy-en.md"), rootProject.file("publishing/privacy-policy-ar.md"))
+    outputDirectory.set(layout.buildDirectory.dir("generated/privacyAssets"))
 }
 
 android {
@@ -54,6 +77,10 @@ android {
         generateLocaleConfig = true
         localeFilters += listOf("en", "ar")
     }
+}
+
+androidComponents.onVariants { variant ->
+    variant.sources.assets?.addGeneratedSourceDirectory(preparePrivacyAssets, PreparePrivacyAssetsTask::outputDirectory)
 }
 
 dependencies {

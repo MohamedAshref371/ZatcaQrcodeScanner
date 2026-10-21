@@ -426,6 +426,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
     onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
+    var showPrivacy by rememberSaveable { mutableStateOf(false) }
     LazyColumn(Modifier.testTag("settings_list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SectionHeading(stringResource(R.string.settings_heading), stringResource(R.string.settings_subtitle)) }
         item { Text(stringResource(R.string.settings_camera), style = MaterialTheme.typography.titleSmall,
@@ -451,9 +452,11 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark))) { v -> update { it.copy(theme = v) } } }
         item { SettingsAction(stringResource(R.string.rate_app), R.drawable.ic_star, onRate) }
+        item { SettingsAction(stringResource(R.string.privacy_policy), R.drawable.ic_info) { showPrivacy = true } }
         item { SettingsAction(stringResource(R.string.about_app), R.drawable.ic_info) { showAbout = true } }
         item { SupporterCard(support, s.goldenTheme, onPurchase, onRestore) { value -> update { it.copy(goldenTheme = value) } } }
     }
+    if (showPrivacy) PrivacyPolicyDialog { showPrivacy = false }
     if (showAbout) AlertDialog(onDismissRequest = { showAbout = false },
         title = { Text(stringResource(R.string.app_name)) },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {

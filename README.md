@@ -59,6 +59,8 @@ Import is one transaction: malformed, unsupported, truncated or cancelled backup
 
 ## Language and appearance
 
+Settings includes an offline **Privacy policy** reader in Arabic and English. The build packages the canonical `publishing/privacy-policy-ar.md` and `privacy-policy-en.md` files directly. The developer is Mohamed Ashraf, the Google Play publisher is vStudio, and the support/privacy email is `afi4test2@gmail.com`. The [published bilingual policy](https://gist.github.com/MohamedAshref371/2c8e73edf253f6b16ad5f69efb80709d) was checked for anonymous access and content consistency; enter this URL in Play Console. Publication/update instructions are in [publishing/privacy-publishing-ar.md](publishing/privacy-publishing-ar.md). Google SDK technical-data handling and local review-timing records are disclosed separately from invoice processing.
+
 English resources are in `app/src/main/res/values/strings.xml`; Arabic translations are in `values-ar/strings.xml`. `resources.properties` declares English as the default resource language. The interface, camera controls, messages, purchases, field labels, parser errors, and check results use Android string resources.
 
 The app follows the device language. On Android 13 and later, change the app language under **Android Settings → Apps → Invoice QR Reader → Language**. On Android 8–12, the device language is used. There is no in-app language picker. `generateLocaleConfig` and `localeFilters` declare English and Arabic support.

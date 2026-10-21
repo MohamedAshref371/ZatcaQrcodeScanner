@@ -1,4 +1,7 @@
 <resources>
+    <string name="privacy_policy">Privacy policy</string>
+    <string name="privacy_load_error">Unable to load the privacy policy</string>
+    <string name="privacy_link_error">Unable to open the link</string>
     <string name="share_invoice">Share invoice summary</string>
     <string name="share_summary_title">Invoice summary</string>
     <string name="share_check_result">Check result: %1$s</string>

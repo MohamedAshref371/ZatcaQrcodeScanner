@@ -1,8 +1,12 @@
-# Invoice QR Reader Privacy Policy — publisher draft
+# Invoice QR Reader Privacy Policy
 
-Effective date: [enter publication date]
+Last updated: 21 October 2026
 
-Contact: [developer or legal entity name] — [support email]
+Developer: Mohamed Ashraf (محمد أشرف)
+
+Google Play publisher: vStudio
+
+Support and privacy contact: afi4test2@gmail.com
 
 This policy describes how Invoice QR Reader (قارئ فاتورة), package `com.poetscorner.invoiceqr`, handles data.
 
@@ -10,13 +14,25 @@ This policy describes how Invoice QR Reader (قارئ فاتورة), package `co
 
 With permission, the app uses the camera to read QR codes. Alternatively, it processes an image you select through the system picker. Processing takes place on your device. The app does not record video, save camera frames or retain a copy of the selected image.
 
-The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. The current version does not send this information to the developer or a server. Invoice features do not require an account and work offline. The app contains no advertising, tracking or usage analytics SDKs.
+The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. The app does not upload invoice content to a developer or publisher server. Invoice features do not require an app account. The default ZXing scanner works offline immediately. The app contains no advertising and the developer does not operate an analytics backend; the Google services described below have their own technical data practices.
+
+## Google ML Kit and Play services
+
+Google ML Kit is an optional scanning engine. It may require an internet connection to download its component through Google Play services; invoice image analysis then takes place on the device. The app initializes an ML Kit client and checks component availability when opened, including while ZXing is selected. Availability checks and Google service initialization may involve network communication, independently of a scan or download request.
+
+Google documents technical data processing by ML Kit for diagnostics and usage analytics, including device and app information, device or installation identifiers, configuration, performance measurements, event types and error codes. These data practices apply separately from locally processed invoice content. Google states that the technical data listed in its disclosure are encrypted in transit using HTTPS. See [ML Kit data disclosure](https://developers.google.com/ml-kit/android-data-disclosure) and [Google Privacy Policy](https://policies.google.com/privacy).
+
+## Local review timing and Google Play reviews
+
+To choose when to offer an app review, the app stores the first tracked use time, up to three distinct activity dates, up to ten one-way invoice payload fingerprints and a flag indicating whether the automatic review request was attempted. These limited records stay in private local storage and are not sent to the developer or passed to the review request. Deleting invoice history does not reset these records; clearing app data or uninstalling removes them.
+
+If you submit a rating or review, Google Play handles the rating, review text and associated account presentation under its own rules. Reviews may be public, or privately visible to the developer in a closed test. You can manage or delete your review through Google Play or your Google Account. The app does not determine whether you submitted a review. See [Google Play review data practices](https://developer.android.com/guide/playcore/in-app-review#data-safety).
 
 ## Optional supporter purchase
 
 The app is free and ad-free, and all invoice features remain free. An optional one-time Google Play purchase adds a gold theme and supporter badge. Purchasing and restoring require a Google Play account and internet access. Payment is handled by Google Play under its own terms and privacy policy. The app does not receive card numbers or payment-method details. It receives purchase status, product ID, purchase token and signature to verify ownership and acknowledge the purchase with Google Play, and keeps a local entitlement flag and theme preference. Invoice content is not sent as part of billing, and receipts are not sent to a developer server. Restoration uses the Google Play account that bought the product. Clearing app data does not cancel a Google Play purchase; purchases and refund requests are managed through Google Play.
 
-Google Play Billing adds internet, network-state and billing permissions and communicates with Google billing services. Refer to [Google Privacy Policy](https://policies.google.com/privacy) for the store service's data practices.
+Google libraries used by the app add internet, network-state and billing permissions. Google Play Billing communicates with Google billing services; the app may check store availability and existing ownership when opened. Refer to [Google Privacy Policy](https://policies.google.com/privacy) for the store service's data practices.
 
 ## Deletion and export
 
@@ -28,7 +44,11 @@ Delete scans from the History screen. Clear the app's data in Android settings o
 
 The optional manual backup in Settings creates an unencrypted JSON file containing all saved QR payloads and original check times at a destination you choose. Importing a compatible backup merges invoices into local history and skips duplicates. Backups do not include preferences or supporter purchases. Export and import use temporary files in the app’s private cache, removed when each operation completes; an interrupted process may leave cache files until Android clears the cache or the app’s data is cleared. Backup files saved outside the app remain after clearing history or uninstalling and must be deleted separately. A selected cloud destination or source is governed by its provider’s own privacy practices.
 
-Data is kept in the app's private storage. The app does not add its own database encryption layer. It does not request general access to your photos or storage. Camera permission can be declined while continuing to select images. Automatic backup is disabled in the app configuration; device transfer behavior also depends on Android and the device manufacturer.
+Data is kept in the app's private storage. The app does not add its own database encryption layer. It does not request general access to your photos or storage. Camera permission can be declined while continuing to select images. The app disables automatic backup and explicitly excludes its private data from Android cloud backup and device-transfer rules. System and manufacturer behavior can vary. Manual backups and exports are controlled by your file selections.
+
+## Retention and deletion
+
+Invoice records remain on the device until you delete them or remove the app's local data. Clearing history removes the saved invoice records but does not reset preferences, supporter ownership flags or the limited review-timing records. Clear app data in Android settings or uninstall the app to remove its private local data, including cached files. History deletion cannot withdraw summaries already shared or delete exported files and manual backups saved outside the app. Google controls retention of data processed by its services under its own policies; local deletion does not cancel purchases or remove Play reviews.
 
 ## Independence and service limits
 
@@ -36,4 +56,6 @@ The app is independent and is not affiliated with or approved by ZATCA. Checks a
 
 ## Contact and updates
 
-Privacy questions: [enter a working support email]. Update this policy and its effective date when data handling changes or additional services or SDKs are introduced.
+For support, privacy questions or data-handling requests, email afi4test2@gmail.com. If you contact support, the developer receives the email address, message and any attachments you choose to send, and uses them to respond and resolve the request. Support correspondence is retained only as needed to handle the enquiry and associated follow-up. Avoid including invoice content unless it is needed for your request. Your email provider also handles that correspondence under its own policies.
+
+This policy's update date will change when its content is revised. Material changes to app data handling will be reflected in this policy and the Google Play Data safety information.

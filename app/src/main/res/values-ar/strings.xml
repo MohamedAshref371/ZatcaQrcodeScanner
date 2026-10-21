@@ -1,4 +1,7 @@
 <resources>
+    <string name="privacy_policy">سياسة الخصوصية</string>
+    <string name="privacy_load_error">تعذّر تحميل سياسة الخصوصية</string>
+    <string name="privacy_link_error">تعذّر فتح الرابط</string>
     <string name="share_invoice">مشاركة ملخص الفاتورة</string>
     <string name="share_summary_title">ملخص فاتورة</string>
     <string name="share_check_result">نتيجة الفحص: %1$s</string>
