@@ -1,6 +1,7 @@
 package com.poetscorner.zatcaqrcodescanner.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.rememberScrollState
@@ -31,12 +32,18 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.text.NumberFormat
 
 @Composable
 internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> Unit,
     onLoadMore: () -> Unit, onRetry: () -> Unit,
     onOpen: (HistorySummary) -> Unit, onDelete: (HistorySummary) -> Unit) {
     val listState = rememberLazyListState()
+    val locale = LocalConfiguration.current.locales[0]
+    val countFormat = remember(locale) { NumberFormat.getIntegerInstance(locale) }
+    val amountFormat = remember(locale) { NumberFormat.getNumberInstance(locale).apply {
+        minimumFractionDigits = 2; maximumFractionDigits = 2
+    } }
     LaunchedEffect(state.filter) { listState.scrollToItem(0) }
     LaunchedEffect(state.entries.size, state.loading, state.loadingMore, state.failed) {
         if (!state.loading && !state.loadingMore && !state.failed && state.hasMore) {
@@ -62,6 +69,12 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
         if (state.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         else if (state.entries.isEmpty() && !state.failed) item {
             Text(stringResource(if (state.total == 0) R.string.no_history else R.string.history_no_matches))
+        }
+        if (!state.loading && (!state.failed || state.entries.isNotEmpty())) item {
+            Text(stringResource(R.string.history_summary, countFormat.format(state.matching),
+                state.amount?.let { amountFormat.format(it) } ?: stringResource(R.string.history_total_unavailable)),
+                modifier = Modifier.testTag("history_summary").horizontalScroll(rememberScrollState()),
+                maxLines = 1, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
         items(state.entries, key = { it.id }) { row ->
             Card(Modifier.fillMaxWidth().clickable { onOpen(row) }) {

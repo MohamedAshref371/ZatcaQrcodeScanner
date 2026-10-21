@@ -41,11 +41,12 @@ class HistoryPagingUiTest {
                 }
             }
             compose.waitUntil(10000) { !pager.state.value.loading && pager.state.value.entries.size == 50 }
+            compose.onNodeWithTag("history_summary").assertIsDisplayed()
             compose.onNodeWithTag("history_list").performScrollToIndex(45)
             compose.waitUntil(10000) { pager.state.value.entries.size == 100 }
             compose.onNodeWithTag("history_list").performScrollToIndex(95)
             compose.waitUntil(10000) { pager.state.value.entries.size == 125 }
-            compose.onNodeWithTag("history_list").performScrollToIndex(126)
+            compose.onNodeWithTag("history_list").performScrollToIndex(127)
             compose.onNodeWithText("Seller 1").assertIsDisplayed().performClick()
             compose.runOnIdle { assertEquals(1L, opened) }
             compose.runOnIdle { pager.setFilter(HistoryFilter("125")) }

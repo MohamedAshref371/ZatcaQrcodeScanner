@@ -7,6 +7,7 @@ import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
+import java.math.BigDecimal
 
 fun invoicePayloadKey(raw: String): String {
     val digest = MessageDigest.getInstance("SHA-256")
@@ -31,6 +32,8 @@ data class HistorySummary(val id: Long, val seller: String, val vat: String, val
     val scannedAt: Long, val passed: Boolean, val phase: Int)
 data class HistoryCounts(val total: Int, val matching: Int)
 data class HistoryCursor(val scannedAt: Long, val id: Long)
+data class HistoryAmount(val id: Long, val scannedAt: Long, val total: String)
+data class HistoryOverview(val counts: HistoryCounts, val rows: List<HistorySummary>, val amount: BigDecimal?)
 data class ExportInvoice(val id: Long, val scannedAt: Long, val seller: String, val vat: String,
     val invoiceDate: String, val total: String, val tax: String, val hash: String) {
     fun fields(): List<String> = listOf(seller, vat, invoiceDate, total, tax, hash)
@@ -73,6 +76,7 @@ class HistoryQueries(private val filter: HistoryFilter) {
         return SimpleSQLiteQuery("SELECT $select FROM scans$where$suffix", args.toTypedArray())
     }
     fun counts() = query("(SELECT COUNT(*) FROM scans) AS total, COUNT(*) AS matching")
+    fun amounts(cursor: HistoryCursor? = null) = query("id, scannedAt, total", cursor, 200)
     fun page(cursor: HistoryCursor? = null, limit: Int = 50) = query("id, seller, vat, total, scannedAt, passed, phase", cursor, limit)
     fun export(cursor: HistoryCursor? = null, limit: Int = 200) = query("id, scannedAt, seller, vat, invoiceDate, total, tax, hash", cursor, limit)
     fun hashExists() = query("COUNT(*) > 0", hashOnly = true)

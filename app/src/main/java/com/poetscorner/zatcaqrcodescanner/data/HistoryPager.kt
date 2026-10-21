@@ -5,10 +5,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 
 data class HistoryPageState(val filter: HistoryFilter = HistoryFilter(), val entries: List<HistorySummary> = emptyList(),
     val total: Int = 0, val matching: Int = 0, val loading: Boolean = true, val loadingMore: Boolean = false,
-    val failed: Boolean = false) {
+    val failed: Boolean = false, val amount: BigDecimal? = null) {
     val canExport get() = !loading && entries.isNotEmpty() && matching > 0
     val hasMore get() = entries.size < matching
 }
@@ -35,9 +36,10 @@ class HistoryPager(private val dao: ScanDao, private val scope: CoroutineScope) 
                 val currentGeneration = ++generation
                 mutableState.value = HistoryPageState(req.filter, total = counts.total, matching = counts.matching)
                 try {
-                    val rows = dao.summaries(HistoryQueries(req.filter).page())
+                    val overview = dao.overview(req.filter)
                     if (generation == currentGeneration && request.value == req) {
-                        mutableState.value = HistoryPageState(req.filter, rows, counts.total, counts.matching, loading = false)
+                        mutableState.value = HistoryPageState(req.filter, overview.rows, overview.counts.total,
+                            overview.counts.matching, loading = false, amount = overview.amount)
                     }
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error

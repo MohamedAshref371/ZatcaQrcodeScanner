@@ -22,6 +22,7 @@ class HistoryPagerTest {
             suspend fun ready(size: Int) = withTimeout(10000) { pager.state.first { !it.loading && !it.loadingMore && it.entries.size == size } }
             val first = ready(50)
             assertEquals(125, first.matching)
+            assertEquals("14375.00", first.amount?.toPlainString())
             assertTrue(first.canExport)
             withContext(Dispatchers.Main) { pager.loadMore(); pager.loadMore() }
             ready(100)
@@ -40,12 +41,15 @@ class HistoryPagerTest {
                 assertFalse(pager.state.value.canExport)
             }
             assertEquals(0, ready(0).matching)
+            assertEquals("0.00", pager.state.value.amount?.toPlainString())
             withContext(Dispatchers.Main) { pager.setFilter(HistoryFilter("Seller 125")) }
             val one = ready(1)
+            assertEquals("115.00", one.amount?.toPlainString())
             db.scans().delete(one.entries.single().id)
             val deleted = withTimeout(10000) { pager.state.first { !it.loading && it.total == 124 } }
             assertFalse(deleted.canExport)
             assertEquals(0, deleted.matching)
+            assertEquals("0.00", deleted.amount?.toPlainString())
         } finally {
             scope.coroutineContext[Job]?.cancelAndJoin()
             db.close()

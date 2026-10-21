@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.map
 import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
+import java.math.BigDecimal
 
 enum class ScanEngine {
     ZXING, ML_KIT;
@@ -50,6 +51,29 @@ interface ScanDao {
     @RawQuery suspend fun summaries(query: SupportSQLiteQuery): List<HistorySummary>
     @RawQuery suspend fun exportRows(query: SupportSQLiteQuery): List<ExportInvoice>
     @RawQuery suspend fun hasHash(query: SupportSQLiteQuery): Boolean
+    @RawQuery suspend fun counts(query: SupportSQLiteQuery): HistoryCounts
+    @RawQuery suspend fun amounts(query: SupportSQLiteQuery): List<HistoryAmount>
+    /** One snapshot for the count, first page and exact sum; never loads raw QR payloads. */
+    @Transaction
+    suspend fun overview(filter: HistoryFilter): HistoryOverview {
+        val queries = HistoryQueries(filter)
+        val counts = counts(queries.counts())
+        val rows = summaries(queries.page())
+        var amount = BigDecimal.ZERO.setScale(2)
+        var cursor: HistoryCursor? = null
+        val validAmount = Regex("[0-9]+(\\.[0-9]{1,2})?")
+        while (true) {
+            val batch = amounts(queries.amounts(cursor))
+            if (batch.isEmpty()) break
+            for (row in batch) {
+                if (!validAmount.matches(row.total)) return HistoryOverview(counts, rows, null)
+                amount = amount.add(BigDecimal(row.total))
+            }
+            val last = batch.last()
+            cursor = HistoryCursor(last.scannedAt, last.id)
+        }
+        return HistoryOverview(counts, rows, amount)
+    }
     @Transaction
     suspend fun saveIfNew(scan: ScanEntity): SavedScan {
         val existing = byPayloadKey(scan.payloadKey)
