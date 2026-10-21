@@ -27,10 +27,10 @@ class HistoryDeletionTest {
     @After fun tearDown() { db.close() }
 
     private fun scan(id: Long, time: Long) = ScanEntity(
-        id = id, raw = "same QR", seller = "Seller", scannedAt = time, passed = true, phase = 1
+        id = id, raw = "test QR $id", seller = "Seller", scannedAt = time, passed = true, phase = 1
     )
 
-    @Test fun deletingOneScanPreservesOtherScansWithTheSameQr() = runBlocking {
+    @Test fun deletingOneScanPreservesOtherInvoices() = runBlocking {
         db.scans().insert(scan(1, 100))
         db.scans().insert(scan(2, 100))
         db.scans().delete(1)

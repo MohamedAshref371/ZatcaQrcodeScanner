@@ -8,21 +8,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import com.poetscorner.zatcaqrcodescanner.R
-import com.poetscorner.zatcaqrcodescanner.data.HistoryEntry
+import com.poetscorner.zatcaqrcodescanner.data.HistoryPageState
+import com.poetscorner.zatcaqrcodescanner.data.HistorySummary
 import com.poetscorner.zatcaqrcodescanner.data.HistoryDateSource
-import com.poetscorner.zatcaqrcodescanner.data.ScanEntity
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -30,9 +33,20 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 @Composable
-internal fun HistoryScreen(entries: List<HistoryEntry>, hasHistory: Boolean, query: String, onQuery: (String) -> Unit,
-    onOpen: (ScanEntity) -> Unit, onDelete: (ScanEntity) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(16.dp),
+internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> Unit,
+    onLoadMore: () -> Unit, onRetry: () -> Unit,
+    onOpen: (HistorySummary) -> Unit, onDelete: (HistorySummary) -> Unit) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(state.filter) { listState.scrollToItem(0) }
+    LaunchedEffect(state.entries.size, state.loading, state.loadingMore, state.failed) {
+        if (!state.loading && !state.loadingMore && !state.failed && state.hasMore) {
+            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+                .distinctUntilChanged().collect { last ->
+                    if (last >= state.entries.size - 8) onLoadMore()
+                }
+        }
+    }
+    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("history_list"), state = listState, contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             OutlinedTextField(value = query, onValueChange = onQuery,
@@ -45,20 +59,20 @@ internal fun HistoryScreen(entries: List<HistoryEntry>, hasHistory: Boolean, que
         item {
             Text(stringResource(R.string.history_export_filtered), style = MaterialTheme.typography.bodySmall)
         }
-        if (entries.isEmpty()) item {
-            Text(stringResource(if (!hasHistory) R.string.no_history else R.string.history_no_matches))
+        if (state.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        else if (state.entries.isEmpty() && !state.failed) item {
+            Text(stringResource(if (state.total == 0) R.string.no_history else R.string.history_no_matches))
         }
-        items(entries, key = { it.scan.id }) { entry ->
-            val row = entry.scan
+        items(state.entries, key = { it.id }) { row ->
             Card(Modifier.fillMaxWidth().clickable { onOpen(row) }) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) }, fontWeight = FontWeight.Bold)
-                        if (entry.vat.isNotBlank()) Text(stringResource(R.string.history_vat, entry.vat),
+                        if (row.vat.isNotBlank()) Text(stringResource(R.string.history_vat, row.vat),
                             style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content))
                         Text(stringResource(R.string.history_invoice_total,
-                            entry.total.ifBlank { stringResource(R.string.missing) }),
+                            row.total.ifBlank { stringResource(R.string.missing) }),
                             style = MaterialTheme.typography.bodySmall)
                         Text(if (row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed),
                             color = if (row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
@@ -68,6 +82,11 @@ internal fun HistoryScreen(entries: List<HistoryEntry>, hasHistory: Boolean, que
                     }
                 }
             }
+        }
+        if (state.loadingMore) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        if (state.failed) item {
+            Text(stringResource(R.string.history_load_error))
+            TextButton(onClick = onRetry) { Text(stringResource(R.string.history_retry)) }
         }
     }
 }

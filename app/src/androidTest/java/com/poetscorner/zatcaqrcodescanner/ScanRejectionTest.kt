@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModelStore
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.poetscorner.zatcaqrcodescanner.data.MIGRATION_1_2
 import com.poetscorner.zatcaqrcodescanner.data.ScanDatabase
 import com.poetscorner.zatcaqrcodescanner.ui.ScannerViewModel
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +20,7 @@ class ScanRejectionTest {
     @Test fun malformedQrNeverPublishesAResultOrChangesHistory() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application
         val db = Room.databaseBuilder(app, ScanDatabase::class.java, "invoices.db")
-            .addMigrations(MIGRATION_1_2).build()
+            .fallbackToDestructiveMigration(dropAllTables = true).build()
         val store = ViewModelStore()
         try {
             val before = db.scans().all()

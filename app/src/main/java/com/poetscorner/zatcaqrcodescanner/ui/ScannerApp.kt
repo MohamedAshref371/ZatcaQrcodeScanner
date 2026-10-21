@@ -42,9 +42,7 @@ import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
 import com.poetscorner.zatcaqrcodescanner.data.ScanEngine
 import com.poetscorner.zatcaqrcodescanner.data.HistoryDateSource
 import com.poetscorner.zatcaqrcodescanner.data.HistoryFilter
-import com.poetscorner.zatcaqrcodescanner.data.HistoryEntry
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.poetscorner.zatcaqrcodescanner.data.HistoryPageState
 import com.poetscorner.zatcaqrcodescanner.domain.Invoice
 import com.poetscorner.zatcaqrcodescanner.domain.InvoiceType
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
@@ -57,7 +55,7 @@ import java.util.Date
 @Composable
 fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel = viewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val history by vm.historyEntries.collectAsStateWithLifecycle()
+    val history by vm.historyState.collectAsStateWithLifecycle()
     val result by vm.result.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
@@ -76,10 +74,9 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     val activeHistoryFilter = remember(historyQuery, historyFrom, historyTo, historyDateSource) {
         HistoryFilter(historyQuery, historyFrom, historyTo, historyDateSource)
     }
-    var filteredHistory by remember(history, activeHistoryFilter) { mutableStateOf(emptyList<HistoryEntry>()) }
-    LaunchedEffect(history, activeHistoryFilter) {
-        filteredHistory = withContext(Dispatchers.Default) { activeHistoryFilter.apply(history) }
-    }
+    LaunchedEffect(activeHistoryFilter) { vm.filterHistory(activeHistoryFilter) }
+    val visibleHistory = if (history.filter == activeHistoryFilter) history
+        else HistoryPageState(activeHistoryFilter, total = history.total)
     val snackbar = remember { SnackbarHostState() }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(vm::gallery) }
     val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let { uri -> vm.export(uri, false, exportFilter) } }
@@ -119,16 +116,17 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                             TextButton(onClick = {
                                 exportFilter = activeHistoryFilter
                                 json.launch("zatca-history.json")
-                            }, enabled = filteredHistory.isNotEmpty()) { Text(stringResource(R.string.export_json)) }
+                            }, enabled = visibleHistory.canExport) { Text(stringResource(R.string.export_json)) }
                             TextButton(onClick = {
                                 exportFilter = activeHistoryFilter
                                 csv.launch("zatca-history.csv")
-                            }, enabled = filteredHistory.isNotEmpty()) { Text(stringResource(R.string.export_csv)) }
+                            }, enabled = visibleHistory.canExport) { Text(stringResource(R.string.export_csv)) }
                             TextButton(onClick = { historyFilterDialog = true }) { Text(stringResource(R.string.history_filter_search)) }
-                            TextButton(onClick = { clearDialog = true }, enabled = history.isNotEmpty()) { Text(stringResource(R.string.clear)) }
+                            TextButton(onClick = { clearDialog = true }, enabled = history.total > 0) { Text(stringResource(R.string.clear)) }
                         }
-                        HistoryScreen(filteredHistory, history.isNotEmpty(), historyQuery, { historyQuery = it },
-                            onOpen = { vm.open(it); screen = 1 }, onDelete = vm::delete)
+                        HistoryScreen(visibleHistory, historyQuery, { historyQuery = it },
+                            onLoadMore = vm::loadMoreHistory, onRetry = vm::retryHistory,
+                            onOpen = { vm.open(it.id) }, onDelete = { vm.delete(it.id) })
                     }
                     else -> SettingsScreen(settings, vm::update, support,
                         onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh)

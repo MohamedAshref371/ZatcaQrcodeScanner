@@ -20,6 +20,9 @@
     <string name="export_invoice_date">تاريخ الفاتورة</string>
     <string name="clear">حذف</string>
     <string name="no_history">لا توجد قراءات محفوظة</string>
+    <string name="history_load_error">تعذّر تحميل السجل.</string>
+    <string name="history_retry">إعادة المحاولة</string>
+    <string name="history_entry_missing">الفاتورة لم تعد موجودة في السجل.</string>
     <string name="history_search">ابحث باسم البائع أو الرقم الضريبي</string>
     <string name="history_scan_date">تاريخ الفحص</string>
     <string name="history_invoice_date">تاريخ الفاتورة</string>

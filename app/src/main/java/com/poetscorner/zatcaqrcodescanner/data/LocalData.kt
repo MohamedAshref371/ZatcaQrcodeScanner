@@ -4,8 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.*
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -22,28 +21,42 @@ enum class ScanEngine {
     }
 }
 
-@Entity(tableName = "scans")
+@Entity(tableName = "scans", indices = [Index(value = ["payloadKey"], unique = true),
+    Index(value = ["scannedAt", "id"]), Index(value = ["invoiceDay", "scannedAt", "id"])])
 data class ScanEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val raw: String,
     val seller: String, val scannedAt: Long = System.currentTimeMillis(), val passed: Boolean, val phase: Int,
-    @ColumnInfo(defaultValue = "'STANDARD'") val invoiceType: String = "STANDARD") {
+    @ColumnInfo(defaultValue = "'STANDARD'") val invoiceType: String = "STANDARD",
+    val payloadKey: String = invoicePayloadKey(raw),
+    @Embedded val details: InvoiceDetails = InvoiceDetails.from(ZatcaParser.parse(raw), seller)) {
     fun revalidated(): ScanEntity {
         val invoice = ZatcaParser.parse(raw)
         return copy(passed = invoice.passed, phase = if (invoice.phase2) 2 else 1, invoiceType = invoice.type.name)
     }
+    companion object {
+        fun from(invoice: com.poetscorner.zatcaqrcodescanner.domain.Invoice, checkedAt: Long) = ScanEntity(
+            raw = invoice.raw, seller = invoice.value(1), scannedAt = checkedAt, passed = invoice.passed,
+            phase = if (invoice.phase2) 2 else 1, invoiceType = invoice.type.name,
+            details = InvoiceDetails.from(invoice, invoice.value(1)))
+    }
 }
 @Dao
 interface ScanDao {
-    @Query("SELECT * FROM scans ORDER BY scannedAt DESC, id DESC") fun observe(): Flow<List<ScanEntity>>
     @Query("SELECT * FROM scans ORDER BY scannedAt DESC, id DESC") suspend fun all(): List<ScanEntity>
-    @Insert suspend fun insert(scan: ScanEntity): Long
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(scan: ScanEntity): Long
+    @Insert suspend fun insertBatch(scans: List<ScanEntity>)
+    @Query("SELECT * FROM scans WHERE payloadKey = :key LIMIT 1") suspend fun byPayloadKey(key: String): ScanEntity?
+    @Query("SELECT * FROM scans WHERE id = :id") suspend fun byId(id: Long): ScanEntity?
+    @RawQuery(observedEntities = [ScanEntity::class]) fun observeCounts(query: SupportSQLiteQuery): Flow<HistoryCounts>
+    @RawQuery suspend fun summaries(query: SupportSQLiteQuery): List<HistorySummary>
+    @RawQuery suspend fun exportRows(query: SupportSQLiteQuery): List<ExportInvoice>
+    @RawQuery suspend fun hasHash(query: SupportSQLiteQuery): Boolean
     @Transaction
     suspend fun saveIfNew(scan: ScanEntity): SavedScan {
-        fun key(raw: String) = raw.filterNot { it.isWhitespace() }.trimEnd('=')
-        val payloadKey = key(scan.raw)
-        // Preserve the original text and first check time, including older saved scans.
-        val existing = all().lastOrNull { key(it.raw) == payloadKey }
+        val existing = byPayloadKey(scan.payloadKey)
         if (existing != null) return SavedScan(existing, alreadyExists = true)
-        return SavedScan(scan.copy(id = insert(scan)), alreadyExists = false)
+        val id = insert(scan)
+        return if (id != -1L) SavedScan(scan.copy(id = id), alreadyExists = false)
+        else SavedScan(requireNotNull(byPayloadKey(scan.payloadKey)), alreadyExists = true)
     }
     @Query("DELETE FROM scans") suspend fun clear()
     @Query("DELETE FROM scans WHERE id = :id") suspend fun delete(id: Long)
@@ -60,12 +73,8 @@ interface ScanDao {
 }
 data class SavedScan(val scan: ScanEntity, val alreadyExists: Boolean)
 
-val MIGRATION_1_2 = object : Migration(1, 2) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE scans ADD COLUMN invoiceType TEXT NOT NULL DEFAULT 'STANDARD'")
-    }
-}
-@Database(entities = [ScanEntity::class], version = 2, exportSchema = false)
+// Experimental release: old databases may be recreated; no 2 -> 3 migration is required.
+@Database(entities = [ScanEntity::class], version = 3, exportSchema = false)
 abstract class ScanDatabase : RoomDatabase() { abstract fun scans(): ScanDao }
 
 data class ScannerSettings(val harder: Boolean = true, val denoise: Boolean = false,

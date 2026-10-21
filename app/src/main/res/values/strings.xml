@@ -20,6 +20,9 @@
     <string name="export_invoice_date">Invoice date</string>
     <string name="clear">Delete</string>
     <string name="no_history">No saved scans</string>
+    <string name="history_load_error">Unable to load history.</string>
+    <string name="history_retry">Retry</string>
+    <string name="history_entry_missing">This invoice is no longer in history.</string>
     <string name="history_search">Search by seller or VAT number</string>
     <string name="history_scan_date">Check date</string>
     <string name="history_invoice_date">Invoice date</string>
