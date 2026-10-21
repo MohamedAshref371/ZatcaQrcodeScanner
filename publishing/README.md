@@ -7,7 +7,7 @@
 | الاسم العربي في المتجر | قارئ فاتورة: QR السعودية |
 | الاسم الإنجليزي في المتجر | Saudi Invoice QR Reader |
 | معرّف الحزمة | `com.poetscorner.invoiceqr` |
-| الإصدار | `1.0.0`، ورقم البناء `1` |
+| الإصدار | `1.0.0`، ورقم البناء `2` |
 | نوع التطبيق | App |
 | التصنيف المقترح | Tools (الأدوات) |
 | لغات الواجهة | العربية RTL والإنجليزية LTR |
@@ -77,6 +77,8 @@ playBillingPublicKey=BASE64_PUBLIC_RSA_KEY_FROM_PLAY_CONSOLE
 مصادر التنفيذ: [دمج Play Billing](https://developer.android.com/google/play/billing/integrate)، [اختبار المشتريات](https://developer.android.com/google/play/billing/test).
 
 ## بناء حزمة النشر
+
+رقم البناء الحالي **2**، مع تحسين R8 وتصغير الموارد. راجع [دليل ملفات تشخيص الإصدار](release-diagnostics-ar.md) لملف إزالة التشويش، والرموز الأصلية المتاحة، وإعادة إنشاء AAB موقّعة بدل الملف القديم.
 
 من Android Studio: Build → Generate Signed App Bundle / APK → Android App Bundle → اختر مفتاح الرفع ونسخة `release`. احتفظ بالمفتاح وبياناته خارج المستودع. استخدم Play App Signing حسب إعداد حسابك.
 
