@@ -113,9 +113,16 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
         runCatching { db.scans().keepLatestDay() }
             .onFailure { message.value = UiText(R.string.history_delete_error) }
     } }
-    fun delete(id: Long) { viewModelScope.launch {
+    // Memory only: navigating within the app keeps this choice; leaving the app resets it.
+    var skipInvoiceDeleteConfirmation = false
+        private set
+    fun resetInvoiceDeleteConfirmation() { skipInvoiceDeleteConfirmation = false }
+    fun delete(id: Long, skipConfirmationForSession: Boolean = false) {
+        if (skipConfirmationForSession) skipInvoiceDeleteConfirmation = true
+        viewModelScope.launch {
         runCatching { db.scans().delete(id) }
             .onFailure { message.value = UiText(R.string.history_delete_error) }
-    } }
+        }
+    }
     override fun onCleared() { db.close() }
 }

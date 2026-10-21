@@ -47,6 +47,9 @@
     <string name="history_passed">اجتاز الفحوص المحلية · المرحلة %1$d</string>
     <string name="history_failed">لم يجتز الفحوص المحلية</string>
     <string name="clear_title">حذف السجل</string>
+    <string name="history_delete_invoice_title">حذف الفاتورة؟</string>
+    <string name="history_delete_invoice_body">هل تريد حذف فاتورة %1$s من السجل؟</string>
+    <string name="history_delete_skip_session">لا تعرض مرة أخرى خلال هذه الجلسة</string>
     <string name="clear_body">يمكنك إبقاء قراءات آخر يوم قرأت فيه وحذف باقي القراءات، أو حذف السجل بالكامل. يُحدَّد اليوم حسب تاريخ الفحص والتوقيت المحلي للجهاز.</string>
     <string name="keep_latest_day">إبقاء قراءات آخر يوم</string>
     <string name="delete_all">حذف الكل</string>

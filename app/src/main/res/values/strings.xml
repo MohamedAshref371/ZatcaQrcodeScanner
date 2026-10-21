@@ -47,6 +47,9 @@
     <string name="history_passed">Local checks passed · Phase %1$d</string>
     <string name="history_failed">Local checks failed</string>
     <string name="clear_title">Delete history</string>
+    <string name="history_delete_invoice_title">Delete invoice?</string>
+    <string name="history_delete_invoice_body">Delete the invoice from %1$s from history?</string>
+    <string name="history_delete_skip_session">Do not show again this session</string>
     <string name="clear_body">Keep scans from the most recent day you scanned and delete the rest, or delete the entire history. The day is based on the check date and the device’s local time.</string>
     <string name="keep_latest_day">Keep the latest day’s scans</string>
     <string name="delete_all">Delete all</string>

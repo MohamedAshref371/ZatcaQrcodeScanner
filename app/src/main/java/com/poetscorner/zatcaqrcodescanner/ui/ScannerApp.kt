@@ -43,6 +43,7 @@ import com.poetscorner.zatcaqrcodescanner.data.ScanEngine
 import com.poetscorner.zatcaqrcodescanner.data.HistoryDateSource
 import com.poetscorner.zatcaqrcodescanner.data.HistoryFilter
 import com.poetscorner.zatcaqrcodescanner.data.HistoryPageState
+import com.poetscorner.zatcaqrcodescanner.data.HistorySummary
 import com.poetscorner.zatcaqrcodescanner.domain.Invoice
 import com.poetscorner.zatcaqrcodescanner.domain.InvoiceType
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
@@ -65,6 +66,13 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { supporter.refresh() }
     var screen by rememberSaveable { mutableIntStateOf(0) }
     var clearDialog by remember { mutableStateOf(false) }
+    var invoiceToDelete by remember { mutableStateOf<HistorySummary?>(null) }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        if (context.activity()?.isChangingConfigurations != true) {
+            vm.resetInvoiceDeleteConfirmation()
+            invoiceToDelete = null
+        }
+    }
     var historyQuery by rememberSaveable { mutableStateOf("") }
     var historyFrom by rememberSaveable { mutableStateOf<Long?>(null) }
     var historyTo by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -126,7 +134,10 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         }
                         HistoryScreen(visibleHistory, historyQuery, { historyQuery = it },
                             onLoadMore = vm::loadMoreHistory, onRetry = vm::retryHistory,
-                            onOpen = { vm.open(it.id) }, onDelete = { vm.delete(it.id) })
+                            onOpen = { vm.open(it.id) }, onDelete = {
+                                if (vm.skipInvoiceDeleteConfirmation) vm.delete(it.id)
+                                else invoiceToDelete = it
+                            })
                     }
                     else -> SettingsScreen(settings, vm::update, support,
                         onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh)
@@ -137,6 +148,15 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             onDismiss = { historyFilterDialog = false }, onApply = { source, from, to ->
                 historyDateSource = source; historyFrom = from; historyTo = to; historyFilterDialog = false
             })
+        invoiceToDelete?.let { invoice ->
+            key(invoice.id) {
+                InvoiceDeleteDialog(invoice.seller.ifBlank { stringResource(R.string.unknown_seller) },
+                    onDismiss = { invoiceToDelete = null }, onConfirm = { skip ->
+                        vm.delete(invoice.id, skip)
+                        invoiceToDelete = null
+                    })
+            }
+        }
         if (clearDialog) AlertDialog(onDismissRequest = { clearDialog = false }, title = { Text(stringResource(R.string.clear_title)) }, text = { Text(stringResource(R.string.clear_body)) },
             confirmButton = {
                 Column(horizontalAlignment = Alignment.End) {

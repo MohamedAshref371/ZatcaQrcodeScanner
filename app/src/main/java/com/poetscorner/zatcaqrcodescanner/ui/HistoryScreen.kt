@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -102,6 +103,27 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
             TextButton(onClick = onRetry) { Text(stringResource(R.string.history_retry)) }
         }
     }
+}
+
+@Composable
+internal fun InvoiceDeleteDialog(seller: String, onDismiss: () -> Unit, onConfirm: (Boolean) -> Unit) {
+    var skip by remember { mutableStateOf(false) }
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.history_delete_invoice_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.history_delete_invoice_body, seller))
+                Row(Modifier.fillMaxWidth().toggleable(value = skip, role = Role.Checkbox,
+                    onValueChange = { skip = it }), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = skip, onCheckedChange = null)
+                    Text(stringResource(R.string.history_delete_skip_session), Modifier.padding(start = 8.dp))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(skip) }) {
+            Text(stringResource(R.string.clear), color = MaterialTheme.colorScheme.error)
+        } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }
 
 @Composable
