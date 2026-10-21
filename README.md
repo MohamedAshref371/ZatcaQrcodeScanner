@@ -1,55 +1,100 @@
-# قارئ فاتورة — ZATCA QR Scanner
+# Invoice QR Reader — ZATCA QR Scanner
 
-تطبيق Android بلغة Kotlin وCompose Material 3، بواجهة عربية RTL وإنجليزية LTR ووضع فاتح/داكن. وظائف الفواتير تعمل بعد التثبيت دون إنترنت. تتضمن النسخة الحالية أذونات الشبكة التي تضيفها مكتبة Google Play Billing لباقة الداعم الاختيارية؛ لا تُرسل بيانات الفواتير عبرها. الحد الأدنى Android 8 (API 26).
+English | [العربية](README-ar.md)
 
-كل النصوص المعروضة من موارد Android: `values/strings.xml` للإنجليزية الافتراضية والاحتياطية، و`values-ar/strings.xml` للعربية. لا يلزم ملف إنجليزي مكرر؛ يحدد `resources.properties` أن لغة الموارد الافتراضية هي `en`. تشمل الشاشات والكاميرا والرسائل والشراء وTags وأخطاء TLV والفحوص، مع 179 مفتاحًا مترجمًا. يتبع التطبيق لغة الجهاز، ويمكن اختيار لغته من إعدادات التطبيق في Android 13 فأحدث. الاتجاه يتبع اللغة تلقائيًا، بينما تظل Base64 والبيانات الرقمية مقروءة من اليسار إلى اليمين. أسماء الحقول داخل JSON تُصدّر بلغة التطبيق، وتظل مفاتيح JSON وعناوين CSV ومعرّفات الأنواع ثابتة للتوافق مع الاستيراد. محتوى الفواتير الأصلي لا يُترجم أو يُعدّل.
+An Android app for reading Saudi e-invoice QR codes, viewing invoice details, running local structural checks, and keeping a searchable invoice history. Built with Kotlin, Jetpack Compose, Material 3, CameraX, Room, and DataStore.
 
-لتغيير اللغة في Android 13 فأحدث: إعدادات Android ← التطبيقات ← قارئ فاتورة ← اللغة. في Android 8–12 تُستخدم لغة الجهاز. لا توجد قائمة لغة داخل التطبيق. `generateLocaleConfig` و`localeFilters` يحصران اللغات المدعومة في العربية والإنجليزية، وفق [توثيق Android الرسمي](https://developer.android.com/guide/topics/resources/app-languages). الشاشات تستخدم معرّفات تنقل ثابتة، والرسائل ونتائج الفحص تستخدم مراجع موارد `UiText` تُترجم وقت العرض بدل تخزين النص المترجم في الحالة.
+Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL), light and dark modes, and an optional gold theme for supporters.
 
-كل وظائف الفواتير مجانية وبدون إعلانات. باقة داعم اختيارية عبر Google Play تضيف مظهرًا ذهبيًا وشارة داعم فقط، بشراء مرة واحدة؛ الشراء والاستعادة يحتاجان اتصالًا بالمتجر. راجع قسم «تفعيل باقة الداعم» في [دليل النشر](publishing/README.md) لإعداد المنتج `supporter_pack` بسعر أساسي دولار واحد ومفتاح التحقق العام قبل تمكين الدفع الفعلي.
+**The app performs local structural checks only. It does not certify tax compliance, verify cryptographic signatures, or establish official invoice acceptance. It is independent of ZATCA.**
 
-بيانات صفحة Google Play والأيقونة ومسودات الخصوصية وخطوات توقيع حزمة النشر موجودة في [publishing/README.md](publishing/README.md). الإصدار الحالي `1.0.0`، وتعرض الإعدادات نافذة «حول التطبيق» مع رقم الإصدار وتعريف الخدمة.
+## Features
 
-## النتيجة والبحث في السجل
+- Read invoice QR codes with the camera, choose an image from the gallery, or paste Base64 manually.
+- Use ZXing by default, or download the optional Google ML Kit scanning component.
+- Scan individual invoices or enable continuous scanning with a session counter and result notifications.
+- View seller, VAT number, timestamp, total including VAT, tax, and phase-two fields when present.
+- Expand advanced fields, check details, and the original QR content when needed.
+- Search saved invoices by seller or VAT number and filter by invoice date or check date.
+- Export matching invoices as JSON or CSV through the system file picker.
+- Use all invoice features for free, without ads or an account.
 
-عند فحص Base64 موجودة في السجل، تُفتح الفاتورة المحفوظة مع رسالة «الفاتورة مضافة مسبقًا» ودون إضافة قراءة جديدة أو تغيير تاريخ الفحص الأصلي. يشمل ذلك الكاميرا والصور والإدخال اليدوي، وتُتجاهل مسافات النسخ والأسطر واختلاف padding عند مقارنة Base64 مع الحفاظ على النص المحفوظ الأصلي. يُحفظ مفتاح SHA-256 مفهرس وفريد للـBase64 بعد تجاهل المسافات وpadding. البحث والحفظ داخل معاملة واحدة، والفهرس الفريد يمنع التكرار أيضًا على مستوى قاعدة البيانات.
+The optional one-time Google Play supporter purchase adds a gold theme and a supporter badge. Purchasing and restoring require a store connection; invoice features remain free. Product `supporter_pack`, its base price, and the purchase verification key are described in the [publishing guide (Arabic)](publishing/README.md).
 
-تعرض النتيجة البائع والرقم الضريبي والتاريخ والإجمالي والضريبة مباشرة، مع Hash ضمن البيانات الأساسية لفواتير المرحلة الثانية. التوقيع والمفتاح والختم داخل قسم «التفاصيل المتقدمة» المطوي افتراضيًا؛ لا يظهر القسم لفواتير المرحلة الأولى. تفاصيل الفحص ومحتوى QR الأصلي قابلان للفتح، وتقتصر فحوص المرحلة الأولى على حقولها دون عرض نواقص المرحلة الثانية. تظهر الفحوص الفاشلة في بطاقة النتيجة مباشرة. في صفحة النتيجة الفارغة يمكن لصق Base64 من برنامج آخر وفحصه بنفس مسار قراءة الكاميرا والحفظ في السجل.
+## Offline scanning and engine downloads
 
-يدعم السجل البحث الجزئي باسم البائع أو الرقم الضريبي، بما في ذلك كتابة الرقم بأرقام عربية أو فارسية. زر «بحث» بين CSV وحذف يفتح نافذة فيها اختيار واحد: تاريخ الفاتورة أو تاريخ الفحص، ولكل منهما فترة «من / إلى». تاريخ الفاتورة هو اليوم المكتوب في الحقل 3، وتاريخ الفحص حسب التوقيت المحلي للجهاز؛ تشمل الفترة يومي البداية والنهاية كاملين. تبقى تغييرات النافذة مؤقتة حتى الضغط على «موافق»؛ «إلغاء» أو الرجوع يغلقانها دون تغيير الفلتر المطبق. لمسح الفترة استخدم «مسح فترة التاريخ» ثم «موافق». يبقى حقل البحث بالاسم أو الرقم الضريبي في صفحة السجل، وتبقى اختيارات البحث والفترة عند التنقل بين صفحات التطبيق. تُحفظ بيانات العرض والبحث والمبالغ والتاريخ وHash ونتيجة الفحوص عند الإضافة لأول مرة. تنفذ قاعدة البيانات البحث والفلاتر، وتُحمَّل البطاقات على دفعات من 50 بطاقة دون تحميل Base64؛ يُقرأ النص الكامل فقط عند فتح الفاتورة. القراءات ذات تاريخ فاتورة مفقود أو غير صالح تُستبعد فقط عند تطبيق فترة بتاريخ الفاتورة. تصدير JSON وCSV يطبق نفس البحث وفلتر التاريخ المستخدمين في العرض، وتُحفظ اختيارات الفلتر لحظة الضغط على التصدير حتى عند إعادة إنشاء الواجهة أثناء اختيار مكان الحفظ. بدون فلاتر يُصدَّر السجل كله. يُعطَّل زرا JSON وCSV عند عدم وجود نتائج بعد البحث أو فلتر التاريخ، وكذلك أثناء تحديث النتائج، ويُفعَّلان تلقائيًا عند وجود نتائج مطابقة.
+Both scanning engines process invoice images on the device:
 
-اسم المتجر العربي «قارئ فاتورة QR فواتير السعودية» (30 حرفًا)، والصيغة الكاملة «قارئ فاتورة: QR الفواتير السعودية» في بداية الوصف. النصوص المحلية جاهزة للمراجعة والنسخ إلى Play Console ولم تُنشر تلقائيًا.
+| Engine | Availability | Setup |
+|---|---|---|
+| ZXing | Included and selected by default | Works offline immediately |
+| Google ML Kit | Optional component managed by Google Play services | May require an internet connection to download before use; scanning works offline afterward |
 
-## فتح المشروع وتشغيله
+The current ML Kit dependency is `com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1`. Its model is **not bundled in the APK**. Settings check whether the component is already available and show a download button when needed, with progress, paused, installation, failure, and retry states. ML Kit cannot be selected until availability is confirmed. If a previously selected ML Kit component becomes unavailable, scanning uses ZXing temporarily.
 
-1. افتح هذا المجلد من Android Studio بإصدار يدعم Android Gradle Plugin 9.0.1 وGradle 9.1، واختر JDK 17 أو أحدث (يفضّل JBR المرفق مع Android Studio).
-2. ثبّت Android SDK Platform 36 وBuild Tools المناسبة من SDK Manager. اضبط `sdk.dir` في `local.properties` على مسار SDK لديك.
-3. نفّذ Gradle Sync. تحتاج عملية تنزيل الاعتماديات لأول مرة إلى الإنترنت؛ التشغيل والمسح والتحليل والتخزين لا تحتاجه.
-4. شغّل `app` على هاتف، واسمح بصلاحية الكاميرا. يمكن استخدام المعرض عند رفض الصلاحية أو عدم وجود كاميرا.
-5. اضبط محرك القراءة من الإعدادات. Try harder مفعّل افتراضيًا، ودقة HD افتراضية. الكشاف والضغط للتركيز والزوم متاحة؛ الدقة الفعلية يختارها CameraX حسب إمكانات الجهاز.
+The component can already be available through Google Play services, including from another app. Reinstalling this app does not guarantee that another download will be necessary. The radio buttons indicate the selected engine; component availability is separate from selection.
+
+Engine preferences are stored in DataStore and apply to both camera and gallery scanning. ZXing-specific options appear only when ZXing is selected. Resolution, torch, tap-to-focus, and zoom controls are shared. Both engines restrict camera analysis to the visible square; ML Kit receives a cropped NV21 image with the frame rotation and plane stride taken into account.
+
+## Results, history, and export
+
+Duplicate detection covers camera scans, gallery images, and manual Base64 input. The app compares a unique, indexed SHA-256 key of Base64 normalized for whitespace and padding, while preserving the originally saved text. Lookup and insertion run in one database transaction. Scanning a duplicate opens the saved invoice without adding an entry or changing its original check date.
+
+Results show the seller, VAT number, timestamp, total, and tax in field order. For phase-two candidates, the hash is also shown among the main fields. Signature, public key, and stamp are in an advanced section that starts collapsed. Failed checks appear in the result summary; detailed checks and original QR text can be expanded separately. Malformed Base64/TLV is rejected without opening a result or adding history. Parseable invoices with failed field checks can still be saved for review.
+
+History supports partial seller/VAT searches, including VAT numbers entered with Arabic or Persian digits. The **Search** button opens a date filter with one active source: invoice date or check date. Ranges include both endpoints. Invoice dates use the day written in tag 3; check dates use the device's local time. Canceling the dialog leaves the applied filter unchanged. Entries with missing or invalid invoice dates are excluded only when an invoice-date range is active.
+
+Search and display fields are stored when an invoice is first saved. SQLite performs filtering, and the UI loads summaries in pages of **50** without loading raw Base64. The complete payload is fetched when an invoice is opened. The history performance report includes a [10,000-invoice device test (Arabic)](docs/history-performance.md).
+
+JSON and CSV export use the same search and date filters as the displayed history. The filter is captured when export starts, including across activity recreation while choosing a destination. With no filters, the entire history is exported. Export buttons are disabled while results are updating or no matching invoices exist.
+
+Exports include the seller, VAT number, invoice date, total, tax, and hash where present. Field names/column headings use the app language; original invoice values are preserved. CSV cells are quoted and protected against spreadsheet formula injection. Export streams batches of **200** rows within one transaction to keep a consistent snapshot, without loading the full history or output file into memory.
+
+## Language and appearance
+
+English resources are in `app/src/main/res/values/strings.xml`; Arabic translations are in `values-ar/strings.xml`. `resources.properties` declares English as the default resource language. The interface, camera controls, messages, purchases, field labels, parser errors, and check results use Android string resources.
+
+The app follows the device language. On Android 13 and later, change the app language under **Android Settings → Apps → Invoice QR Reader → Language**. On Android 8–12, the device language is used. There is no in-app language picker. `generateLocaleConfig` and `localeFilters` declare English and Arabic support.
+
+Layout direction follows the language, while Base64 and numeric values remain readable left to right. Invoice content is never translated. Messages and checks use `UiText` resource references resolved at display time, so retained state can be rendered in the current language.
+
+## Open and run the project
+
+1. Open the repository in Android Studio with support for **Android Gradle Plugin 9.0.1** and **Gradle 9.1**. Use JDK 17 or later; Android Studio's bundled JBR is suitable.
+2. Install Android SDK Platform **36** and the required Build Tools. Set `sdk.dir` in your local `local.properties` file.
+3. Sync Gradle. Downloading build dependencies initially requires internet access.
+4. Run the `app` module on a device and grant camera permission. Gallery input remains available without camera access.
+5. Adjust the scanning engine and camera settings. ZXing's Try harder option and HD resolution are enabled by default. CameraX chooses an actual resolution supported by the device.
+
+From PowerShell:
 
 ```powershell
 ./gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-ملف التثبيت: `app/build/outputs/apk/debug/app-debug.apk`.
+Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
 
-## zxing-cpp الرسمي وJNI
+Release builds:
 
-الاعتماد الافتراضي في `app/build.gradle.kts`:
+```powershell
+./gradlew.bat :app:assembleRelease :app:bundleRelease
+```
+
+The project does not configure a release signing key. `assembleRelease` produces `app/build/outputs/apk/release/app-release-unsigned.apk`; release artifacts need appropriate signing before distribution. Store listings, icons, privacy drafts, billing setup, and signing instructions are in [publishing/README.md (Arabic)](publishing/README.md). The current version is `1.0.0`, version code `1`.
+
+## ZXing native wrapper
+
+The project uses the official Android wrapper:
 
 ```kotlin
 implementation("io.github.zxing-cpp:android:3.1.1")
 ```
 
-هذا هو Android wrapper الرسمي ويحتوي AAR على مكتبات C++/JNI؛ لا يلزم CMake أو NDK لمستهلك AAR. `scanner/QrScanner.kt` يضبط `BarcodeReader.Options(formats = setOf(BarcodeReader.Format.QR_CODE))`؛ يحوّل الـ JNI ذلك إلى `ReaderOptions` مع `QRCode` فقط. عند اختيار ZXing تستخدم الكاميرا والمعرض خيارات Try harder / denoise / rotate / invert وBinarizer، مع downscale مفعّل.
+Its AAR includes the C++/JNI libraries, so consuming it does not require CMake or the NDK. `scanner/QrScanner.kt` configures `BarcodeReader.Options` with `QR_CODE` only. ZXing supports Try harder, denoise, rotation, inverted colors, binarizer selection, and downscaling for camera and gallery input.
 
-يمكن التبديل من الإعدادات ← «محرك المسح» بين ZXing (الافتراضي) وGoogle ML Kit. يُحفظ الاختيار في DataStore ويُستخدم للكاميرا وصور المعرض. إعدادات ZXing الخاصة تظهر عند اختياره فقط؛ إعدادات الكاميرا المشتركة متاحة للمحركين. يعتمد ML Kit على `com.google.mlkit:barcode-scanning:17.3.0` بنموذج مضمّن في التطبيق، لذلك لا يحتاج تنزيل نموذج عند أول مسح. راجع [دليل Google الرسمي](https://developers.google.com/ml-kit/vision/barcode-scanning/android). يقصر المحركان فحص الكاميرا على المربع الظاهر؛ يُنسخ جزء الإضاءة داخل المربع إلى NV21 لمحرك ML Kit، مع مراعاة دوران الإطار وstride. لا تدخل القراءات غير الصالحة بصيغة Base64/TLV إلى صفحة النتيجة أو السجل، بصرف النظر عن المحرك المختار.
+### Optional: build the wrapper from source
 
-### بناء الـ wrapper من المصدر بـ CMake وNDK (بديل اختياري)
-
-1. من SDK Manager → SDK Tools ثبّت NDK (27 أو أحدث بدعم C++20) وCMake. راجع نسخة الأدوات المطلوبة في wrapper عند استخدام إصدار آخر.
-2. نزّل المصدر الرسمي بإصدار مثبت:
+Install CMake and an NDK supporting C++20, matching the pinned wrapper's toolchain requirements. Then build the official source:
 
 ```powershell
 git clone --branch v3.1.1 --depth 1 --recurse-submodules https://github.com/zxing-cpp/zxing-cpp.git
@@ -57,74 +102,92 @@ cd zxing-cpp/wrappers/android
 ./gradlew.bat :zxingcpp:assembleRelease
 ```
 
-3. الـ wrapper الرسمي يربط JNI من `zxingcpp/src/main/cpp/CMakeLists.txt` ويضيف core C++؛ إعداد `externalNativeBuild` موجود بالفعل. يمكن تثبيت `ndkVersion` داخل وحدة المكتبة إذا لزم اختيار إصدار NDK المثبّت.
-4. انسخ `zxingcpp/build/outputs/aar/zxingcpp-release.aar` إلى `app/libs` في هذا المشروع (أنشئ المجلد).
-5. **استبدل** اعتماد Maven السابق بالسطر التالي، ثم نفّذ Sync:
+The wrapper already defines JNI/CMake integration in `zxingcpp/src/main/cpp/CMakeLists.txt`. Pin `ndkVersion` in that library module if needed. Copy `zxingcpp/build/outputs/aar/zxingcpp-release.aar` into this project's `app/libs/` directory, and **replace** the Maven dependency with:
 
 ```kotlin
 implementation(files("libs/zxingcpp-release.aar"))
 ```
 
-لا تضف الاعتمادين معًا لتجنب تكرار الأصناف والمكتبات. CameraX معرفة مباشرة في المشروع، لذلك تعمل أيضًا مع AAR محلي لا ينشر الاعتماديات الانتقالية.
+Do not include both dependencies: they contain duplicate classes and native libraries. CameraX is declared directly in this project, including when a local AAR is used.
 
-## الهيكل
+## Project structure and camera processing
 
 ```text
 app/src/main/java/com/poetscorner/zatcaqrcodescanner/
   MainActivity.kt
-  domain/ZatcaParser.kt          # Base64، TLV، حقول الفاتورة ونتائج الفحوص
-  scanner/QrScanner.kt           # إعداد JNI وصور المعرض/EXIF
-  data/LocalData.kt              # Room، DataStore
-  data/HistoryExporter.kt        # JSON وCSV
-  ui/ScannerViewModel.kt         # حالة التطبيق وعمليات الخلفية
-  ui/CameraScanner.kt            # CameraX وطلب الصلاحية
-  ui/ScannerApp.kt               # الماسح، النتيجة، السجل، الإعدادات
-  ui/theme/                     # Material 3
+  domain/ZatcaParser.kt                    # Base64, TLV, invoice fields and checks
+  scanner/QrScanner.kt                     # ZXing options, gallery decoding and EXIF
+  scanner/QrDecoder.kt                     # Camera/gallery adapters for both engines
+  scanner/GoogleMlKitModuleInstaller.kt    # Google Play services module installation
+  scanner/MlKitModuleController.kt         # Availability and download state
+  data/LocalData.kt                        # Room and settings DataStore
+  data/HistoryExporter.kt                  # Streaming JSON/CSV export
+  data/ReviewRepository.kt                 # Local usage and one-time review eligibility
+  ui/ScannerViewModel.kt                   # App state and background operations
+  ui/CameraScanner.kt                      # CameraX, permission and camera controls
+  ui/ScannerApp.kt                         # Navigation, results and settings
+  ui/ScanEnginePicker.kt                   # Engine selection and download controls
+  ui/HistoryScreen.kt                      # Search, summary and paged history
+  ui/theme/                               # Material 3 colors, shapes and typography
 ```
 
-CameraX تستخدم executor واحدًا للتحليل مع `STRATEGY_KEEP_ONLY_LATEST` وإغلاق `ImageProxy` داخل `finally`. التردد العادي 300ms، والسريع 100ms، والأسرع بلا تأخير إضافي؛ هذه حدود جدولة وليست ضمان FPS. تتوقف جلسة الكاميرا عند مغادرة شاشة الماسح، وتُحفظ قراءة واحدة في كل جلسة لتجنب التكرار. قراءة المعرض وتحليل البيانات والتصدير تتم خارج خيط الواجهة. الصورة تُصحح حسب EXIF، وتُخفض إن تجاوزت 4096 بكسل في أي بعد لحماية الذاكرة.
+CameraX uses one analysis executor with `STRATEGY_KEEP_ONLY_LATEST` and closes `ImageProxy` in `finally`. Normal, fast, and fastest modes use minimum scheduling intervals of 300 ms, 100 ms, and no added delay respectively; these are not guaranteed frame rates. Single-scan mode stops after an accepted result; continuous mode keeps scanning and reports saved, duplicate, and review states without navigating away from the camera. Leaving the scanner disposes its camera use cases.
 
-## التحليل والافتراضات
+Gallery decoding, parsing, and export run off the UI thread. Gallery images are corrected for EXIF orientation and downsampled when either dimension exceeds 4096 pixels to bound memory use.
 
-- فحص محلي لبنية QR فقط، **ليس شهادة امتثال ضريبي ولا تحققًا تشفيريًا**. لا يحتوي QR وحده على XML الفاتورة والمرجع الموثوق اللازمين للتحقق الكامل من Hash والتوقيع وسلسلة الشهادة.
-- الحقول 1–5: البائع، الرقم الضريبي، التاريخ، الإجمالي شامل الضريبة، الضريبة. الحقل 6 Hash، و7 توقيع ECDSA، و8 **المفتاح العام** (وليس شهادة X.509 كاملة)، و9 توقيع المفتاح العام من جهة التصديق التقنية لدى ZATCA. تُقرأ قيمتا 6 و7 كنص Base64 موجود أصلًا داخل TLV وتُعرضان كما هما دون إعادة الترميز. فقط بيانات 8 و9 الثنائية تُحوّل إلى Base64 للعرض. ينطبق ذلك أيضًا عند فتح السجل وتصدير الحقول في JSON.
-- التصنيف تلقائي بعد فك TLV: وجود الحقل 9 يعني **«فاتورة ضريبية مبسطة»**، وغيابه يعني **«فاتورة ضريبية»**. لا يوجد اختيار يدوي للنوع. هذه قاعدة تصنيف التطبيق بناءً على الختم، وليست استخراجًا لنوع مستند XML؛ الرمز الناقص قد يتصنّف كفاتورة ضريبية. وجود الحقل 9 بقيمة فارغة لا يجعله غائبًا: يُصنّف الرمز مبسطًا لكنه يفشل فحص الختم.
-- وجود أي من 6–9 يصنّف الرمز كمرشح للمرحلة الثانية، ويفرض وجود 6 و7 و8. الختم الموجود يجب أن يكون غير فارغ وبنيته سليمة. غياب الحقول 6–9 يصنّف الرمز كمرحلة أولى؛ لا يمكن استنتاج المرحلة المقصودة من QR ناقص تمامًا. تُعرض فحوص المرحلة الثانية فقط للقراءات المصنفة كمرحلة ثانية، والشارة تعتمد على كل فحوص المرحلة المستنتجة.
-- قاعدة البيانات التجريبية أصبحت بالإصدار 3 مع حقول مخزنة للبحث وفهارس للمفتاح الفريد وتاريخ الفحص وتاريخ الفاتورة. حسب قرار المستخدم لا توجد ترقية للبيانات القديمة؛ يعاد إنشاء سجل الإصدارات التجريبية السابقة عند أول فتح للنسخة الجديدة. تفضيلات التطبيق مستقلة عن قاعدة السجل.
-- الفحوص: وجود الحقول المطلوبة، اسم غير فارغ، رقم ضريبي ASCII من 15 رقمًا يبدأ بـ3، وتاريخ ووقت ISO 8601 صحيح تقويميًا. في Tag 3 تُقبل الصيغة بدون منطقة زمنية وتُفسّر كتوقيت السعودية UTC+3، وتُقبل `Z` كتوقيت UTC والإزاحة الصريحة مثل `+03:00`؛ يُحفظ النص الأصلي للعرض والتصدير. مثالان للحظة نفسها: `2024-11-29T14:25:00` و`2024-11-29T11:25:00Z`. تُقبل أجزاء الثانية حتى 9 خانات، ويُرفض التاريخ غير الموجود والوقت غير الصحيح. كذلك تُفحص المبالغ كأرقام عشرية غير سالبة حتى منزلتين، وألّا تتجاوز الضريبة الإجمالي. لا يُفترض معدل ضريبة ثابت.
-- ZATCA تستخدم طولًا من بايت واحد (عدد بايتات UTF-8). هناك تعارض مع BER عند القيمتين 0x81 و0x82؛ يحاول المحلل أولًا الترميز الأصلي، ثم ترميز BER الموسّع 0x81/0x82 إذا فشل التحليل الكامل. في الحالات الملتبسة تُعطى الأولوية للترميز الأصلي. يُرفض الطول المبتور/المتجاوز، والـ tags المكررة أو خارج 1–9، وUTF-8 غير السليم في الحقول النصية 1–7. حد المدخل 100,000 حرف.
-- فحوص 6–9 تتحقق من وجود بيانات، ولا تزعم فحص صحة المفتاح أو التوقيع. الرموز غير الصالحة تظهر مع سبب الفشل وتُحفظ كذلك في السجل.
-- Room تخزن البيانات محليًا في مساحة التطبيق. إلغاء النسخ الاحتياطي مفعّل؛ التصدير يدوي عبر منتقي الملفات دون صلاحية تخزين عامة. البيانات ليست مشفّرة على مستوى قاعدة البيانات. حذف التطبيق يحذف سجله المحلي.
-- يصدّر CSV وJSON اسم البائع والرقم الضريبي وتاريخ الفاتورة والإجمالي والضريبة، مع Hash عند وجوده. تُقتبس خلايا CSV وتُحمى من صيغ الجداول. التصدير يقرأ الحقول المخزنة على دفعات من 200 صف ويكتبها مباشرة، دون تكوين السجل أو الملف كله في الذاكرة. تُقرأ جميع دفعات التصدير من معاملة واحدة للحفاظ على لقطة متسقة؛ تظل إعادة تحليل QR محصورة في فتح نتيجة فاتورة واحدة.
-- قوة الالتقاط تعتمد على الكاميرا والإضاءة وحجم QR. الخيارات المطلوبة متاحة، لكن المساواة بأداء hid-barcode-scanner تحتاج مقارنة عملية على الجهاز نفسه؛ لم تُفترض نتيجة مقارنة لم تُجرَ.
+## Parsing rules and limitations
 
-## التحقق
+- Tags 1–5 represent seller, VAT number, timestamp, total including VAT, and VAT amount. Tag 6 is the invoice hash, tag 7 the ECDSA signature, tag 8 the **public key**, and tag 9 the technical certification authority's public-key signature/stamp. Tag 8 is not a complete X.509 certificate.
+- Tags 6 and 7 preserve their existing Base64 text; they are not encoded a second time. Binary values in tags 8 and 9 are converted to Base64 for display.
+- The app classifies an invoice as simplified when tag 9 exists and standard otherwise. This is a stamp-based heuristic, not an XML document-type lookup. An incomplete code can therefore be classified as standard. An empty tag 9 still counts as present but fails its content check.
+- Any tag from 6–9 makes the code a phase-two candidate and requires tags 6, 7, and 8. Without these tags, it is treated as phase one; an entirely missing phase-two section cannot reveal the intended phase. Only checks relevant to the inferred phase are displayed.
+- Checks include required values, a nonblank seller, a 15-digit ASCII VAT number beginning with `3`, and a valid ISO 8601 timestamp. A tag 3 timestamp without a timezone is interpreted as Saudi time (`UTC+03:00`); `Z` and explicit offsets are accepted. Up to nine fractional-second digits are supported. Original timestamp text is retained. For example, `2024-11-29T14:25:00` and `2024-11-29T11:25:00Z` describe the same instant.
+- Amounts must be nonnegative decimals with at most two fractional digits, and tax must not exceed the total. No fixed VAT rate is assumed.
+- The parser tries original one-byte TLV lengths first, then extended BER `0x81`/`0x82` lengths if complete parsing fails. Original lengths take precedence in ambiguous cases. Truncated/out-of-bounds values, duplicate or unsupported tags outside 1–9, and invalid UTF-8 in textual tags 1–7 are rejected. Input is limited to 100,000 characters.
+- Checks on tags 6–9 confirm data presence and structure, not signature authenticity, hash correctness, or certificate trust.
+- Scanning quality depends on camera hardware, lighting, focus, and QR size. No performance equivalence with the reference scanner is claimed.
 
-أُنجز تجهيز السجل لآلاف الفواتير مع اختبار 10,000 فاتورة على هاتف فعلي في نسخة مستقلة. القياسات وتفاصيل الدفعات وطريقة إعادة الاختبار موثقة في [تقرير أداء السجل](docs/history-performance.md). قاعدة البيانات التجريبية v3 تعاد تهيئتها عند التحديث من إصدار أقدم حسب موافقة المستخدم؛ لا يوجد ترحيل للبيانات القديمة.
+## Local data and review requests
 
-أُصلح خروج صفحة السجل بسبب `NoSuchMethodError` عند استدعاء `FlowRow`: كان Foundation في مسار التجميع 1.7.0 وفي مسار التشغيل 1.9.2. أصبح الاعتماد المباشر على Foundation 1.9.2 ليتطابق التجميع مع التشغيل، واستُبدل ترتيب الأزرار بصف قابل للتمرير أفقيًا عند ضيق العرض. نجح بناء APK التطبيق والاختبار واختبارات الوحدة، واجتاز `HistoryNavigationTest` على هاتف فعلي فتح السجل ثلاث مرات وفتح نافذة الفلاتر وإلغاءها وتطبيقها. الاختبار لا يضيف قراءات ولا يحذف بيانات السجل.
+Room stores invoice history in the app's private storage. Database-level encryption is not implemented. Backup is disabled, export is manual through the system picker, and broad storage permission is not required. Uninstalling the app removes its local history.
 
-اختبارات المحلل تشمل التصنيف التلقائي حسب وجود الختم، وقبول الفاتورة الضريبية دونه، ورفض الختم الموجود الفارغ أو المبتور أو المكرر. لم تُجرَ تجربة كاميرا على هاتف أو مقارنة أداء فعلية مع التطبيق المرجعي، ولم تُختبر ترقية قاعدة البيانات على جهاز.
+The experimental database is version **3**. It uses destructive fallback for older schemas rather than a migration, so history from incompatible experimental versions is recreated. Settings and review usage are stored independently from history.
 
-بعد تعديل التصنيف التلقائي والحفاظ على نص Base64 الأصلي للحقلين 6 و7، نجحت `assembleDebug` و`testDebugUnitTest` و`lintDebug`. نجحت اختبارات المحلل الـ12، بما فيها منع الترميز المزدوج وإعادة تصنيف السجل مع تجاهل اختيار النوع القديم، بالإضافة إلى اختبار القالب.
+The app makes at most one automatic Google Play review attempt after all three conditions are met: seven days since first tracked use, ten different saved invoices, and use on three different days. The request waits for an appropriate history-screen pause. Deleting history does not reset eligibility or the attempt flag. A separate **Rate the app** action opens the store listing. Google Play decides whether to display its review dialog; the app cannot determine whether a rating was submitted.
 
-بعد إضافة باقة الداعم نجح أيضًا بناء `bundleRelease`، وأضيفت 4 اختبارات للتحقق من توقيع الشراء ورفض المفاتيح والإيصالات غير الصالحة. لم يُجرَ دفع أو اختبار استعادة فعلي عبر Google Play؛ يحتاج ذلك إلى إعداد المنتج ومفتاح الترخيص وحسابات الاختبار كما في دليل النشر.
+## Verification
 
-بعد دعم Tag 3 دون منطقة زمنية نجحت حزم APK وAAB واختبارات الوحدة وLint. أصبح عدد اختبارات المحلل 15؛ تشمل تكافؤ التوقيت السعودي المحلي وUTC والإزاحة الصريحة، وأجزاء الثانية، ورفض التواريخ والأوقات غير الصحيحة.
-
-بعد إكمال الترجمة نجحت `assembleDebug` و`bundleRelease` و`assembleDebugAndroidTest` و`testDebugUnitTest` و`lintDebug` (صفر أخطاء و41 ملاحظة غير مانعة). اجتاز `python tools/check_localization.py` فحص اكتمال 142 مفتاحًا وتطابق معاملات التنسيق وعدم وجود نصوص عربية ثابتة أو استدعاءات `Text` بنص مباشر داخل كود التطبيق. جرى التحقق من ملف اللغات المُولّد ومرجعه في Manifest. اختبارات `LocalizationTest` تغطي الموارد والاتجاه واللغة الاحتياطية وترجمة الرسائل المحتفظ بها، وتم بناؤها فقط؛ لم تُشغّل على جهاز أو محاكي لعدم وجود جهاز متصل، ولم يُجرَ فحص بصري للشاشات في اللغتين.
-
-لتشغيل اختبارات اللغة على جهاز متصل:
+Run the local checks:
 
 ```powershell
-./gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.poetscorner.zatcaqrcodescanner.LocalizationTest
+./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest
+python tools/check_localization.py
 ```
 
-اختبارات `ZatcaParserTest` تغطي UTF-8 العربي، المرحلتين، الأرقام والتاريخ غير الصحيحين، البيانات المبتورة، الحقول المكررة، أطوال 0x81/0x82، والأطوال الأصلية 129/130/255. قبل اعتماد التطبيق اختبر على هاتف: الدوران، الألوان المعكوسة، الفواتير المطبوعة والشاشات، رفض الصلاحية، الكشاف، الزوم، المعرض، الاستعادة بعد تدوير الشاشة، والتصدير ثم فتح الملف.
+Unit coverage includes parsing, dates, Base64/TLV edge cases, scanning gates, search/export rules, purchase signatures, review eligibility, and ML Kit availability/download states. Device tests cover navigation, history paging, continuous scanning, localization, and engine selection. A built device-test APK does not mean those tests have run on a device.
 
-## المصادر
+To run device tests in a separate `.validation` app without replacing the normal installation:
 
-- [zxing-cpp Android wrapper الرسمي](https://github.com/zxing-cpp/zxing-cpp/tree/v3.1.1/wrappers/android)
-- [خيارات BarcodeReader الرسمية](https://github.com/zxing-cpp/zxing-cpp/blob/v3.1.1/wrappers/android/zxingcpp/src/main/java/zxingcpp/BarcodeReader.kt)
-- [التطبيق المرجعي hid-barcode-scanner](https://github.com/Fabi019/hid-barcode-scanner)
-- [مواصفات QR الرسمية من ZATCA](https://zatca.gov.sa/ar/E-Invoicing/SystemsDevelopers/Documents/QRCodeCreation.pdf)
+```powershell
+./gradlew.bat -PisolatedValidation=true :app:connectedDebugAndroidTest
+```
+
+To run only localization tests, add:
+
+```text
+-Pandroid.testInstrumentationRunnerArguments.class=com.poetscorner.zatcaqrcodescanner.LocalizationTest
+```
+
+Measured history performance and the associated device-test scope are documented in [docs/history-performance.md (Arabic)](docs/history-performance.md). Compose Foundation is pinned to `1.9.2` to keep compile/runtime APIs aligned after a previous `FlowRow` ABI mismatch.
+
+Before distribution, check real camera behavior, printed and screen-displayed QR codes, orientation changes, large fonts, both languages/themes, permission denial, torch/zoom, gallery input, export files, and real ML Kit downloads. Google Play purchases/restores need configured products, a verification key, and test accounts. A live ML Kit download and store payment flow are not established by the simulated-state tests.
+
+## References
+
+- [Official zxing-cpp Android wrapper](https://github.com/zxing-cpp/zxing-cpp/tree/v3.1.1/wrappers/android)
+- [Official BarcodeReader options](https://github.com/zxing-cpp/zxing-cpp/blob/v3.1.1/wrappers/android/zxingcpp/src/main/java/zxingcpp/BarcodeReader.kt)
+- [Google ML Kit barcode scanning](https://developers.google.com/ml-kit/vision/barcode-scanning/android)
+- [ML Kit model installation paths](https://developers.google.com/ml-kit/tips/installation-paths)
+- [Android per-app languages](https://developer.android.com/guide/topics/resources/app-languages)
+- [Reference project: hid-barcode-scanner](https://github.com/Fabi019/hid-barcode-scanner)
+- [ZATCA QR code specification](https://zatca.gov.sa/ar/E-Invoicing/SystemsDevelopers/Documents/QRCodeCreation.pdf)
