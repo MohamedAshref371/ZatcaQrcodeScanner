@@ -34,12 +34,40 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
     val result = MutableStateFlow<ScanResult?>(null)
     val message = MutableStateFlow<UiText?>(null)
     val busy = MutableStateFlow(false)
+    private val mutableContinuousScan = MutableStateFlow(ContinuousScanState())
+    val continuousScan = mutableContinuousScan.asStateFlow()
+    private val mutableScanFeedback = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val scanFeedback = mutableScanFeedback.asSharedFlow()
+    private val mutableContinuousNotices = MutableSharedFlow<ContinuousScanNotice>(extraBufferCapacity = 1)
+    val continuousNotices = mutableContinuousNotices.asSharedFlow()
+    private var cameraSession = 0L
+    fun setContinuousScanning(enabled: Boolean) {
+        if (mutableContinuousScan.value.enabled == enabled) return
+        cameraSession++
+        mutableContinuousScan.value = mutableContinuousScan.value.copy(enabled = enabled, notice = null)
+    }
+    fun resetCameraSession() {
+        cameraSession++
+        mutableContinuousScan.value = ContinuousScanState()
+    }
+    fun pauseCameraSession() {
+        // Ignore in-flight callbacks, keeping the session choice and counter through screen lock.
+        cameraSession++
+        mutableContinuousScan.value = mutableContinuousScan.value.copy(notice = null)
+    }
+    fun viewContinuousResult(notice: ContinuousScanNotice? = mutableContinuousScan.value.notice) {
+        notice?.let { result.value = it.result }
+    }
     private val settingsMutex = Mutex()
     fun update(change: (ScannerSettings) -> ScannerSettings) { viewModelScope.launch {
         settingsMutex.withLock { repository.save(change(repository.settings.first())) }
     } }
     // Keep saving an accepted scan even when showing its result disposes the camera.
-    suspend fun scanned(raw: String): Boolean = viewModelScope.async { process(raw) }.await()
+    suspend fun scanned(raw: String): Boolean {
+        val session = cameraSession
+        val continuous = mutableContinuousScan.value.enabled
+        return viewModelScope.async { process(raw, session, continuous) }.await()
+    }
     fun inspectBase64(raw: String) {
         if (busy.value || raw.isBlank()) return
         busy.value = true
@@ -48,10 +76,11 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
             finally { busy.value = false }
         }
     }
-    private suspend fun process(raw: String): Boolean {
+    private suspend fun process(raw: String, session: Long? = null, continuous: Boolean = false): Boolean {
+        fun currentSession() = session == null || session == cameraSession
         val invoice = withContext(Dispatchers.Default) { ZatcaParser.parse(raw) }
         if (invoice.error != null) {
-            message.value = UiText(R.string.scan_invalid)
+            if (currentSession()) message.value = UiText(R.string.scan_invalid)
             return false
         }
         val checkedAt = System.currentTimeMillis()
@@ -60,13 +89,40 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
             val savedInvoice = if (saved.alreadyExists) withContext(Dispatchers.Default) {
                 ZatcaParser.parse(saved.scan.raw)
             } else invoice
-            result.value = ScanResult(savedInvoice, saved.scan.scannedAt)
-            if (saved.alreadyExists) message.value = UiText(R.string.invoice_already_saved)
+            if (currentSession()) {
+                val scan = ScanResult(savedInvoice, saved.scan.scannedAt)
+                if (continuous) {
+                    val status = when {
+                        saved.alreadyExists -> ContinuousScanStatus.DUPLICATE
+                        !savedInvoice.passed -> ContinuousScanStatus.REVIEW
+                        else -> ContinuousScanStatus.SAVED
+                    }
+                    val notice = ContinuousScanNotice(scan, status)
+                    mutableContinuousScan.value = mutableContinuousScan.value.let {
+                        it.copy(added = it.added + if (saved.alreadyExists) 0 else 1,
+                            notice = notice)
+                    }
+                    mutableContinuousNotices.tryEmit(notice)
+                    mutableScanFeedback.tryEmit(Unit)
+                } else {
+                    result.value = scan
+                    if (saved.alreadyExists) message.value = UiText(R.string.invoice_already_saved)
+                }
+            }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (_: Exception) {
-            result.value = ScanResult(invoice, checkedAt)
-            message.value = UiText(R.string.history_save_error)
+            if (currentSession()) {
+                if (continuous) {
+                    val notice = ContinuousScanNotice(ScanResult(invoice, checkedAt), ContinuousScanStatus.SAVE_FAILED)
+                    mutableContinuousScan.value = mutableContinuousScan.value.copy(notice = notice)
+                    mutableContinuousNotices.tryEmit(notice)
+                }
+                else {
+                    result.value = ScanResult(invoice, checkedAt)
+                    message.value = UiText(R.string.history_save_error)
+                }
+            }
         }
         return true
     }

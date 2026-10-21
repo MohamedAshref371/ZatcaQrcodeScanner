@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.poetscorner.zatcaqrcodescanner.BuildConfig
@@ -28,6 +30,9 @@ import com.poetscorner.zatcaqrcodescanner.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -59,10 +64,17 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     val history by vm.historyState.collectAsStateWithLifecycle()
     val result by vm.result.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
+    val continuousScan by vm.continuousScan.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val support by supporter.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
+    val haptic = LocalHapticFeedback.current
+    val snackbar = remember { SnackbarHostState() }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(vm, haptic) {
+        vm.scanFeedback.collect { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { supporter.refresh() }
     var screen by rememberSaveable { mutableIntStateOf(0) }
     var clearDialog by remember { mutableStateOf(false) }
@@ -70,6 +82,8 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         if (context.activity()?.isChangingConfigurations != true) {
             vm.resetInvoiceDeleteConfirmation()
+            vm.pauseCameraSession()
+            snackbar.currentSnackbarData?.dismiss()
             invoiceToDelete = null
         }
     }
@@ -85,12 +99,32 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     LaunchedEffect(activeHistoryFilter) { vm.filterHistory(activeHistoryFilter) }
     val visibleHistory = if (history.filter == activeHistoryFilter) history
         else HistoryPageState(activeHistoryFilter, total = history.total)
-    val snackbar = remember { SnackbarHostState() }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(vm::gallery) }
     val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let { uri -> vm.export(uri, false, exportFilter) } }
     val csv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { it?.let { uri -> vm.export(uri, true, exportFilter) } }
     LaunchedEffect(result) { if (result != null) screen = 1 }
     LaunchedEffect(message, configuration) { message?.let { snackbar.showSnackbar(it.resolve(context)); vm.message.value = null } }
+    LaunchedEffect(vm, configuration, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            vm.continuousNotices.collectLatest { notice ->
+                val title = when (notice.status) {
+                    ContinuousScanStatus.SAVED -> R.string.continuous_scan_saved
+                    ContinuousScanStatus.REVIEW -> R.string.continuous_scan_review
+                    ContinuousScanStatus.DUPLICATE -> R.string.continuous_scan_duplicate
+                    ContinuousScanStatus.SAVE_FAILED -> R.string.history_save_error
+                }
+                val invoice = notice.result.invoice
+                val details = context.getString(R.string.continuous_scan_details,
+                    invoice.value(1).ifBlank { context.getString(R.string.unknown_seller) },
+                    invoice.value(4).ifBlank { context.getString(R.string.missing) })
+                snackbar.currentSnackbarData?.dismiss()
+                val action = snackbar.showSnackbar(context.getString(title) + "\n" + details,
+                    actionLabel = context.getString(R.string.continuous_scan_view_result),
+                    duration = SnackbarDuration.Short)
+                if (action == SnackbarResult.ActionPerformed) vm.viewContinuousResult(notice)
+            }
+        }
+    }
     BackHandler(screen != 0) { vm.result.value = null; screen = 0 }
     ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() },
         goldenTheme = support.owned && settings.goldenTheme) {
@@ -113,7 +147,8 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                             Text(stringResource(R.string.scan_local), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f).padding(top = 16.dp))
                             TextButton(onClick = { gallery.launch("image/*") }, enabled = !busy) { Text(stringResource(R.string.gallery_pick)) }
                         }
-                        if (!busy) CameraScanner(settings, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
+                        ContinuousScanControls(continuousScan, vm::setContinuousScanning)
+                        if (!busy) CameraScanner(settings, continuousScan.enabled, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
                     }
                     1 -> if (result == null) ManualInvoiceEntry(busy, vm::inspectBase64) else ResultScreen(result!!.invoice, result!!.checkedAt) {
                         vm.result.value = null; screen = 0

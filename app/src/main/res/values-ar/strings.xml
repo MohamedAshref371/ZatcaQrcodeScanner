@@ -1,4 +1,11 @@
 <resources>
+    <string name="continuous_scan">الفحص المتتابع</string>
+    <string name="continuous_scan_count">الفواتير الجديدة خلال الجلسة: %1$s</string>
+    <string name="continuous_scan_saved">تمت إضافة الفاتورة</string>
+    <string name="continuous_scan_review">تم حفظ الفاتورة وبها ملاحظات</string>
+    <string name="continuous_scan_duplicate">الفاتورة مضافة مسبقًا</string>
+    <string name="continuous_scan_details">%1$s — الإجمالي: %2$s</string>
+    <string name="continuous_scan_view_result">عرض النتيجة</string>
     <string name="app_name">قارئ فاتورة</string>
     <string name="app_description">قراءة رموز QR للفواتير الإلكترونية السعودية وعرض بياناتها وحفظ سجلها محليًا.</string>
     <string name="about_app">حول التطبيق</string>

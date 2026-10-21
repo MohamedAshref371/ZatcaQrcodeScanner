@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.style.TextAlign
@@ -46,12 +47,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
 import com.poetscorner.zatcaqrcodescanner.scanner.decoder
 import com.poetscorner.zatcaqrcodescanner.scanner.scanWindow
+import com.poetscorner.zatcaqrcodescanner.scanner.QrDeliveryGate
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
 
 @Composable
-fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean, onTorch: () -> Unit) {
+fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspend (String) -> Boolean, onTorch: () -> Unit) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     var permission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
@@ -85,7 +87,8 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
     val currentSettings by rememberUpdatedState(settings)
     val currentOnScan by rememberUpdatedState(onScan)
     val scope = rememberCoroutineScope()
-    DisposableEffect(owner, settings.resolution, settings.scanEngine, previewSize) {
+    val deliveryGate = remember(continuous) { QrDeliveryGate(continuous) }
+    DisposableEffect(owner, settings.resolution, settings.scanEngine, previewSize, continuous) {
         if (previewSize.width == 0 || previewSize.height == 0) return@DisposableEffect onDispose { }
         val executor = Executors.newSingleThreadExecutor()
         val decoder = settings.scanEngine.decoder()
@@ -104,8 +107,6 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
                 val a = ImageAnalysis.Builder().setResolutionSelector(selector)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build(); analysis = a
                 var last = 0L
-                var lastCandidate: String? = null
-                var lastCandidateAt = 0L
                 a.setAnalyzer(executor) { image ->
                     try {
                         val now = SystemClock.elapsedRealtime()
@@ -119,15 +120,17 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
                             val top = visible.top + window.top
                             image.setCropRect(Rect(left, top, left + window.size, top + window.size))
                             val result = decoder.read(image, currentSettings)
-                            // Suppress repeated warnings for the same rejected QR while allowing a different one immediately.
-                            if (result != null && (result != lastCandidate || now - lastCandidateAt >= 4000L)
+                            val shouldDeliver = deliveryGate.shouldDeliver(result, now)
+                            if (result != null && shouldDeliver
                                 && delivered.compareAndSet(false, true)) {
-                                lastCandidate = result
-                                lastCandidateAt = now
                                 scope.launch {
                                     var accepted = false
-                                    try { if (!disposed) accepted = currentOnScan(result) }
-                                    finally { if (!accepted) delivered.set(false) }
+                                    try {
+                                        if (!disposed && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                                            accepted = currentOnScan(result)
+                                        }
+                                    }
+                                    finally { if (!accepted || continuous) delivered.set(false) }
                                 }
                             }
                         }
@@ -155,7 +158,7 @@ fun CameraScanner(settings: ScannerSettings, onScan: suspend (String) -> Boolean
         if (camera?.cameraInfo?.hasFlashUnit() == true) camera?.cameraControl?.enableTorch(settings.torch)
     }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.weight(1f).fillMaxWidth().clipToBounds().onSizeChanged { previewSize = it }) {
+        Box(Modifier.weight(1f).fillMaxWidth().testTag("camera_preview").clipToBounds().onSizeChanged { previewSize = it }) {
             AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize(), update = { view ->
                 view.setOnTouchListener { _, event ->
                     if (event.action == MotionEvent.ACTION_UP) {
