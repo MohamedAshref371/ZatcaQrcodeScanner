@@ -1,7 +1,6 @@
 package com.poetscorner.zatcaqrcodescanner.ui
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
@@ -38,7 +37,8 @@ import java.text.NumberFormat
 @Composable
 internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> Unit,
     onLoadMore: () -> Unit, onRetry: () -> Unit,
-    onOpen: (HistorySummary) -> Unit, onDelete: (HistorySummary) -> Unit) {
+    onOpen: (HistorySummary) -> Unit, onDelete: (HistorySummary) -> Unit,
+    actions: (@Composable () -> Unit)? = null) {
     val listState = rememberLazyListState()
     val locale = LocalConfiguration.current.locales[0]
     val countFormat = remember(locale) { NumberFormat.getIntegerInstance(locale) }
@@ -56,43 +56,70 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
     }
     LazyColumn(Modifier.fillMaxSize().imePadding().testTag("history_list"), state = listState, contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item { SectionHeading(stringResource(R.string.history_heading), stringResource(R.string.history_subtitle)) }
+        if (actions != null) item { actions() }
         item {
             OutlinedTextField(value = query, onValueChange = onQuery,
                 label = { Text(stringResource(R.string.history_search)) },
+                shape = MaterialTheme.shapes.medium,
+                leadingIcon = { AppIcon(R.drawable.ic_search) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
                 trailingIcon = if (query.isNotEmpty()) ({
                     TextButton(onClick = { onQuery("") }) { Text(stringResource(R.string.history_clear_search)) }
                 }) else null)
         }
         item {
-            Text(stringResource(R.string.history_export_filtered), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.history_export_filtered), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (state.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         else if (state.entries.isEmpty() && !state.failed) item {
-            Text(stringResource(if (state.total == 0) R.string.no_history else R.string.history_no_matches))
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.large) {
+                Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    IconTile(R.drawable.ic_history)
+                    Text(stringResource(if (state.total == 0) R.string.no_history else R.string.history_no_matches),
+                        style = MaterialTheme.typography.bodyLarge)
+                }
+            }
         }
         if (!state.loading && (!state.failed || state.entries.isNotEmpty())) item {
+            Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium) {
             Text(stringResource(R.string.history_summary, countFormat.format(state.matching),
                 state.amount?.let { amountFormat.format(it) } ?: stringResource(R.string.history_total_unavailable)),
-                modifier = Modifier.testTag("history_summary").horizontalScroll(rememberScrollState()),
-                maxLines = 1, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                modifier = Modifier.fillMaxWidth().testTag("history_summary").padding(16.dp),
+                style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            }
         }
         items(state.entries, key = { it.id }) { row ->
-            Card(Modifier.fillMaxWidth().clickable { onOpen(row) }) {
+            Card(onClick = { onOpen(row) }, modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) }, fontWeight = FontWeight.Bold)
+                        Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) }, style = MaterialTheme.typography.titleMedium)
                         if (row.vat.isNotBlank()) Text(stringResource(R.string.history_vat, row.vat),
-                            style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content))
+                            style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(stringResource(R.string.history_invoice_total,
                             row.total.ifBlank { stringResource(R.string.missing) }),
-                            style = MaterialTheme.typography.bodySmall)
-                        Text(if (row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed),
-                            color = if (row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                            style = MaterialTheme.typography.titleSmall)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val statusColor = if (row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            AppIcon(if (row.passed) R.drawable.ic_check else R.drawable.ic_info,
+                                modifier = Modifier.size(16.dp), tint = statusColor)
+                            Text(if (row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed),
+                                style = MaterialTheme.typography.labelMedium, color = statusColor)
+                        }
                     }
-                    TextButton(onClick = { onDelete(row) }) {
-                        Text(stringResource(R.string.clear), color = MaterialTheme.colorScheme.error)
+                    IconButton(onClick = { onDelete(row) }) {
+                        AppIcon(R.drawable.ic_delete, description = stringResource(R.string.clear),
+                            tint = MaterialTheme.colorScheme.error)
                     }
                 }
             }

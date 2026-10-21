@@ -15,7 +15,6 @@
     <string name="nav_result">النتيجة</string>
     <string name="nav_history">السجل</string>
     <string name="nav_settings">الإعدادات</string>
-    <string name="toolbar_subtitle">ZATCA · %1$s</string>
     <string name="scan_local">قراءة محلية • QR فقط</string>
     <string name="gallery_pick">صورة من المعرض</string>
     <string name="no_invoice">لم تُقرأ فاتورة بعد</string>
@@ -90,7 +89,6 @@
     <string name="phase_explanation">تظهر تفاصيل المرحلة الثانية وفحوصها عند وجود أي حقل من 6 إلى 9.</string>
     <string name="scan_again">فحص فاتورة أخرى</string>
     <string name="raw_qr">محتوى QR الأصلي</string>
-    <string name="reader_options">خيارات محرك القراءة</string>
     <string name="scan_engine">محرك المسح</string>
     <string name="engine_zxing">ZXing</string>
     <string name="engine_ml_kit">Google ML Kit</string>
@@ -192,4 +190,14 @@
     <string name="error_utf8">UTF-8 غير صالح في Tag %1$d</string>
     <string name="rate_app">قيّم التطبيق</string>
     <string name="store_open_error">تعذّر فتح Google Play أو المتصفح.</string>
+    <string name="app_tagline">تفاصيل فواتيرك، بوضوح</string>
+    <string name="scanner_heading">امسح فاتورتك</string>
+    <string name="history_heading">أرشيف فواتيرك</string>
+    <string name="history_subtitle">ابحث في فواتيرك المحفوظة وراجعها وصدّرها.</string>
+    <string name="settings_heading">اضبطه على راحتك</string>
+    <string name="settings_subtitle">خصّص تجربة المسح ومظهر التطبيق.</string>
+    <string name="settings_camera">الكاميرا والمسح</string>
+    <string name="settings_advanced">خيارات القراءة المتقدمة</string>
+    <string name="settings_app">المظهر والتطبيق</string>
+    <string name="invoice_details_heading">تفاصيل الفاتورة</string>
 </resources>

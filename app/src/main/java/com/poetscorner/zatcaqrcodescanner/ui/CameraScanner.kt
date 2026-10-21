@@ -25,6 +25,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
@@ -67,11 +69,15 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
     }
     LaunchedEffect(Unit) { if (!permission) launcher.launch(Manifest.permission.CAMERA) }
     if (!permission) {
-        Column(Modifier.padding(24.dp)) {
+        Box(Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)) {
+        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            IconTile(R.drawable.ic_scan)
             Text(stringResource(R.string.camera_permission_note))
-            Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) { Text(stringResource(R.string.camera_allow)) }
+            Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.camera_allow)) }
             TextButton(onClick = { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))) }) { Text(stringResource(R.string.permission_settings)) }
-        }
+        } } }
         return
     }
     val previewView = remember {
@@ -157,8 +163,8 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
     LaunchedEffect(camera, settings.torch) {
         if (camera?.cameraInfo?.hasFlashUnit() == true) camera?.cameraControl?.enableTorch(settings.torch)
     }
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.weight(1f).fillMaxWidth().testTag("camera_preview").clipToBounds().onSizeChanged { previewSize = it }) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.weight(1f).fillMaxWidth().testTag("camera_preview").clip(RoundedCornerShape(28.dp)).clipToBounds().onSizeChanged { previewSize = it }) {
             AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize(), update = { view ->
                 view.setOnTouchListener { _, event ->
                     if (event.action == MotionEvent.ACTION_UP) {
@@ -184,18 +190,37 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                     addRoundRect(RoundRect(left, top, left + side, top + side, radius))
                 }
                 drawPath(shade, Color.Black.copy(alpha = 0.5f))
-                drawRoundRect(Color.White, Offset(left, top), ComposeSize(side, side), radius, style = Stroke(3.dp.toPx()))
+                drawRoundRect(Color.White.copy(alpha = 0.35f), Offset(left, top), ComposeSize(side, side), radius, style = Stroke(1.dp.toPx()))
+                val corner = 30.dp.toPx().coerceAtMost(side / 4)
+                val guide = Path().apply {
+                    moveTo(left, top + corner); lineTo(left, top + 14.dp.toPx())
+                    quadraticTo(left, top, left + 14.dp.toPx(), top); lineTo(left + corner, top)
+                    moveTo(left + side - corner, top); lineTo(left + side - 14.dp.toPx(), top)
+                    quadraticTo(left + side, top, left + side, top + 14.dp.toPx()); lineTo(left + side, top + corner)
+                    moveTo(left + side, top + side - corner); lineTo(left + side, top + side - 14.dp.toPx())
+                    quadraticTo(left + side, top + side, left + side - 14.dp.toPx(), top + side); lineTo(left + side - corner, top + side)
+                    moveTo(left + corner, top + side); lineTo(left + 14.dp.toPx(), top + side)
+                    quadraticTo(left, top + side, left, top + side - 14.dp.toPx()); lineTo(left, top + side - corner)
+                }
+                drawPath(guide, Color(0xFF8AE6CC), style = Stroke(4.dp.toPx()))
             }
-            Text(stringResource(R.string.camera_hint), Modifier.align(Alignment.TopCenter).padding(20.dp),
-                color = Color.White, textAlign = TextAlign.Center)
+            Surface(Modifier.align(Alignment.TopCenter).padding(16.dp),
+                color = Color.Black.copy(alpha = 0.6f), shape = RoundedCornerShape(16.dp)) {
+                Text(stringResource(R.string.camera_hint), Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.bodySmall, color = Color.White, textAlign = TextAlign.Center)
+            }
             error?.let { Text(it.localized(), color = Color.White,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)) }
         }
-        Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Surface(Modifier.fillMaxWidth().padding(bottom = 8.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest,
+            shape = MaterialTheme.shapes.medium) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.zoom))
+            Text(stringResource(R.string.zoom), style = MaterialTheme.typography.labelMedium)
             Slider(zoom, onValueChange = { zoom = it; camera?.cameraControl?.setLinearZoom(it) }, modifier = Modifier.weight(1f), enabled = camera != null)
-            TextButton(onClick = onTorch, enabled = camera?.cameraInfo?.hasFlashUnit() == true) { Text(if(settings.torch) stringResource(R.string.torch_off) else stringResource(R.string.torch)) }
-        }
+            FilledTonalIconButton(onClick = onTorch, enabled = camera?.cameraInfo?.hasFlashUnit() == true) {
+                AppIcon(R.drawable.ic_flash, description = stringResource(if (settings.torch) R.string.torch_off else R.string.torch))
+            }
+        } }
     }
 }

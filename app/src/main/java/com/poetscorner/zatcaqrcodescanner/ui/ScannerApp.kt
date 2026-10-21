@@ -4,7 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -24,6 +26,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import com.poetscorner.zatcaqrcodescanner.BuildConfig
 import com.poetscorner.zatcaqrcodescanner.R
@@ -154,52 +157,72 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     BackHandler(screen != 0) { vm.result.value = null; screen = 0 }
     ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() },
         goldenTheme = support.owned && settings.goldenTheme) {
-        Scaffold(topBar = { TopAppBar(title = { Column {
-            Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold)
-            Text(stringResource(R.string.toolbar_subtitle, stringResource(listOf(R.string.nav_scanner, R.string.nav_result, R.string.nav_history, R.string.nav_settings)[screen])), style = MaterialTheme.typography.labelMedium)
-        } }) }, bottomBar = { NavigationBar {
+        Scaffold(topBar = { TopAppBar(navigationIcon = {
+            IconTile(R.drawable.ic_scan, Modifier.padding(start = 16.dp, end = 8.dp))
+        }, title = { Column {
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.app_tagline), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }, bottomBar = {
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shadowElevation = 8.dp,
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest, tonalElevation = 0.dp) {
             listOf(R.string.nav_scanner, R.string.nav_result, R.string.nav_history, R.string.nav_settings).forEachIndexed { index, label ->
                 NavigationBarItem(selected = screen == index, onClick = {
                     if (index == 2 && (screen == 0 || screen == 1)) reviewOpportunity++
                     if (index == 0) vm.result.value = null
                     screen = index
-                }, icon = { Text(listOf("▣", "✓", "≡", "⚙")[index]) }, label = { Text(stringResource(label)) })
+                }, icon = { AppIcon(listOf(R.drawable.ic_scan, R.drawable.ic_receipt,
+                    R.drawable.ic_history, R.drawable.ic_settings)[index]) },
+                    label = { Text(stringResource(label), style = MaterialTheme.typography.labelMedium) },
+                    colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer))
             }
-        } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
+        } } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
             Column(Modifier.padding(padding).fillMaxSize()) {
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 when(screen) {
-                    0 -> {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(stringResource(R.string.scan_local), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f).padding(top = 16.dp))
-                            TextButton(onClick = { gallery.launch("image/*") }, enabled = !busy) { Text(stringResource(R.string.gallery_pick)) }
-                        }
-                        ContinuousScanControls(continuousScan, vm::setContinuousScanning)
-                        if (!busy) CameraScanner(settings, continuousScan.enabled, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
-                    }
+                    0 -> ScannerHome(settings, continuousScan, busy, { gallery.launch("image/*") },
+                        vm::setContinuousScanning, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
                     1 -> if (result == null) ManualInvoiceEntry(busy, vm::inspectBase64) else ResultScreen(result!!.invoice, result!!.checkedAt) {
                         vm.result.value = null; screen = 0
                     }
                     2 -> {
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            TextButton(onClick = {
-                                exportFilter = activeHistoryFilter
-                                json.launch("zatca-history.json")
-                            }, enabled = visibleHistory.canExport) { Text(stringResource(R.string.export_json)) }
-                            TextButton(onClick = {
-                                exportFilter = activeHistoryFilter
-                                csv.launch("zatca-history.csv")
-                            }, enabled = visibleHistory.canExport) { Text(stringResource(R.string.export_csv)) }
-                            TextButton(onClick = { historyFilterDialog = true }) { Text(stringResource(R.string.history_filter_search)) }
-                            TextButton(onClick = { clearDialog = true }, enabled = history.total > 0) { Text(stringResource(R.string.clear)) }
-                        }
                         HistoryScreen(visibleHistory, historyQuery, { historyQuery = it },
                             onLoadMore = vm::loadMoreHistory, onRetry = vm::retryHistory,
                             onOpen = { vm.open(it.id) }, onDelete = {
                                 if (vm.skipInvoiceDeleteConfirmation) vm.delete(it.id)
                                 else invoiceToDelete = it
-                            })
+                            }, actions = {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedButton(onClick = {
+                                exportFilter = activeHistoryFilter
+                                json.launch("zatca-history.json")
+                            }, enabled = visibleHistory.canExport, modifier = Modifier.weight(1.15f).heightIn(min = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)) {
+                                Text(stringResource(R.string.export_json), style = MaterialTheme.typography.labelMedium)
+                            }
+                            OutlinedButton(onClick = {
+                                exportFilter = activeHistoryFilter
+                                csv.launch("zatca-history.csv")
+                            }, enabled = visibleHistory.canExport, modifier = Modifier.weight(1.15f).heightIn(min = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)) {
+                                Text(stringResource(R.string.export_csv), style = MaterialTheme.typography.labelMedium)
+                            }
+                            OutlinedButton(onClick = { historyFilterDialog = true },
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)) {
+                                Text(stringResource(R.string.history_filter_search), style = MaterialTheme.typography.labelMedium)
+                            }
+                            TextButton(onClick = { clearDialog = true }, enabled = history.total > 0,
+                                modifier = Modifier.weight(0.8f).heightIn(min = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp),
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                                Text(stringResource(R.string.clear), style = MaterialTheme.typography.labelMedium)
+                            }
+                        } })
                     }
                     else -> SettingsScreen(settings, vm::update, support,
                         onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh,
@@ -240,8 +263,8 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
         Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(stringResource(R.string.no_invoice), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.manual_base64_hint))
+        IconTile(R.drawable.ic_receipt)
+        SectionHeading(stringResource(R.string.no_invoice), stringResource(R.string.manual_base64_hint))
         OutlinedTextField(
             value = raw,
             onValueChange = { raw = it },
@@ -251,6 +274,7 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
             minLines = 4,
             maxLines = 8,
+            shape = MaterialTheme.shapes.medium,
             enabled = !busy
         )
         Button(
@@ -274,7 +298,13 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, again: () -> Unit) {
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Card(colors = CardDefaults.cardColors(containerColor = if(invoice.passed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer)) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if(invoice.passed) stringResource(R.string.result_passed) else stringResource(R.string.result_failed), style = MaterialTheme.typography.titleLarge)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    IconTile(if (invoice.passed) R.drawable.ic_check else R.drawable.ic_info,
+                        container = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        tint = if (invoice.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                    Text(if(invoice.passed) stringResource(R.string.result_passed) else stringResource(R.string.result_failed),
+                        Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                }
                 Text(stringResource(R.string.invoice_summary, stringResource(invoice.type.label), stringResource(if (invoice.phase2) R.string.phase_two else R.string.phase_one)))
                 invoice.error?.let { Text(it.localized()) }
                 if (!invoice.passed) Text(stringResource(R.string.result_review_hint), style = MaterialTheme.typography.bodyMedium)
@@ -285,7 +315,9 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, again: () -> Unit) {
                 Text(stringResource(R.string.result_checked_at, checkedAtText), style = MaterialTheme.typography.bodySmall)
             }
         } }
-        item { Text(stringResource(R.string.structural_disclaimer), style = MaterialTheme.typography.bodySmall) }
+        item { Text(stringResource(R.string.structural_disclaimer), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item { SectionHeading(stringResource(R.string.invoice_details_heading)) }
         items((1..if (invoice.phase2) 6 else 5).toList()) { tag -> InvoiceField(invoice, tag) }
         if (invoice.phase2) {
             item {
@@ -323,8 +355,11 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, again: () -> Unit) {
 
 @Composable
 private fun InvoiceField(invoice: Invoice, tag: Int) {
-    Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(ZatcaParser.names.getValue(tag)), style = MaterialTheme.typography.labelLarge)
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(ZatcaParser.names.getValue(tag)), style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
         SelectionContainer {
             Text(invoice.value(tag).ifBlank {
                 if (tag == 9 && invoice.type == InvoiceType.STANDARD) stringResource(R.string.stamp_optional) else stringResource(R.string.missing)
@@ -342,8 +377,15 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     support: SupporterState, onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { SupporterCard(support, s.goldenTheme, onPurchase, onRestore) { value -> update { it.copy(goldenTheme = value) } } }
-        item { Text(stringResource(R.string.reader_options), style = MaterialTheme.typography.titleLarge) }
+        item { SectionHeading(stringResource(R.string.settings_heading), stringResource(R.string.settings_subtitle)) }
+        item { Text(stringResource(R.string.settings_camera), style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary) }
+        item { Choice(stringResource(R.string.resolution), s.resolution, listOf("HD" to stringResource(R.string.resolution_hd), "FHD" to stringResource(R.string.resolution_fhd), "QHD" to stringResource(R.string.resolution_qhd))) { v -> update { it.copy(resolution = v) } } }
+        item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest))) { v -> update { it.copy(speed = v) } } }
+        item { Toggle(stringResource(R.string.torch_enable), s.torch) { v -> update { it.copy(torch = v) } } }
+        item { Toggle(stringResource(R.string.tap_focus), s.tapFocus) { v -> update { it.copy(tapFocus = v) } } }
+        item { Text(stringResource(R.string.settings_advanced), Modifier.padding(top = 12.dp),
+            style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { Choice(stringResource(R.string.scan_engine), s.scanEngine.name,
             listOf(ScanEngine.ZXING.name to stringResource(R.string.engine_zxing),
                 ScanEngine.ML_KIT.name to stringResource(R.string.engine_ml_kit))) { v ->
@@ -356,14 +398,14 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
             item { Toggle(stringResource(R.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
             item { Choice(stringResource(R.string.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(R.string.bin_local), "GLOBAL_HISTOGRAM" to stringResource(R.string.bin_global), "FIXED_THRESHOLD" to stringResource(R.string.bin_fixed), "BOOL_CAST" to stringResource(R.string.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
         }
-        item { Choice(stringResource(R.string.resolution), s.resolution, listOf("HD" to stringResource(R.string.resolution_hd), "FHD" to stringResource(R.string.resolution_fhd), "QHD" to stringResource(R.string.resolution_qhd))) { v -> update { it.copy(resolution = v) } } }
-        item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest))) { v -> update { it.copy(speed = v) } } }
-        item { Toggle(stringResource(R.string.torch_enable), s.torch) { v -> update { it.copy(torch = v) } } }
-        item { Toggle(stringResource(R.string.tap_focus), s.tapFocus) { v -> update { it.copy(tapFocus = v) } } }
+        item { Text(stringResource(R.string.camera_settings_note), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item { Text(stringResource(R.string.settings_app), Modifier.padding(top = 12.dp),
+            style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark))) { v -> update { it.copy(theme = v) } } }
-        item { Text(stringResource(R.string.camera_settings_note), style = MaterialTheme.typography.bodySmall) }
-        item { TextButton(onClick = onRate) { Text(stringResource(R.string.rate_app)) } }
-        item { HorizontalDivider(); TextButton(onClick = { showAbout = true }) { Text(stringResource(R.string.about_app)) } }
+        item { SettingsAction(stringResource(R.string.rate_app), R.drawable.ic_star, onRate) }
+        item { SettingsAction(stringResource(R.string.about_app), R.drawable.ic_info) { showAbout = true } }
+        item { SupporterCard(support, s.goldenTheme, onPurchase, onRestore) { value -> update { it.copy(goldenTheme = value) } } }
     }
     if (showAbout) AlertDialog(onDismissRequest = { showAbout = false },
         title = { Text(stringResource(R.string.app_name)) },
@@ -379,9 +421,13 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
 @Composable
 private fun SupporterCard(state: SupporterState, golden: Boolean, onPurchase: () -> Unit,
     onRestore: () -> Unit, onGolden: (Boolean) -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.free_no_ads), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconTile(R.drawable.ic_heart)
+                Text(stringResource(R.string.free_no_ads), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            }
             Text(stringResource(R.string.free_features))
             Text(stringResource(R.string.supporter_pack), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.supporter_description))
@@ -418,18 +464,46 @@ private fun Context.activity(): Activity? = when (this) {
 }
 @Composable
 private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, Modifier.weight(1f).padding(top = 12.dp)); Switch(checked, onCheckedChange = onChange)
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.medium) {
+        Row(Modifier.fillMaxWidth().toggleable(checked, role = Role.Switch, onValueChange = onChange)
+            .padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Switch(checked, onCheckedChange = null)
+        }
     }
 }
 @Composable
 private fun Choice(label: String, selected: String, values: List<Pair<String,String>>, onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    Column {
-        Text(label, fontWeight = FontWeight.Bold)
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) { Text(values.firstOrNull { it.first == selected }?.second ?: selected) }
+    Box {
+        Surface(onClick = { expanded = true }, color = MaterialTheme.colorScheme.surfaceContainerLowest,
+            shape = MaterialTheme.shapes.medium) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(label, style = MaterialTheme.typography.bodyLarge)
+                    Text(values.firstOrNull { it.first == selected }?.second ?: selected,
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                }
+                AppIcon(R.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             values.forEach { (key, title) -> DropdownMenuItem(text = { Text(title) }, onClick = { onChange(key); expanded = false }) }
+        }
+    }
+}
+
+@Composable
+private fun SettingsAction(label: String, icon: Int, onClick: () -> Unit) {
+    Surface(onClick = onClick, color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape = MaterialTheme.shapes.medium) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            AppIcon(icon, tint = MaterialTheme.colorScheme.primary)
+            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            AppIcon(R.drawable.ic_chevron, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

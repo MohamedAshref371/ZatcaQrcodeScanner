@@ -15,7 +15,6 @@
     <string name="nav_result">Result</string>
     <string name="nav_history">History</string>
     <string name="nav_settings">Settings</string>
-    <string name="toolbar_subtitle">ZATCA · %1$s</string>
     <string name="scan_local">Offline scanning • QR only</string>
     <string name="gallery_pick">Choose an image</string>
     <string name="no_invoice">No invoice scanned yet</string>
@@ -90,7 +89,6 @@
     <string name="phase_explanation">Phase-two details and checks appear when any tag from 6 to 9 is present.</string>
     <string name="scan_again">Scan another invoice</string>
     <string name="raw_qr">Original QR content</string>
-    <string name="reader_options">Reader options</string>
     <string name="scan_engine">Scan engine</string>
     <string name="engine_zxing">ZXing</string>
     <string name="engine_ml_kit">Google ML Kit</string>
@@ -192,4 +190,14 @@
     <string name="error_utf8">Invalid UTF-8 in tag %1$d</string>
     <string name="rate_app">Rate the app</string>
     <string name="store_open_error">Unable to open Google Play or a browser.</string>
+    <string name="app_tagline">Your invoices, clearly</string>
+    <string name="scanner_heading">Scan an invoice</string>
+    <string name="history_heading">Your invoice archive</string>
+    <string name="history_subtitle">Find, review and export your saved invoices.</string>
+    <string name="settings_heading">Make it yours</string>
+    <string name="settings_subtitle">Fine-tune scanning and choose your appearance.</string>
+    <string name="settings_camera">Camera &amp; scanning</string>
+    <string name="settings_advanced">Advanced reading</string>
+    <string name="settings_app">Appearance &amp; app</string>
+    <string name="invoice_details_heading">Invoice details</string>
 </resources>
