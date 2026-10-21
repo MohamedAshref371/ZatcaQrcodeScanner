@@ -51,6 +51,7 @@ import com.poetscorner.zatcaqrcodescanner.billing.SupporterState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.poetscorner.zatcaqrcodescanner.data.ScannerSettings
 import com.poetscorner.zatcaqrcodescanner.data.ScanEngine
+import com.poetscorner.zatcaqrcodescanner.scanner.MlKitModuleState
 import com.poetscorner.zatcaqrcodescanner.data.HistoryDateSource
 import com.poetscorner.zatcaqrcodescanner.data.HistoryFilter
 import com.poetscorner.zatcaqrcodescanner.data.HistoryPageState
@@ -68,6 +69,7 @@ import java.util.Date
 @Composable
 fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel = viewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val mlKitModule by vm.mlKitModule.collectAsStateWithLifecycle()
     val history by vm.historyState.collectAsStateWithLifecycle()
     val result by vm.result.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
@@ -85,8 +87,10 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         supporter.refresh()
         vm.recordReviewUse()
+        vm.refreshMlKit()
     }
     var screen by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(screen) { if (screen == 3) vm.refreshMlKit() }
     var reviewOpportunity by remember { mutableIntStateOf(0) }
     var clearDialog by remember { mutableStateOf(false) }
     var invoiceToDelete by remember { mutableStateOf<HistorySummary?>(null) }
@@ -225,6 +229,8 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         } })
                     }
                     else -> SettingsScreen(settings, vm::update, support,
+                        mlKitModule = mlKitModule, onDownloadMlKit = vm::downloadMlKit,
+                        onEngine = vm::selectScanEngine,
                         onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh,
                         onRate = { if (!openAppStore(context)) vm.message.value = UiText(R.string.store_open_error) })
                 }
@@ -374,7 +380,9 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
 
 @Composable
 private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
-    support: SupporterState, onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit) {
+    support: SupporterState, mlKitModule: MlKitModuleState,
+    onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
+    onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SectionHeading(stringResource(R.string.settings_heading), stringResource(R.string.settings_subtitle)) }
@@ -386,11 +394,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { Toggle(stringResource(R.string.tap_focus), s.tapFocus) { v -> update { it.copy(tapFocus = v) } } }
         item { Text(stringResource(R.string.settings_advanced), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
-        item { Choice(stringResource(R.string.scan_engine), s.scanEngine.name,
-            listOf(ScanEngine.ZXING.name to stringResource(R.string.engine_zxing),
-                ScanEngine.ML_KIT.name to stringResource(R.string.engine_ml_kit))) { v ->
-            update { it.copy(scanEngine = ScanEngine.fromPreference(v)) }
-        } }
+        item { ScanEnginePicker(s.scanEngine, mlKitModule, onEngine, onDownloadMlKit) }
         if (s.scanEngine == ScanEngine.ZXING) {
             item { Toggle(stringResource(R.string.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
             item { Toggle(stringResource(R.string.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }

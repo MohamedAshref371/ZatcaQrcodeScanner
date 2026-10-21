@@ -25,6 +25,15 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
     private val db = Room.databaseBuilder(app, ScanDatabase::class.java, "invoices.db")
         .fallbackToDestructiveMigration(dropAllTables = true).build()
     private val repository = SettingsRepository(app)
+    private val mlKitController = MlKitModuleController(GoogleMlKitModuleInstaller(app), viewModelScope)
+    val mlKitModule = mlKitController.state
+    fun refreshMlKit() = mlKitController.refresh()
+    fun downloadMlKit() = mlKitController.download()
+    fun selectScanEngine(engine: ScanEngine) {
+        if (engine == ScanEngine.ML_KIT && !mlKitModule.value.ready) return
+        update { it.copy(scanEngine = engine) }
+    }
+    init { refreshMlKit() }
     private val reviewRepository = ReviewRepository(app)
     fun recordReviewUse() { viewModelScope.launch {
         try { reviewRepository.recordUse() } catch (_: java.io.IOException) { /* Optional tracking. */ }
@@ -32,7 +41,9 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun claimReviewAttempt(): Boolean = try {
         reviewRepository.claimAttempt()
     } catch (_: java.io.IOException) { false }
-    val settings = repository.settings.stateIn(viewModelScope, SharingStarted.Eagerly, ScannerSettings())
+    val settings = combine(repository.settings, mlKitModule) { saved, module ->
+        saved.copy(scanEngine = module.effectiveEngine(saved.scanEngine))
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, ScannerSettings())
     private val historyPager = HistoryPager(db.scans(), viewModelScope)
     val historyState = historyPager.state
     fun filterHistory(filter: HistoryFilter) = historyPager.setFilter(filter)
@@ -191,5 +202,5 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
             .onFailure { message.value = UiText(R.string.history_delete_error) }
         }
     }
-    override fun onCleared() { db.close() }
+    override fun onCleared() { mlKitController.close(); db.close() }
 }

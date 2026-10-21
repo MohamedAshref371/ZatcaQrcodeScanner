@@ -89,7 +89,7 @@
     <string name="phase_explanation">تظهر تفاصيل المرحلة الثانية وفحوصها عند وجود أي حقل من 6 إلى 9.</string>
     <string name="scan_again">فحص فاتورة أخرى</string>
     <string name="raw_qr">محتوى QR الأصلي</string>
-    <string name="scan_engine">محرك المسح</string>
+    <string name="scan_engine">محرك البحث (بدون إنترنت)</string>
     <string name="engine_zxing">ZXing</string>
     <string name="engine_ml_kit">Google ML Kit</string>
     <string name="try_harder">Try harder · بحث مكثّف</string>
@@ -200,4 +200,14 @@
     <string name="settings_advanced">خيارات القراءة المتقدمة</string>
     <string name="settings_app">المظهر والتطبيق</string>
     <string name="invoice_details_heading">تفاصيل الفاتورة</string>
+    <string name="mlkit_checking">جارٍ التحقق من الجاهزية…</string>
+    <string name="mlkit_not_installed">غير مُثبّت</string>
+    <string name="mlkit_downloading">جارٍ التنزيل…</string>
+    <string name="mlkit_paused">التنزيل متوقف مؤقتًا. تحقق من الاتصال.</string>
+    <string name="mlkit_installing">جارٍ تجهيز الماسح…</string>
+    <string name="mlkit_failed">تعذّر التنزيل أو التحقق من الجاهزية. تحقق من الاتصال وأعد المحاولة.</string>
+    <string name="mlkit_services_required">يلزم تثبيت خدمات Google Play أو تحديثها لاستخدام هذا الماسح.</string>
+    <string name="mlkit_retry">إعادة محاولة تجهيز ML Kit</string>
+    <string name="mlkit_download">تنزيل مكوّن المسح ML Kit</string>
+    <string name="mlkit_download_note">التنزيل يحتاج إنترنت. المسح يتم على جهازك، وZXing متاح دائمًا.</string>
 </resources>

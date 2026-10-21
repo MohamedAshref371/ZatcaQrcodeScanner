@@ -89,7 +89,7 @@
     <string name="phase_explanation">Phase-two details and checks appear when any tag from 6 to 9 is present.</string>
     <string name="scan_again">Scan another invoice</string>
     <string name="raw_qr">Original QR content</string>
-    <string name="scan_engine">Scan engine</string>
+    <string name="scan_engine">Scan engine (offline)</string>
     <string name="engine_zxing">ZXing</string>
     <string name="engine_ml_kit">Google ML Kit</string>
     <string name="try_harder">Try harder</string>
@@ -200,4 +200,14 @@
     <string name="settings_advanced">Advanced reading</string>
     <string name="settings_app">Appearance &amp; app</string>
     <string name="invoice_details_heading">Invoice details</string>
+    <string name="mlkit_checking">Checking availability…</string>
+    <string name="mlkit_not_installed">Not installed</string>
+    <string name="mlkit_downloading">Downloading…</string>
+    <string name="mlkit_paused">Download paused. Check your connection.</string>
+    <string name="mlkit_installing">Preparing the scanner…</string>
+    <string name="mlkit_failed">Unable to download or check availability. Check your connection and retry.</string>
+    <string name="mlkit_services_required">Install or update Google Play services to use this scanner.</string>
+    <string name="mlkit_retry">Retry ML Kit setup</string>
+    <string name="mlkit_download">Download the ML Kit scanning component</string>
+    <string name="mlkit_download_note">Downloading requires internet. Scanning happens on your device; ZXing is always available.</string>
 </resources>
