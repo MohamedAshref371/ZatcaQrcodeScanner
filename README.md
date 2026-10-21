@@ -113,7 +113,7 @@ Do not include both dependencies: they contain duplicate classes and native libr
 ## Project structure and camera processing
 
 ```text
-app/src/main/java/com/poetscorner/zatcaqrcodescanner/
+app/src/main/java/com/poetscorner/invoiceqr/
   MainActivity.kt
   domain/ZatcaParser.kt                    # Base64, TLV, invoice fields and checks
   scanner/QrScanner.kt                     # ZXing options, gallery decoding and EXIF
@@ -175,7 +175,7 @@ To run device tests in a separate `.validation` app without replacing the normal
 To run only localization tests, add:
 
 ```text
--Pandroid.testInstrumentationRunnerArguments.class=com.poetscorner.zatcaqrcodescanner.LocalizationTest
+-Pandroid.testInstrumentationRunnerArguments.class=com.poetscorner.invoiceqr.LocalizationTest
 ```
 
 Measured history performance and the associated device-test scope are documented in [docs/history-performance.md (Arabic)](docs/history-performance.md). Compose Foundation is pinned to `1.9.2` to keep compile/runtime APIs aligned after a previous `FlowRow` ABI mismatch.

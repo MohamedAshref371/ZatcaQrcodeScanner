@@ -27,6 +27,6 @@ for path in sources:
     assert not re.search(r"[\u0600-\u06ff]", source), f"Hardcoded Arabic in {path}"
     assert not re.search(r'\bText\(\s*"', source), f"Hardcoded UI Text in {path}"
 assert references <= default.keys(), f"Missing resources: {references - default.keys()}"
-activity = (ROOT / "app/src/main/java/com/poetscorner/zatcaqrcodescanner/MainActivity.kt").read_text(encoding="utf-8")
+activity = (ROOT / "app/src/main/java/com/poetscorner/invoiceqr/MainActivity.kt").read_text(encoding="utf-8")
 assert "LayoutDirection.Rtl" not in activity, "Activity forces RTL"
 print(f"PASS: {len(default)} translated keys, matching format arguments, no hardcoded Arabic or direct Text literals, all resource references present.")

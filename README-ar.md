@@ -113,7 +113,7 @@ implementation(files("libs/zxingcpp-release.aar"))
 ## هيكل المشروع ومعالجة الكاميرا
 
 ```text
-app/src/main/java/com/poetscorner/zatcaqrcodescanner/
+app/src/main/java/com/poetscorner/invoiceqr/
   MainActivity.kt
   domain/ZatcaParser.kt                    # Base64 وTLV والحقول والفحوص
   scanner/QrScanner.kt                     # خيارات ZXing والمعرض وEXIF
@@ -175,7 +175,7 @@ python tools/check_localization.py
 لتشغيل اختبارات اللغة فقط، أضف:
 
 ```text
--Pandroid.testInstrumentationRunnerArguments.class=com.poetscorner.zatcaqrcodescanner.LocalizationTest
+-Pandroid.testInstrumentationRunnerArguments.class=com.poetscorner.invoiceqr.LocalizationTest
 ```
 
 قياسات أداء السجل ونطاق اختبارات الجهاز المصاحبة موثقة في [docs/history-performance.md](docs/history-performance.md). يعتمد المشروع مباشرة على Compose Foundation `1.9.2` لمطابقة واجهات التجميع والتشغيل بعد مشكلة سابقة في توافق `FlowRow`.

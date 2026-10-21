@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.poetscorner.zatcaqrcodescanner"
+    namespace = "com.poetscorner.invoiceqr"
     compileSdk {
         version = release(36)
     }
