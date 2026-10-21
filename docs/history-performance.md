@@ -30,6 +30,6 @@
 ./gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest -PisolatedValidation=true
 ```
 
-تُثبّت APK التطبيق والاختبار الناتجتان بالمعرّفين `com.poetscorner.zatcaqrcodescanner.validation` و`com.poetscorner.zatcaqrcodescanner.validation.test`. تُشغّل `HistoryScaleTest` من AndroidJUnitRunner، وتظهر القياسات في `history_scale_metrics` وفي Logcat تحت `HistoryScaleBenchmark`. استخدم المعرفين المنفصلين عند تشغيل اختبارات الواجهة أيضًا، ثم أزلهما بعد الانتهاء. البناء دون `-PisolatedValidation=true` ينتج التطبيق الأساسي.
+تُثبّت APK التطبيق والاختبار الناتجتان بالمعرّفين `com.poetscorner.invoiceqr.validation` و`com.poetscorner.invoiceqr.validation.test`. تُشغّل `HistoryScaleTest` من AndroidJUnitRunner، وتظهر القياسات في `history_scale_metrics` وفي Logcat تحت `HistoryScaleBenchmark`. استخدم المعرفين المنفصلين عند تشغيل اختبارات الواجهة أيضًا، ثم أزلهما بعد الانتهاء. البناء دون `-PisolatedValidation=true` ينتج التطبيق الأساسي.
 
 قاعدة البيانات الحالية بالإصدار 3. حسب قرار المستخدم للنسخة التجريبية، تُعاد تهيئة سجلات الإصدارات الأقدم بدل ترحيلها؛ إعدادات التطبيق مستقلة عن قاعدة السجل.

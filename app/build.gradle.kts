@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.poetscorner.zatcaqrcodescanner"
+        applicationId = "com.poetscorner.invoiceqr"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

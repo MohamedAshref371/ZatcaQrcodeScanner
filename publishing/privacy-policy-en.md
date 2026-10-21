@@ -4,7 +4,7 @@ Effective date: [enter publication date]
 
 Contact: [developer or legal entity name] — [support email]
 
-This policy describes how Invoice QR Reader (قارئ فاتورة), package `com.poetscorner.zatcaqrcodescanner`, handles data.
+This policy describes how Invoice QR Reader (قارئ فاتورة), package `com.poetscorner.invoiceqr`, handles data.
 
 ## Data handled on your device
 
