@@ -73,7 +73,10 @@
     <string name="history_no_matches">No scans match this search and date range. Try changing the search or clearing the filters.</string>
     <string name="history_vat">VAT number: %1$s</string>
     <string name="history_invoice_total">Invoice total: %1$s</string>
-    <string name="history_summary">Invoices: %1$s • Total: %2$s</string>
+    <string name="history_summary_count">Invoices: %1$s</string>
+    <string name="history_summary_total">Total: %1$s</string>
+    <string name="history_summary_result_count">Results: %1$s</string>
+    <string name="history_summary_result_total">Results total: %1$s</string>
     <string name="history_total_unavailable">Unavailable</string>
     <string name="history_export_filtered">Export includes scans matching the search and applied date filter.</string>
     <string name="unknown_seller">Invalid code / no seller name</string>

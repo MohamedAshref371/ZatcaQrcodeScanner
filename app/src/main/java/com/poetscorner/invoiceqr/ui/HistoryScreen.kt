@@ -88,11 +88,20 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
             }
         }
         if (!state.loading && (!state.failed || state.entries.isNotEmpty())) item {
+            val filtered = state.filter.query.isNotBlank() || state.filter.fromDay != null || state.filter.toDay != null
             Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium) {
-            Text(stringResource(R.string.history_summary, countFormat.format(state.matching),
-                state.amount?.let { amountFormat.format(it) } ?: stringResource(R.string.history_total_unavailable)),
-                modifier = Modifier.fillMaxWidth().testTag("history_summary").padding(16.dp),
-                style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().testTag("history_summary").padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(stringResource(if (filtered) R.string.history_summary_result_count else R.string.history_summary_count,
+                        countFormat.format(state.matching)),
+                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(if (filtered) R.string.history_summary_result_total else R.string.history_summary_total,
+                        state.amount?.let { amountFormat.format(it) } ?: stringResource(R.string.history_total_unavailable)),
+                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
         items(state.entries, key = { it.id }) { row ->
