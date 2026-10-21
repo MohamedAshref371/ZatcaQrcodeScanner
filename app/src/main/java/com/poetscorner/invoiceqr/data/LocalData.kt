@@ -42,6 +42,9 @@ data class ScanEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val raw
 }
 @Dao
 interface ScanDao {
+    @Query("SELECT COUNT(*) FROM scans") suspend fun count(): Int
+    @Query("SELECT id, raw, scannedAt FROM scans WHERE id > :afterId ORDER BY id LIMIT 50")
+    suspend fun backupRows(afterId: Long): List<BackupRow>
     @Query("SELECT * FROM scans ORDER BY scannedAt DESC, id DESC") suspend fun all(): List<ScanEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(scan: ScanEntity): Long
     @Insert suspend fun insertBatch(scans: List<ScanEntity>)
@@ -97,9 +100,16 @@ interface ScanDao {
 }
 data class SavedScan(val scan: ScanEntity, val alreadyExists: Boolean)
 
-// Experimental release: old databases may be recreated; no 2 -> 3 migration is required.
-@Database(entities = [ScanEntity::class], version = 3, exportSchema = false)
-abstract class ScanDatabase : RoomDatabase() { abstract fun scans(): ScanDao }
+// Version 3 is the first preserved schema. Future changes must include a tested migration.
+@Database(entities = [ScanEntity::class], version = 3, exportSchema = true)
+abstract class ScanDatabase : RoomDatabase() {
+    abstract fun scans(): ScanDao
+
+    companion object {
+        fun open(context: Context, name: String = "invoices.db"): ScanDatabase =
+            Room.databaseBuilder(context.applicationContext, ScanDatabase::class.java, name).build()
+    }
+}
 
 data class ScannerSettings(val harder: Boolean = true, val denoise: Boolean = false,
     val rotate: Boolean = true, val inverted: Boolean = false, val binarizer: String = "LOCAL_AVERAGE",

@@ -3,6 +3,9 @@ package com.poetscorner.invoiceqr
 import android.app.Application
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -25,7 +28,9 @@ class ScanRejectionTest {
         try {
             val before = db.scans().all()
             withContext(Dispatchers.Main) {
-                val vm = ViewModelProvider(store, ViewModelProvider.AndroidViewModelFactory(app))[ScannerViewModel::class.java]
+                val vm = ViewModelProvider(store, viewModelFactory {
+                    initializer { ScannerViewModel(app, SavedStateHandle()) }
+                })[ScannerViewModel::class.java]
                 listOf("https://example.org", "%%%", "", "aGVsbG8=", "AQVB").forEach { raw ->
                     assertFalse(raw, vm.scanned(raw))
                     assertNull(vm.result.value)

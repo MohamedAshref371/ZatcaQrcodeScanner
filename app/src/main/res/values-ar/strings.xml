@@ -1,4 +1,20 @@
 <resources>
+    <string name="settings_backup">النسخ الاحتياطي والاستعادة</string>
+    <string name="backup_description">احفظ كل الفواتير بمحتوى QR الأصلي وأوقات الفحص. استورد نسخة أُنشئت من هنا لدمج فواتيرها مع السجل دون حذف الموجود أو تكراره. لا تشمل النسخة الإعدادات أو مشتريات الدعم.</string>
+    <string name="backup_create">إنشاء نسخة احتياطية</string>
+    <string name="backup_import">استيراد نسخة احتياطية</string>
+    <string name="backup_success">تم حفظ النسخة الاحتياطية</string>
+    <string name="backup_import_success">اكتمل الاستيراد. الفواتير المضافة: %1$d · المكررة المتخطاة: %2$d</string>
+    <string name="backup_error">تعذّر حفظ النسخة الاحتياطية. جرّب مكانًا آخر.</string>
+    <string name="backup_import_error">تعذّر استيراد النسخة الاحتياطية. لم يتغير سجلك.</string>
+    <string name="backup_invalid">النسخة غير صالحة أو إصدارها غير مدعوم. اختر ملفًا أُنشئ من زر إنشاء نسخة احتياطية. لم يتغير سجلك.</string>
+    <string name="backup_too_large">الحد الأقصى لحجم النسخة الاحتياطية 64 ميبيبايت. لم تكتمل العملية.</string>
+    <string name="export_in_progress">جارٍ تجهيز التصدير…</string>
+    <string name="backup_in_progress">جارٍ تجهيز النسخة الاحتياطية…</string>
+    <string name="backup_import_in_progress">جارٍ استيراد النسخة الاحتياطية…</string>
+    <string name="transfer_saving">جارٍ حفظ الملف…</string>
+    <string name="transfer_progress">%1$s من %2$s فاتورة</string>
+    <string name="transfer_processed">تمت معالجة %1$s فاتورة</string>
     <string name="continuous_scan">الفحص المتتابع</string>
     <string name="continuous_scan_count">الفواتير الجديدة خلال الجلسة: %1$s</string>
     <string name="continuous_scan_saved">تمت إضافة الفاتورة</string>

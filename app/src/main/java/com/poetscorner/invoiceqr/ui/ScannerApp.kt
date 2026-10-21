@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
@@ -73,6 +74,9 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     val history by vm.historyState.collectAsStateWithLifecycle()
     val result by vm.result.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
+    val transfer by vm.transfer.collectAsStateWithLifecycle()
+    var pendingFileAction by rememberSaveable { mutableStateOf<String?>(null) }
+    val transferLocked = transfer != null || pendingFileAction != null
     val continuousScan by vm.continuousScan.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val support by supporter.state.collectAsStateWithLifecycle()
@@ -89,7 +93,8 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
         vm.recordReviewUse()
         vm.refreshMlKit()
     }
-    var screen by rememberSaveable { mutableIntStateOf(0) }
+    val screen by vm.screen.collectAsStateWithLifecycle()
+    val restoringResult by vm.restoringResult.collectAsStateWithLifecycle()
     LaunchedEffect(screen) { if (screen == 3) vm.refreshMlKit() }
     var reviewOpportunity by remember { mutableIntStateOf(0) }
     var clearDialog by remember { mutableStateOf(false) }
@@ -108,7 +113,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     var historyDateSource by rememberSaveable { mutableStateOf(HistoryDateSource.INVOICE) }
     var historyFilterDialog by rememberSaveable { mutableStateOf(false) }
     val lifecycleState by lifecycle.currentStateAsState()
-    val reviewAllowed = reviewOpportunity > 0 && screen == 2 && !busy && message == null &&
+    val reviewAllowed = reviewOpportunity > 0 && screen == 2 && !busy && !transferLocked && message == null &&
         snackbar.currentSnackbarData == null && !clearDialog && invoiceToDelete == null &&
         !historyFilterDialog && !support.purchasing && lifecycleState == Lifecycle.State.RESUMED
     val reviewStillAllowed by rememberUpdatedState(reviewAllowed)
@@ -133,9 +138,22 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     val visibleHistory = if (history.filter == activeHistoryFilter) history
         else HistoryPageState(activeHistoryFilter, total = history.total)
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(vm::gallery) }
-    val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let { uri -> vm.export(uri, false, exportFilter) } }
-    val csv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { it?.let { uri -> vm.export(uri, true, exportFilter) } }
-    LaunchedEffect(result) { if (result != null) screen = 1 }
+    val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
+        pendingFileAction = null
+        it?.let { uri -> vm.export(uri, false, exportFilter) }
+    }
+    val csv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) {
+        pendingFileAction = null
+        it?.let { uri -> vm.export(uri, true, exportFilter) }
+    }
+    val backup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
+        pendingFileAction = null
+        it?.let { uri -> vm.backup(uri) }
+    }
+    val importBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
+        pendingFileAction = null
+        it?.let { uri -> vm.importBackup(uri) }
+    }
     LaunchedEffect(message, configuration) { message?.let { snackbar.showSnackbar(it.resolve(context)); vm.message.value = null } }
     LaunchedEffect(vm, configuration, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -158,7 +176,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             }
         }
     }
-    BackHandler(screen != 0) { vm.result.value = null; screen = 0 }
+    BackHandler(screen != 0) { vm.navigate(0) }
     ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() },
         goldenTheme = support.owned && settings.goldenTheme) {
         Scaffold(topBar = { TopAppBar(navigationIcon = {
@@ -174,8 +192,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             listOf(R.string.nav_scanner, R.string.nav_result, R.string.nav_history, R.string.nav_settings).forEachIndexed { index, label ->
                 NavigationBarItem(selected = screen == index, onClick = {
                     if (index == 2 && (screen == 0 || screen == 1)) reviewOpportunity++
-                    if (index == 0) vm.result.value = null
-                    screen = index
+                    vm.navigate(index)
                 }, icon = { AppIcon(listOf(R.drawable.ic_scan, R.drawable.ic_receipt,
                     R.drawable.ic_history, R.drawable.ic_settings)[index]) },
                     label = { Text(stringResource(label), style = MaterialTheme.typography.labelMedium) },
@@ -185,13 +202,14 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             }
         } } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
             Column(Modifier.padding(padding).fillMaxSize()) {
-                if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (busy || restoringResult) LinearProgressIndicator(Modifier.fillMaxWidth())
+                transfer?.let { TransferProgress(it) }
                 when(screen) {
                     0 -> ScannerHome(settings, continuousScan, busy, { gallery.launch("image/*") },
                         vm::setContinuousScanning, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
-                    1 -> if (result == null) ManualInvoiceEntry(busy, vm::inspectBase64) else ResultScreen(result!!.invoice, result!!.checkedAt) {
-                        vm.result.value = null; screen = 0
-                    }
+                    1 -> if (result != null) ResultScreen(result!!.invoice, result!!.checkedAt) {
+                        vm.navigate(0)
+                    } else if (!restoringResult) ManualInvoiceEntry(busy, vm::inspectBase64)
                     2 -> {
                         HistoryScreen(visibleHistory, historyQuery, { historyQuery = it },
                             onLoadMore = vm::loadMoreHistory, onRetry = vm::retryHistory,
@@ -203,15 +221,17 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                             verticalAlignment = Alignment.CenterVertically) {
                             OutlinedButton(onClick = {
                                 exportFilter = activeHistoryFilter
+                                pendingFileAction = "json"
                                 json.launch("zatca-history.json")
-                            }, enabled = visibleHistory.canExport, modifier = Modifier.weight(1.15f).heightIn(min = 48.dp),
+                            }, enabled = visibleHistory.canExport && !transferLocked, modifier = Modifier.weight(1.15f).heightIn(min = 48.dp),
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)) {
                                 Text(stringResource(R.string.export_json), style = MaterialTheme.typography.labelMedium)
                             }
                             OutlinedButton(onClick = {
                                 exportFilter = activeHistoryFilter
+                                pendingFileAction = "csv"
                                 csv.launch("zatca-history.csv")
-                            }, enabled = visibleHistory.canExport, modifier = Modifier.weight(1.15f).heightIn(min = 48.dp),
+                            }, enabled = visibleHistory.canExport && !transferLocked, modifier = Modifier.weight(1.15f).heightIn(min = 48.dp),
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)) {
                                 Text(stringResource(R.string.export_csv), style = MaterialTheme.typography.labelMedium)
                             }
@@ -220,7 +240,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)) {
                                 Text(stringResource(R.string.history_filter_search), style = MaterialTheme.typography.labelMedium)
                             }
-                            TextButton(onClick = { clearDialog = true }, enabled = history.total > 0,
+                            TextButton(onClick = { clearDialog = true }, enabled = history.total > 0 && !transferLocked,
                                 modifier = Modifier.weight(0.8f).heightIn(min = 48.dp),
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp),
                                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
@@ -229,6 +249,15 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         } })
                     }
                     else -> SettingsScreen(settings, vm::update, support,
+                        transfersEnabled = !transferLocked,
+                        onBackup = {
+                            pendingFileAction = "backup"
+                            backup.launch("invoiceqr-backup-${java.time.LocalDate.now()}.json")
+                        },
+                        onImportBackup = {
+                            pendingFileAction = "import"
+                            importBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                        },
                         mlKitModule = mlKitModule, onDownloadMlKit = vm::downloadMlKit,
                         onEngine = vm::selectScanEngine,
                         onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh,
@@ -381,10 +410,11 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
 @Composable
 private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
     support: SupporterState, mlKitModule: MlKitModuleState,
+    transfersEnabled: Boolean, onBackup: () -> Unit, onImportBackup: () -> Unit,
     onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
     onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(Modifier.testTag("settings_list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SectionHeading(stringResource(R.string.settings_heading), stringResource(R.string.settings_subtitle)) }
         item { Text(stringResource(R.string.settings_camera), style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary) }
@@ -404,6 +434,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         }
         item { Text(stringResource(R.string.camera_settings_note), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item { BackupSection(transfersEnabled, onBackup, onImportBackup) }
         item { Text(stringResource(R.string.settings_app), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark))) { v -> update { it.copy(theme = v) } } }

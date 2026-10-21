@@ -3,6 +3,9 @@ package com.poetscorner.invoiceqr
 import android.app.Application
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -26,7 +29,9 @@ class ContinuousScanningTest {
         val late = historyFixture(803, seller = "Finishing scan", hash = false)
         try {
             withContext(Dispatchers.Main) {
-                val vm = ViewModelProvider(store, ViewModelProvider.AndroidViewModelFactory(app))[ScannerViewModel::class.java]
+                val vm = ViewModelProvider(store, viewModelFactory {
+                    initializer { ScannerViewModel(app, SavedStateHandle()) }
+                })[ScannerViewModel::class.java]
                 assertFalse(vm.continuousScan.value.enabled)
                 vm.setContinuousScanning(true)
                 val feedback = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5000) { vm.scanFeedback.first() } }
@@ -53,7 +58,7 @@ class ContinuousScanningTest {
                 vm.message.value = null
                 vm.viewContinuousResult()
                 assertEquals(review.raw, vm.result.value?.invoice?.raw)
-                vm.result.value = null
+                vm.clearResult()
                 vm.setContinuousScanning(false)
                 vm.setContinuousScanning(true)
                 assertEquals(2, vm.continuousScan.value.added)
@@ -66,7 +71,7 @@ class ContinuousScanningTest {
                 assertTrue(vm.scanned(good.raw))
                 assertNotNull(vm.result.value)
                 assertEquals(R.string.invoice_already_saved, vm.message.value?.id)
-                vm.result.value = null
+                vm.clearResult()
                 vm.message.value = null
                 vm.setContinuousScanning(true)
                 val inFlight = async(start = CoroutineStart.UNDISPATCHED) { vm.scanned(late.raw) }

@@ -1,4 +1,20 @@
 <resources>
+    <string name="settings_backup">Backup and restore</string>
+    <string name="backup_description">Back up all invoices, their original QR content and check dates. Import a backup created here to merge invoices with your history without deleting or duplicating existing entries. Settings and supporter purchases are not included.</string>
+    <string name="backup_create">Create backup</string>
+    <string name="backup_import">Import backup</string>
+    <string name="backup_success">Backup saved</string>
+    <string name="backup_import_success">Import complete. Added: %1$d · Duplicates skipped: %2$d</string>
+    <string name="backup_error">Unable to save the backup. Try another destination.</string>
+    <string name="backup_import_error">Unable to import the backup. Your history has not changed.</string>
+    <string name="backup_invalid">Invalid or unsupported backup. Choose a file created with Create backup. Your history has not changed.</string>
+    <string name="backup_too_large">Backups support files up to 64 MiB. The operation was not completed.</string>
+    <string name="export_in_progress">Preparing export…</string>
+    <string name="backup_in_progress">Preparing backup…</string>
+    <string name="backup_import_in_progress">Importing backup…</string>
+    <string name="transfer_saving">Saving file…</string>
+    <string name="transfer_progress">%1$s of %2$s invoices</string>
+    <string name="transfer_processed">%1$s invoices processed</string>
     <string name="continuous_scan">Continuous scanning</string>
     <string name="continuous_scan_count">New invoices this session: %1$s</string>
     <string name="continuous_scan_saved">Invoice added</string>

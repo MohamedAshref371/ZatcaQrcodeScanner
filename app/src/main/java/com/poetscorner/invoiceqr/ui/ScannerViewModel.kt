@@ -5,25 +5,30 @@ import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.ui.text.UiText
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
-import androidx.room.Room
 import androidx.room.withTransaction
 import com.poetscorner.invoiceqr.data.*
 import com.poetscorner.invoiceqr.domain.*
 import com.poetscorner.invoiceqr.scanner.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.File
+import java.io.Writer
 
-data class ScanResult(val invoice: Invoice, val checkedAt: Long)
+data class ScanResult(val invoice: Invoice, val checkedAt: Long, val scanId: Long? = null)
 
-class ScannerViewModel(app: Application) : AndroidViewModel(app) {
-    private val db = Room.databaseBuilder(app, ScanDatabase::class.java, "invoices.db")
-        .fallbackToDestructiveMigration(dropAllTables = true).build()
+class ScannerViewModel(
+    app: Application,
+    private val savedState: SavedStateHandle
+) : AndroidViewModel(app) {
+    private val db = ScanDatabase.open(app)
     private val repository = SettingsRepository(app)
     private val mlKitController = MlKitModuleController(GoogleMlKitModuleInstaller(app), viewModelScope)
     val mlKitModule = mlKitController.state
@@ -49,9 +54,68 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
     fun filterHistory(filter: HistoryFilter) = historyPager.setFilter(filter)
     fun loadMoreHistory() = historyPager.loadMore()
     fun retryHistory() = historyPager.refresh()
-    val result = MutableStateFlow<ScanResult?>(null)
+    private val mutableResult = MutableStateFlow<ScanResult?>(null)
+    val result = mutableResult.asStateFlow()
+    val screen = savedState.getStateFlow("screen", 0)
+    private val mutableRestoringResult = MutableStateFlow(false)
+    val restoringResult = mutableRestoringResult.asStateFlow()
+    private var resultLoad: Job? = null
+    private var resultVersion = 0L
     val message = MutableStateFlow<UiText?>(null)
     val busy = MutableStateFlow(false)
+    private val mutableTransfer = MutableStateFlow<DataTransferState?>(null)
+    val transfer = mutableTransfer.asStateFlow()
+    init {
+        savedState.get<Long>("result_scan_id")?.let { loadResult(it, navigate = false) }
+    }
+
+    fun navigate(screen: Int) {
+        if (screen == 0) clearResult()
+        savedState["screen"] = screen
+    }
+
+    fun clearResult() {
+        resultVersion++
+        resultLoad?.cancel()
+        resultLoad = null
+        mutableRestoringResult.value = false
+        savedState.remove<Long>("result_scan_id")
+        mutableResult.value = null
+    }
+
+    private fun showResult(scan: ScanResult) {
+        clearResult()
+        scan.scanId?.let { savedState["result_scan_id"] = it }
+        mutableResult.value = scan
+        savedState["screen"] = 1
+    }
+
+    private fun loadResult(id: Long, navigate: Boolean) {
+        clearResult()
+        // Persist only the row ID, never a potentially large QR payload in the saved-state Bundle.
+        savedState["result_scan_id"] = id
+        mutableRestoringResult.value = true
+        val version = resultVersion
+        resultLoad = viewModelScope.launch {
+            try {
+                val scan = db.scans().byId(id)
+                if (scan == null) {
+                    savedState.remove<Long>("result_scan_id")
+                    message.value = UiText(R.string.history_entry_missing)
+                } else {
+                    mutableResult.value = withContext(Dispatchers.Default) {
+                        ScanResult(ZatcaParser.parse(scan.raw), scan.scannedAt, scan.id)
+                    }
+                    if (navigate) savedState["screen"] = 1
+                }
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                message.value = UiText(R.string.history_load_error)
+            } finally {
+                if (version == resultVersion) mutableRestoringResult.value = false
+            }
+        }
+    }
     private val mutableContinuousScan = MutableStateFlow(ContinuousScanState())
     val continuousScan = mutableContinuousScan.asStateFlow()
     private val mutableScanFeedback = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -74,7 +138,7 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
         mutableContinuousScan.value = mutableContinuousScan.value.copy(notice = null)
     }
     fun viewContinuousResult(notice: ContinuousScanNotice? = mutableContinuousScan.value.notice) {
-        notice?.let { result.value = it.result }
+        notice?.let { showResult(it.result) }
     }
     private val settingsMutex = Mutex()
     fun update(change: (ScannerSettings) -> ScannerSettings) { viewModelScope.launch {
@@ -112,7 +176,7 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
                 ZatcaParser.parse(saved.scan.raw)
             } else invoice
             if (currentSession()) {
-                val scan = ScanResult(savedInvoice, saved.scan.scannedAt)
+                val scan = ScanResult(savedInvoice, saved.scan.scannedAt, saved.scan.id)
                 if (continuous) {
                     val status = when {
                         saved.alreadyExists -> ContinuousScanStatus.DUPLICATE
@@ -127,7 +191,7 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
                     mutableContinuousNotices.tryEmit(notice)
                     mutableScanFeedback.tryEmit(Unit)
                 } else {
-                    result.value = scan
+                    showResult(scan)
                     if (saved.alreadyExists) message.value = UiText(R.string.invoice_already_saved)
                 }
             }
@@ -141,7 +205,7 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
                     mutableContinuousNotices.tryEmit(notice)
                 }
                 else {
-                    result.value = ScanResult(invoice, checkedAt)
+                    showResult(ScanResult(invoice, checkedAt))
                     message.value = UiText(R.string.history_save_error)
                 }
             }
@@ -149,17 +213,7 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
     fun open(id: Long) {
-        result.value = null
-        viewModelScope.launch {
-            try {
-                val scan = db.scans().byId(id)
-                if (scan == null) message.value = UiText(R.string.history_entry_missing)
-                else result.value = withContext(Dispatchers.Default) { ScanResult(ZatcaParser.parse(scan.raw), scan.scannedAt) }
-            } catch (error: Exception) {
-                if (error is kotlinx.coroutines.CancellationException) throw error
-                message.value = UiText(R.string.history_load_error)
-            }
-        }
+        loadResult(id, navigate = true)
     }
     fun gallery(uri: Uri) { viewModelScope.launch {
         busy.value = true
@@ -171,21 +225,92 @@ class ScannerViewModel(app: Application) : AndroidViewModel(app) {
                 finally { bitmap.recycle() }
             }
             if (raw == null) message.value = UiText(R.string.gallery_no_qr) else process(raw)
-        } catch (_: Exception) { message.value = UiText(R.string.gallery_error) }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { message.value = UiText(R.string.gallery_error) }
         finally { busy.value = false }
     } }
-    fun export(uri: Uri, csv: Boolean, filter: HistoryFilter) { viewModelScope.launch {
-        try { withContext(Dispatchers.IO) {
-            val names = mapOf(1 to R.string.tag_seller, 2 to R.string.tag_vat,
-                3 to R.string.export_invoice_date, 4 to R.string.tag_total,
-                5 to R.string.tag_tax, 6 to R.string.tag_hash)
-                .mapValues { getApplication<Application>().getString(it.value) }
-            requireNotNull(getApplication<Application>().contentResolver.openOutputStream(uri, "wt")).bufferedWriter(Charsets.UTF_8).use {
-                db.withTransaction { HistoryExporter.write(db.scans(), filter, it, csv, names) }
+    fun export(uri: Uri, csv: Boolean, filter: HistoryFilter): Job? = startTransfer(TransferKind.EXPORT) {
+        val names = mapOf(1 to R.string.tag_seller, 2 to R.string.tag_vat,
+            3 to R.string.export_invoice_date, 4 to R.string.tag_total,
+            5 to R.string.tag_tax, 6 to R.string.tag_hash)
+            .mapValues { getApplication<Application>().getString(it.value) }
+        outputDocument(uri) { writer ->
+            db.withTransaction {
+                HistoryExporter.write(db.scans(), filter, writer, csv, names) { count, total ->
+                    mutableTransfer.value = DataTransferState(TransferKind.EXPORT, count, total)
+                }
             }
-        }; message.value = UiText(R.string.export_success) }
-        catch (_: Exception) { message.value = UiText(R.string.export_error) }
-    } }
+        }
+        UiText(R.string.export_success)
+    }
+
+    fun backup(uri: Uri): Job? = startTransfer(TransferKind.BACKUP) {
+        outputDocument(uri, backup = true) { writer ->
+            HistoryBackup.write(db, writer) { count, total ->
+                mutableTransfer.value = DataTransferState(TransferKind.BACKUP, count, total)
+            }
+        }
+        UiText(R.string.backup_success)
+    }
+
+    fun importBackup(uri: Uri): Job? = startTransfer(TransferKind.IMPORT) {
+        val cache = File.createTempFile("history-import-", ".json", getApplication<Application>().cacheDir)
+        try {
+            // Copy cloud/provider input before taking a database transaction; never retain the URI.
+            requireNotNull(getApplication<Application>().contentResolver.openInputStream(uri)).use { input ->
+                cache.outputStream().use { HistoryBackup.copyLimited(input, it) }
+            }
+            val summary = cache.reader(Charsets.UTF_8).use { reader ->
+                HistoryBackup.restore(db, reader) { count ->
+                    mutableTransfer.value = DataTransferState(TransferKind.IMPORT, count)
+                }
+            }
+            UiText(R.string.backup_import_success, summary.added, summary.duplicates)
+        } finally {
+            cache.delete()
+        }
+    }
+
+    private fun startTransfer(kind: TransferKind, action: suspend () -> UiText): Job? {
+        // Reserve synchronously so two callbacks cannot start overlapping file operations.
+        if (mutableTransfer.value != null) return null
+        mutableTransfer.value = DataTransferState(kind)
+        return viewModelScope.launch {
+            try {
+                message.value = withContext(Dispatchers.IO) { action() }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: BackupTooLargeException) {
+                message.value = UiText(R.string.backup_too_large)
+            } catch (_: InvalidBackupException) {
+                message.value = UiText(R.string.backup_invalid)
+            } catch (_: Exception) {
+                message.value = UiText(when (kind) {
+                    TransferKind.EXPORT -> R.string.export_error
+                    TransferKind.BACKUP -> R.string.backup_error
+                    TransferKind.IMPORT -> R.string.backup_import_error
+                })
+            } finally {
+                mutableTransfer.value = null
+            }
+        }
+    }
+
+    private suspend fun outputDocument(uri: Uri, backup: Boolean = false, write: suspend (Writer) -> Unit) {
+        val cache = File.createTempFile("history-export-", ".json", getApplication<Application>().cacheDir)
+        try {
+            cache.bufferedWriter(Charsets.UTF_8).use { write(it) }
+            if (backup && cache.length() > HistoryBackup.MAX_BYTES) throw BackupTooLargeException()
+            mutableTransfer.update { it?.copy(saving = true) }
+            requireNotNull(getApplication<Application>().contentResolver.openOutputStream(uri, "wt")).use { output ->
+                cache.inputStream().use { input ->
+                    HistoryBackup.copyLimited(input, output, if (backup) HistoryBackup.MAX_BYTES else Long.MAX_VALUE)
+                }
+            }
+        } finally {
+            cache.delete()
+        }
+    }
     fun clear() { viewModelScope.launch { runCatching { db.scans().clear() }.onFailure { message.value = UiText(R.string.history_delete_error) } } }
     fun keepLatestDay() { viewModelScope.launch {
         runCatching { db.scans().keepLatestDay() }

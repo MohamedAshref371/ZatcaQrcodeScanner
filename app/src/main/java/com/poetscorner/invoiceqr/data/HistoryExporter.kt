@@ -9,8 +9,12 @@ import kotlinx.coroutines.ensureActive
 
 object HistoryExporter {
     /** The caller holds a database transaction so all pages and the CSV header share one snapshot. */
-    suspend fun write(dao: ScanDao, filter: HistoryFilter, writer: Writer, csv: Boolean, names: Map<Int, String>) {
+    suspend fun write(dao: ScanDao, filter: HistoryFilter, writer: Writer, csv: Boolean, names: Map<Int, String>,
+        progress: (Int, Int) -> Unit = { _, _ -> }) {
         val queries = HistoryQueries(filter)
+        val total = dao.counts(queries.counts()).matching
+        var written = 0
+        progress(0, total)
         val tags = if (csv && dao.hasHash(queries.hashExists())) (1..6) else (1..5)
         if (csv) writer.write("\uFEFF" + tags.joinToString(",") { quote(names.getValue(it)) } + "\r\n")
         else writer.write("[")
@@ -38,6 +42,8 @@ object HistoryExporter {
                 first = false
             }
             rows.last().let { cursor = HistoryCursor(it.scannedAt, it.id) }
+            written += rows.size
+            progress(written, total)
         }
         if (!csv) writer.write(if (first) "]" else "\n]")
     }

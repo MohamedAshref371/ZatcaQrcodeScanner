@@ -50,6 +50,12 @@ JSON and CSV export use the same search and date filters as the displayed histor
 
 Exports include the seller, VAT number, invoice date, total, tax, and hash where present. Field names/column headings use the app language; original invoice values are preserved. CSV cells are quoted and protected against spreadsheet formula injection. Export streams batches of **200** rows within one transaction to keep a consistent snapshot, without loading the full history or output file into memory.
 
+Export shows invoice progress followed by a saving stage. Export, backup and import are mutually exclusive; actions are also disabled while a file picker is open. Output is prepared in a private temporary file before copying it to the selected destination, keeping cloud/provider writes outside the database transaction. Cancellation is propagated rather than reported as a failure, and temporary files are removed when the operation finishes.
+
+**Backup and restore** is in Settings immediately above **Appearance & app**. Create backup saves the complete history, including original QR text and original check times, as a language-independent, versioned JSON document. Import backup merges those records into the current history without deleting existing invoices. Normalized duplicates are skipped, preserving the existing record and check time. Extracted fields and local checks are rebuilt using the current parser; settings, purchases and internal database row IDs are not imported. Ordinary JSON/CSV exports are summaries and cannot restore original QR payloads.
+
+Import is one transaction: malformed, unsupported, truncated or cancelled backups leave no partially imported rows. The result reports added and duplicate counts. Backup files support up to **64 MiB**; processing streams records and bounds individual JSON values. Selected input is staged in private cache before opening the transaction. Manual backups are unencrypted files at the destination you choose and remain there after uninstalling the app.
+
 ## Language and appearance
 
 English resources are in `app/src/main/res/values/strings.xml`; Arabic translations are in `values-ar/strings.xml`. `resources.properties` declares English as the default resource language. The interface, camera controls, messages, purchases, field labels, parser errors, and check results use Android string resources.
@@ -151,7 +157,9 @@ Gallery decoding, parsing, and export run off the UI thread. Gallery images are 
 
 Room stores invoice history in the app's private storage. Database-level encryption is not implemented. Backup is disabled, export is manual through the system picker, and broad storage permission is not required. Uninstalling the app removes its local history.
 
-The experimental database is version **3**. It uses destructive fallback for older schemas rather than a migration, so history from incompatible experimental versions is recreated. Settings and review usage are stored independently from history.
+Database version **3** is the baseline for preserving history. Its schema is exported to `app/schemas/` and must be committed. Destructive migration fallback is disabled: every future schema version must register an explicit or automatic migration and test that invoice payloads, IDs, timestamps and duplicate detection survive it. A missing migration fails to open the database instead of deleting history. No migrations from earlier experimental schemas are provided; clear app data if testing an incompatible pre-baseline installation. Settings and review usage are stored independently from history.
+
+The current result's database row ID and selected tab are saved through `SavedStateHandle`. When Android recreates a background-killed process, the invoice is loaded from Room with its original check time, without inserting another row or switching away from the restored tab. Returning to the scanner clears the result reference. Deleted invoices are not recreated; results that failed to save cannot be restored. This is task restoration, not persistence across force-stop or dismissal from Recents.
 
 The app makes at most one automatic Google Play review attempt after all three conditions are met: seven days since first tracked use, ten different saved invoices, and use on three different days. The request waits for an appropriate history-screen pause. Deleting history does not reset eligibility or the attempt flag. A separate **Rate the app** action opens the store listing. Google Play decides whether to display its review dialog; the app cannot determine whether a rating was submitted.
 

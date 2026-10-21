@@ -24,6 +24,8 @@ Delete scans from the History screen. Clear the app's data in Android settings o
 
 ## Storage and permissions
 
+The optional manual backup in Settings creates an unencrypted JSON file containing all saved QR payloads and original check times at a destination you choose. Importing a compatible backup merges invoices into local history and skips duplicates. Backups do not include preferences or supporter purchases. Export and import use temporary files in the app’s private cache, removed when each operation completes; an interrupted process may leave cache files until Android clears the cache or the app’s data is cleared. Backup files saved outside the app remain after clearing history or uninstalling and must be deleted separately. A selected cloud destination or source is governed by its provider’s own privacy practices.
+
 Data is kept in the app's private storage. The app does not add its own database encryption layer. It does not request general access to your photos or storage. Camera permission can be declined while continuing to select images. Automatic backup is disabled in the app configuration; device transfer behavior also depends on Android and the device manufacturer.
 
 ## Independence and service limits
