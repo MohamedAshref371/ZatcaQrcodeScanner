@@ -14,10 +14,10 @@ Search previous scans by seller name or VAT number, and tap Search to filter by 
 Export scans matching your search and applied date filter as JSON or CSV to a location you choose. Clear the search and date range first to export your entire history.
 
 Offline operation
-Scanning and analysis work without an internet connection or an account. Scans and preferences stay in the app's local storage. This version includes no advertising, analytics or tracking SDKs. Exported files are saved to the destination you select.
+Scanning and analysis work without an internet connection or an account. Invoice contents and preferences stay in the app's local storage. The app has no ads. Google services may process technical data as described in the privacy policy. Exported files are saved to the destination you select.
 
 Optional developer support
-The app is free and ad-free. All invoice features remain free. An optional one-time supporter purchase adds a gold theme and supporter badge. Purchasing and restoring use Google Play and require an internet connection. The local price is displayed before you confirm payment. There is no subscription.
+The app is free and ad-free. All invoice features remain free. An optional one-time supporter purchase adds a gold theme and supporter badge. Preview both from Settings without payment or login, and end the preview at any time. Purchasing and restoring use Google Play and require an internet connection. The local price is displayed before you confirm payment. There is no subscription.
 
 Understand the checks
 The app checks data structure, required fields, VAT number format, timestamps and numeric amounts. It labels a scan as a simplified tax invoice when the stamp field is present, or a tax invoice when it is absent. This classification uses the available QR data.

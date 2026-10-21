@@ -80,6 +80,11 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     val continuousScan by vm.continuousScan.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val support by supporter.state.collectAsStateWithLifecycle()
+    // Preview is presentation state only; it never writes a purchase entitlement.
+    var supporterPreview by rememberSaveable { mutableStateOf(false) }
+    var previewGold by rememberSaveable { mutableStateOf(true) }
+    val previewActive = supporterPreview && !support.owned
+    LaunchedEffect(support.owned) { if (support.owned) supporterPreview = false }
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val haptic = LocalHapticFeedback.current
@@ -113,7 +118,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     var historyDateSource by rememberSaveable { mutableStateOf(HistoryDateSource.INVOICE) }
     var historyFilterDialog by rememberSaveable { mutableStateOf(false) }
     val lifecycleState by lifecycle.currentStateAsState()
-    val reviewAllowed = reviewOpportunity > 0 && screen == 2 && !busy && !transferLocked && message == null &&
+    val reviewAllowed = reviewOpportunity > 0 && !previewActive && screen == 2 && !busy && !transferLocked && message == null &&
         snackbar.currentSnackbarData == null && !clearDialog && invoiceToDelete == null &&
         !historyFilterDialog && !support.purchasing && lifecycleState == Lifecycle.State.RESUMED
     val reviewStillAllowed by rememberUpdatedState(reviewAllowed)
@@ -178,7 +183,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     }
     BackHandler(screen != 0) { vm.navigate(0) }
     ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() },
-        goldenTheme = support.owned && settings.goldenTheme) {
+        goldenTheme = if (previewActive) previewGold else support.owned && settings.goldenTheme) {
         Scaffold(topBar = { TopAppBar(navigationIcon = {
             IconTile(R.drawable.ic_scan, Modifier.padding(start = 16.dp, end = 8.dp))
         }, title = { Column {
@@ -202,6 +207,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             }
         } } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
             Column(Modifier.padding(padding).fillMaxSize()) {
+                if (previewActive) SupporterPreviewBanner { supporterPreview = false }
                 if (busy || restoringResult) LinearProgressIndicator(Modifier.fillMaxWidth())
                 transfer?.let { TransferProgress(it) }
                 when(screen) {
@@ -251,6 +257,9 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         } })
                     }
                     else -> SettingsScreen(settings, vm::update, support,
+                        preview = previewActive, previewGold = previewGold,
+                        onPreview = { active -> supporterPreview = active; if (active) previewGold = true },
+                        onPreviewGold = { previewGold = it },
                         transfersEnabled = !transferLocked,
                         onBackup = {
                             pendingFileAction = "backup"
@@ -425,6 +434,7 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
 @Composable
 private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
     support: SupporterState, mlKitModule: MlKitModuleState,
+    preview: Boolean, previewGold: Boolean, onPreview: (Boolean) -> Unit, onPreviewGold: (Boolean) -> Unit,
     transfersEnabled: Boolean, onBackup: () -> Unit, onImportBackup: () -> Unit,
     onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
     onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit) {
@@ -457,14 +467,18 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { SettingsAction(stringResource(R.string.rate_app), R.drawable.ic_star, onRate) }
         item { SettingsAction(stringResource(R.string.privacy_policy), R.drawable.ic_info) { showPrivacy = true } }
         item { SettingsAction(stringResource(R.string.about_app), R.drawable.ic_info) { showAbout = true } }
-        item { SupporterCard(support, s.goldenTheme, onPurchase, onRestore) { value -> update { it.copy(goldenTheme = value) } } }
+        item { SupporterCard(support, if (preview) previewGold else s.goldenTheme,
+            preview, onPreview, onPurchase, onRestore) { value ->
+            if (preview) onPreviewGold(value) else update { it.copy(goldenTheme = value) }
+        } }
     }
     if (showPrivacy) PrivacyPolicyDialog { showPrivacy = false }
     if (showAbout) AlertDialog(onDismissRequest = { showAbout = false },
         title = { Text(stringResource(R.string.app_name)) },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE))
-            if (support.owned) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
+            if (preview) Text(stringResource(R.string.supporter_preview_badge), style = MaterialTheme.typography.labelMedium)
+            if (support.owned || preview) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
                 Text(stringResource(R.string.supporter_badge), Modifier.padding(10.dp))
             }
             Text(stringResource(R.string.about_details))
@@ -472,7 +486,8 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
 }
 
 @Composable
-private fun SupporterCard(state: SupporterState, golden: Boolean, onPurchase: () -> Unit,
+private fun SupporterCard(state: SupporterState, golden: Boolean, preview: Boolean,
+    onPreview: (Boolean) -> Unit, onPurchase: () -> Unit,
     onRestore: () -> Unit, onGolden: (Boolean) -> Unit) {
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -488,6 +503,12 @@ private fun SupporterCard(state: SupporterState, golden: Boolean, onPurchase: ()
                 Text(stringResource(R.string.supporter_active), color = MaterialTheme.colorScheme.primary)
                 Toggle(stringResource(R.string.gold_theme), golden, onGolden)
             } else {
+                Text(stringResource(R.string.supporter_preview_description), style = MaterialTheme.typography.bodyMedium)
+                OutlinedButton(onClick = { onPreview(!preview) },
+                    modifier = Modifier.fillMaxWidth().testTag("supporter_preview_toggle")) {
+                    Text(stringResource(if (preview) R.string.supporter_preview_end else R.string.supporter_preview_start))
+                }
+                if (preview) Toggle(stringResource(R.string.gold_theme), golden, onGolden)
                 Button(onClick = onPurchase,
                     enabled = state.available && !state.loading && !state.purchasing && !state.pending,
                     modifier = Modifier.fillMaxWidth()) {
