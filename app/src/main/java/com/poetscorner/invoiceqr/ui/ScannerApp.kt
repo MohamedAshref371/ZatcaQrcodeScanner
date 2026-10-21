@@ -401,6 +401,8 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(ZatcaParser.names.getValue(tag)), style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+        CompositionLocalProvider(LocalLayoutDirection provides
+            (if (tag == 2) LayoutDirection.Ltr else LocalLayoutDirection.current)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SelectionContainer(Modifier.weight(1f)) {
@@ -413,6 +415,7 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
             if (tag == 2) IconButton(onClick = { copyVat(context, invoice.value(2)) }, enabled = invoice.value(2).isNotBlank()) {
                 AppIcon(R.drawable.ic_copy, description = stringResource(R.string.copy_vat))
             }
+        }
         }
         if (tag in 6..7) Text(stringResource(R.string.base64_original), style = MaterialTheme.typography.labelSmall)
         if (tag >= 8) Text(stringResource(R.string.base64_binary), style = MaterialTheme.typography.labelSmall)
