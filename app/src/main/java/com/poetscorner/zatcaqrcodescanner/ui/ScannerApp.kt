@@ -50,6 +50,8 @@ import com.poetscorner.zatcaqrcodescanner.domain.InvoiceType
 import com.poetscorner.zatcaqrcodescanner.domain.ZatcaParser
 import com.poetscorner.zatcaqrcodescanner.ui.theme.ZatcaQrcodeScannerTheme
 import com.poetscorner.zatcaqrcodescanner.ui.text.localized
+import java.text.DateFormat
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,7 +110,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         }
                         if (!busy) CameraScanner(settings, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
                     }
-                    1 -> if (result == null) ManualInvoiceEntry(busy, vm::inspectBase64) else ResultScreen(result!!) {
+                    1 -> if (result == null) ManualInvoiceEntry(busy, vm::inspectBase64) else ResultScreen(result!!.invoice, result!!.checkedAt) {
                         vm.result.value = null; screen = 0
                     }
                     2 -> {
@@ -179,7 +181,11 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
 }
 
 @Composable
-private fun ResultScreen(invoice: Invoice, again: () -> Unit) {
+private fun ResultScreen(invoice: Invoice, checkedAt: Long, again: () -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    val checkedAtText = remember(checkedAt, locale) {
+        DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, locale).format(Date(checkedAt))
+    }
     var advanced by rememberSaveable(invoice.raw) { mutableStateOf(false) }
     var checks by rememberSaveable(invoice.raw) { mutableStateOf(false) }
     var raw by rememberSaveable(invoice.raw) { mutableStateOf(false) }
@@ -195,6 +201,7 @@ private fun ResultScreen(invoice: Invoice, again: () -> Unit) {
                     Text(stringResource(R.string.check_status, "✕", check.label.localized(), check.phase),
                         style = MaterialTheme.typography.bodySmall)
                 }
+                Text(stringResource(R.string.result_checked_at, checkedAtText), style = MaterialTheme.typography.bodySmall)
             }
         } }
         item { Text(stringResource(R.string.structural_disclaimer), style = MaterialTheme.typography.bodySmall) }

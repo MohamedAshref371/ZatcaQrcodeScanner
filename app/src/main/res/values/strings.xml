@@ -21,11 +21,11 @@
     <string name="clear">Delete</string>
     <string name="no_history">No saved scans</string>
     <string name="history_search">Search by seller or VAT number</string>
-    <string name="history_scan_date">Scan date</string>
+    <string name="history_scan_date">Check date</string>
     <string name="history_invoice_date">Invoice date</string>
     <string name="history_filter_search">Search</string>
     <string name="history_filter_title">Filter history by date</string>
-    <string name="history_filter_hint">Choose invoice date or scan date, then select a range. Only one date filter is applied when you tap OK.</string>
+    <string name="history_filter_hint">Choose invoice date or check date, then select a range. Only one date filter is applied when you tap OK.</string>
     <string name="history_confirm_filters">OK</string>
     <string name="history_clear_dates">Clear date range</string>
     <string name="history_clear_search">Clear</string>
@@ -42,12 +42,13 @@
     <string name="history_passed">Local checks passed · Phase %1$d</string>
     <string name="history_failed">Local checks failed</string>
     <string name="clear_title">Delete history</string>
-    <string name="clear_body">Keep scans from the most recent day you scanned and delete the rest, or delete the entire history. The day is based on the scan date and the device’s local time.</string>
+    <string name="clear_body">Keep scans from the most recent day you scanned and delete the rest, or delete the entire history. The day is based on the check date and the device’s local time.</string>
     <string name="keep_latest_day">Keep the latest day’s scans</string>
     <string name="delete_all">Delete all</string>
     <string name="cancel">Cancel</string>
     <string name="result_passed">Local QR checks passed</string>
     <string name="result_failed">Local QR checks failed</string>
+    <string name="result_checked_at">Check date: %1$s</string>
     <string name="result_review_hint">Review the fields listed below and compare them with the original invoice, or try scanning a clearer image.</string>
     <string name="result_show_advanced">Show advanced details</string>
     <string name="result_hide_advanced">Hide advanced details</string>
@@ -127,6 +128,7 @@
     <string name="torch_off">Turn torch off</string>
     <string name="torch">Torch</string>
     <string name="history_save_error">Scanned successfully, but unable to save history</string>
+    <string name="invoice_already_saved">Invoice already saved; opened from history.</string>
     <string name="gallery_no_qr">No QR code found in the image</string>
     <string name="scan_invalid">Invalid invoice QR code</string>
     <string name="gallery_error">Unable to read the image. Try a clearer or smaller image.</string>

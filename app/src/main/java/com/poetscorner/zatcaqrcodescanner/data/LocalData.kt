@@ -35,7 +35,16 @@ data class ScanEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val raw
 interface ScanDao {
     @Query("SELECT * FROM scans ORDER BY scannedAt DESC, id DESC") fun observe(): Flow<List<ScanEntity>>
     @Query("SELECT * FROM scans ORDER BY scannedAt DESC, id DESC") suspend fun all(): List<ScanEntity>
-    @Insert suspend fun insert(scan: ScanEntity)
+    @Insert suspend fun insert(scan: ScanEntity): Long
+    @Transaction
+    suspend fun saveIfNew(scan: ScanEntity): SavedScan {
+        fun key(raw: String) = raw.filterNot { it.isWhitespace() }.trimEnd('=')
+        val payloadKey = key(scan.raw)
+        // Preserve the original text and first check time, including older saved scans.
+        val existing = all().lastOrNull { key(it.raw) == payloadKey }
+        if (existing != null) return SavedScan(existing, alreadyExists = true)
+        return SavedScan(scan.copy(id = insert(scan)), alreadyExists = false)
+    }
     @Query("DELETE FROM scans") suspend fun clear()
     @Query("DELETE FROM scans WHERE id = :id") suspend fun delete(id: Long)
     @Query("DELETE FROM scans WHERE scannedAt < :startOfDay OR scannedAt >= :startOfNextDay")
@@ -49,6 +58,8 @@ interface ScanDao {
             day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
     }
 }
+data class SavedScan(val scan: ScanEntity, val alreadyExists: Boolean)
+
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE scans ADD COLUMN invoiceType TEXT NOT NULL DEFAULT 'STANDARD'")

@@ -9,7 +9,7 @@ Adjust your scanner
 Use the torch, zoom and tap to focus. Choose scan resolution, scan frequency and image-processing options to suit your device and the QR code. Results depend on camera capability and image quality.
 
 Keep a local history
-Search previous scans by seller name or VAT number, and tap Search to filter by an inclusive invoice-date or scan-date range. Tap OK to apply your choice or Cancel to keep the current filter. VAT search accepts Arabic and English digits. Open a saved scan, delete an individual entry, or keep only scans from the most recent day you scanned.
+Search previous scans by seller name or VAT number, and tap Search to filter by an inclusive invoice-date or check-date range. Tap OK to apply your choice or Cancel to keep the current filter. VAT search accepts Arabic and English digits. Open a saved scan, delete an individual entry, or keep only scans from the most recent day you scanned.
 
 Export scans matching your search and applied date filter as JSON or CSV to a location you choose. Clear the search and date range first to export your entire history.
 
