@@ -207,7 +207,9 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                 when(screen) {
                     0 -> ScannerHome(settings, continuousScan, busy, { gallery.launch("image/*") },
                         vm::setContinuousScanning, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
-                    1 -> if (result != null) ResultScreen(result!!.invoice, result!!.checkedAt) {
+                    1 -> if (result != null) ResultScreen(result!!.invoice, result!!.checkedAt, onShare = {
+                        if (!shareInvoice(context, result!!.invoice)) vm.message.value = UiText(R.string.share_error)
+                    }) {
                         vm.navigate(0)
                     } else if (!restoringResult) ManualInvoiceEntry(busy, vm::inspectBase64)
                     2 -> {
@@ -321,7 +323,7 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
 }
 
 @Composable
-private fun ResultScreen(invoice: Invoice, checkedAt: Long, again: () -> Unit) {
+private fun ResultScreen(invoice: Invoice, checkedAt: Long, onShare: () -> Unit, again: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val checkedAtText = remember(checkedAt, locale) {
         DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, locale).format(Date(checkedAt))
@@ -330,7 +332,7 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, again: () -> Unit) {
     var checks by rememberSaveable(invoice.raw) { mutableStateOf(false) }
     var raw by rememberSaveable(invoice.raw) { mutableStateOf(false) }
     val relevantChecks = invoice.checks.filter { invoice.phase2 || it.phase == 1 }
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(Modifier.testTag("result_list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Card(colors = CardDefaults.cardColors(containerColor = if(invoice.passed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer)) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -339,6 +341,9 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, again: () -> Unit) {
                         tint = if (invoice.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
                     Text(if(invoice.passed) stringResource(R.string.result_passed) else stringResource(R.string.result_failed),
                         Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = onShare) {
+                        AppIcon(R.drawable.ic_share, description = stringResource(R.string.share_invoice))
+                    }
                 }
                 Text(stringResource(R.string.invoice_summary, stringResource(invoice.type.label), stringResource(if (invoice.phase2) R.string.phase_two else R.string.phase_one)))
                 invoice.error?.let { Text(it.localized()) }
@@ -390,17 +395,24 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, again: () -> Unit) {
 
 @Composable
 private fun InvoiceField(invoice: Invoice, tag: Int) {
+    val context = LocalContext.current
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(ZatcaParser.names.getValue(tag)), style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SelectionContainer {
-            Text(invoice.value(tag).ifBlank {
-                if (tag == 9 && invoice.type == InvoiceType.STANDARD) stringResource(R.string.stamp_optional) else stringResource(R.string.missing)
-            }, style = (if (tag == 4) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge).let {
-                if (tag >= 2 && invoice.value(tag).isNotBlank()) it.copy(textDirection = TextDirection.Ltr) else it
-            }, fontWeight = if (tag == 1 || tag == 4) FontWeight.Bold else FontWeight.Normal)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SelectionContainer(Modifier.weight(1f)) {
+                Text(invoice.value(tag).ifBlank {
+                    if (tag == 9 && invoice.type == InvoiceType.STANDARD) stringResource(R.string.stamp_optional) else stringResource(R.string.missing)
+                }, style = (if (tag == 4) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge).let {
+                    if (tag >= 2 && invoice.value(tag).isNotBlank()) it.copy(textDirection = TextDirection.Ltr) else it
+                }, fontWeight = if (tag == 1 || tag == 4) FontWeight.Bold else FontWeight.Normal)
+            }
+            if (tag == 2) IconButton(onClick = { copyVat(context, invoice.value(2)) }, enabled = invoice.value(2).isNotBlank()) {
+                AppIcon(R.drawable.ic_copy, description = stringResource(R.string.copy_vat))
+            }
         }
         if (tag in 6..7) Text(stringResource(R.string.base64_original), style = MaterialTheme.typography.labelSmall)
         if (tag >= 8) Text(stringResource(R.string.base64_binary), style = MaterialTheme.typography.labelSmall)

@@ -1,4 +1,12 @@
 <resources>
+    <string name="share_invoice">مشاركة ملخص الفاتورة</string>
+    <string name="share_summary_title">ملخص فاتورة</string>
+    <string name="share_check_result">نتيجة الفحص: %1$s</string>
+    <string name="share_phase_one_passed">اجتازت الفحوص المحلية للمرحلة الأولى</string>
+    <string name="share_phase_two_passed">اجتازت الفحوص البنيوية المحلية للمرحلة الثانية</string>
+    <string name="share_error">تعذّر فتح قائمة المشاركة</string>
+    <string name="copy_vat">نسخ الرقم الضريبي</string>
+    <string name="vat_copied">تم نسخ الرقم الضريبي</string>
     <string name="settings_backup">النسخ الاحتياطي والاستعادة</string>
     <string name="backup_description">احفظ كل الفواتير بمحتوى QR الأصلي وأوقات الفحص. استورد نسخة أُنشئت من هنا لدمج فواتيرها مع السجل دون حذف الموجود أو تكراره. لا تشمل النسخة الإعدادات أو مشتريات الدعم.</string>
     <string name="backup_create">إنشاء نسخة احتياطية</string>

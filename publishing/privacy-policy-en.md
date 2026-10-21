@@ -20,6 +20,8 @@ Google Play Billing adds internet, network-state and billing permissions and com
 
 ## Deletion and export
 
+You can share one invoice’s seller, VAT number, invoice date, total, tax, optional hash and local check result through an app you choose in Android’s share menu. That app handles the shared text under its own privacy practices. The VAT copy action puts only the displayed VAT number on the system clipboard.
+
 Delete scans from the History screen. Clear the app's data in Android settings or uninstall it to remove its local data. Exporting creates a JSON or CSV file at a destination you choose. That destination may be a cloud provider accessed through the system picker, whose own terms and privacy practices apply. Clearing history or uninstalling the app does not delete exported files; remove them separately at their destination.
 
 ## Storage and permissions

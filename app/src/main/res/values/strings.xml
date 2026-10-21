@@ -1,4 +1,12 @@
 <resources>
+    <string name="share_invoice">Share invoice summary</string>
+    <string name="share_summary_title">Invoice summary</string>
+    <string name="share_check_result">Check result: %1$s</string>
+    <string name="share_phase_one_passed">Passed local phase one checks</string>
+    <string name="share_phase_two_passed">Passed local phase two structural checks</string>
+    <string name="share_error">Unable to open the share menu</string>
+    <string name="copy_vat">Copy VAT number</string>
+    <string name="vat_copied">VAT number copied</string>
     <string name="settings_backup">Backup and restore</string>
     <string name="backup_description">Back up all invoices, their original QR content and check dates. Import a backup created here to merge invoices with your history without deleting or duplicating existing entries. Settings and supporter purchases are not included.</string>
     <string name="backup_create">Create backup</string>

@@ -15,6 +15,7 @@ Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL)
 - Scan individual invoices or enable continuous scanning with a session counter and result notifications.
 - View seller, VAT number, timestamp, total including VAT, tax, and phase-two fields when present.
 - Expand advanced fields, check details, and the original QR content when needed.
+- Share a single invoice summary from the result header, including the optional hash and local phase-one/phase-two check result, or copy its VAT number using the adjacent icon. Shared field labels follow the app language and original values are preserved.
 - Search saved invoices by seller or VAT number and filter by invoice date or check date.
 - Export matching invoices as JSON or CSV through the system file picker.
 - Use all invoice features for free, without ads or an account.
