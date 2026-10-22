@@ -53,6 +53,7 @@ interface ScanDao {
     @RawQuery(observedEntities = [ScanEntity::class]) fun observeCounts(query: SupportSQLiteQuery): Flow<HistoryCounts>
     @RawQuery suspend fun summaries(query: SupportSQLiteQuery): List<HistorySummary>
     @RawQuery suspend fun exportRows(query: SupportSQLiteQuery): List<ExportInvoice>
+    @RawQuery suspend fun statisticsRows(query: SupportSQLiteQuery): List<StatisticsInvoice>
     @RawQuery suspend fun hasHash(query: SupportSQLiteQuery): Boolean
     @RawQuery suspend fun counts(query: SupportSQLiteQuery): HistoryCounts
     @RawQuery suspend fun amounts(query: SupportSQLiteQuery): List<HistoryAmount>

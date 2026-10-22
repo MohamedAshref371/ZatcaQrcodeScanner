@@ -54,6 +54,23 @@ class ScannerViewModel(
     fun filterHistory(filter: HistoryFilter) = historyPager.setFilter(filter)
     fun loadMoreHistory() = historyPager.loadMore()
     fun retryHistory() = historyPager.refresh()
+    private val statisticsRequest = savedState.getStateFlow("statistics_request", StatisticsRequest())
+    private val statisticsRevision = MutableStateFlow(0L)
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val statistics = combine(statisticsRequest, statisticsRevision) { request, _ -> request }
+        .flatMapLatest { request ->
+            db.scans().observeCounts(HistoryQueries(HistoryFilter()).counts()).mapLatest {
+                withContext(Dispatchers.IO) {
+                    val result = db.statistics(request)
+                    StatisticsState(request, result, loading = false)
+                }
+            }.onStart { emit(StatisticsState(request)) }.catch { error ->
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                emit(StatisticsState(request, loading = false, failed = true))
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsState(statisticsRequest.value))
+    fun updateStatistics(request: StatisticsRequest) { savedState["statistics_request"] = request }
+    fun retryStatistics() { statisticsRevision.value++ }
     private val mutableResult = MutableStateFlow<ScanResult?>(null)
     val result = mutableResult.asStateFlow()
     val screen = savedState.getStateFlow("screen", 0)

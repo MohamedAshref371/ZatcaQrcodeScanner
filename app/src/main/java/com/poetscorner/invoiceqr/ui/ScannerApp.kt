@@ -194,12 +194,13 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shadowElevation = 8.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest, tonalElevation = 0.dp) {
-            listOf(R.string.nav_scanner, R.string.nav_result, R.string.nav_history, R.string.nav_settings).forEachIndexed { index, label ->
+            listOf(0 to R.string.nav_scanner, 1 to R.string.nav_result, 2 to R.string.nav_history,
+                4 to R.string.nav_statistics, 3 to R.string.nav_settings).forEach { (index, label) ->
                 NavigationBarItem(selected = screen == index, onClick = {
                     if (index == 2 && (screen == 0 || screen == 1)) reviewOpportunity++
                     vm.navigate(index)
                 }, icon = { AppIcon(listOf(R.drawable.ic_scan, R.drawable.ic_receipt,
-                    R.drawable.ic_history, R.drawable.ic_settings)[index]) },
+                    R.drawable.ic_history, R.drawable.ic_settings, R.drawable.ic_statistics)[index]) },
                     label = { Text(stringResource(label), style = MaterialTheme.typography.labelMedium) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -255,6 +256,10 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                                 Text(stringResource(R.string.clear), style = MaterialTheme.typography.labelMedium)
                             }
                         } })
+                    }
+                    4 -> {
+                        val statistics by vm.statistics.collectAsStateWithLifecycle()
+                        StatisticsScreen(statistics, vm::updateStatistics, vm::retryStatistics)
                     }
                     else -> SettingsScreen(settings, vm::update, support,
                         preview = previewActive, previewGold = previewGold,
@@ -564,7 +569,7 @@ private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit)
     }
 }
 @Composable
-private fun Choice(label: String, selected: String, values: List<Pair<String,String>>, onChange: (String) -> Unit) {
+internal fun Choice(label: String, selected: String, values: List<Pair<String,String>>, onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Surface(onClick = { expanded = true }, color = MaterialTheme.colorScheme.surfaceContainerLowest,

@@ -232,7 +232,7 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HistoryDatePicker(initial: Long?, minimum: Long?, maximum: Long?,
+internal fun HistoryDatePicker(initial: Long?, minimum: Long?, maximum: Long?,
     onDismiss: () -> Unit, onSelect: (Long) -> Unit) {
     val state = rememberDatePickerState(initialSelectedDateMillis = initial?.let {
         LocalDate.ofEpochDay(it).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
