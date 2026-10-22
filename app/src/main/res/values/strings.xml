@@ -57,6 +57,7 @@
     <string name="stats_count_label">Invoice count</string>
     <string name="stats_count">Invoices: %1$d</string>
     <string name="stats_summary">Results summary</string>
+    <string name="stats_summary_with_groups">Results summary (%1$d)</string>
     <string name="stats_empty">No invoices match these filters.</string>
     <string name="stats_clear_filters">Clear filters</string>
     <string name="stats_exclude_vat">Excluded VAT number</string>

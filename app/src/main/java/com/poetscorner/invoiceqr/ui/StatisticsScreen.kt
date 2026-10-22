@@ -117,7 +117,10 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                 OutlinedButton(onClick = onExport, enabled = exportEnabled && state.result.groups.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.stats_export)) }
             }
-            item { StatisticsCard(stringResource(R.string.stats_summary), state.result.summary, summary = true) }
+            item {
+                StatisticsCard(stringResource(R.string.stats_summary_with_groups, state.result.groups.size),
+                    state.result.summary, summary = true)
+            }
             if (state.result.groups.isEmpty()) item { Text(stringResource(R.string.stats_empty)) }
             items(state.result.groups, key = { it.key.text?.let { value -> "text:$value" }
                 ?: it.key.periodStart?.let { day -> "day:$day" } ?: "unknown" }) { group ->
