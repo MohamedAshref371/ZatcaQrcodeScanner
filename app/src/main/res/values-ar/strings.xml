@@ -54,7 +54,6 @@
     <string name="stats_quarter">الربع السنوي</string>
     <string name="stats_half_year">النصف السنوي</string>
     <string name="stats_year">السنة</string>
-    <string name="stats_period">الفترة</string>
     <string name="stats_count_label">عدد الفواتير</string>
     <string name="stats_count">عدد الفواتير: %1$d</string>
     <string name="stats_summary">ملخص النتائج</string>

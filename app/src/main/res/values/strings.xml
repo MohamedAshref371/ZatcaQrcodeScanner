@@ -54,7 +54,6 @@
     <string name="stats_quarter">Quarter</string>
     <string name="stats_half_year">Half year</string>
     <string name="stats_year">Year</string>
-    <string name="stats_period">Period</string>
     <string name="stats_count_label">Invoice count</string>
     <string name="stats_count">Invoices: %1$d</string>
     <string name="stats_summary">Results summary</string>

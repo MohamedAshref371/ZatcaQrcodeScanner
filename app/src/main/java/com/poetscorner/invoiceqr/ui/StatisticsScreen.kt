@@ -36,11 +36,7 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
     var filters by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
     val dates = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
-    val groupSortLabel = when (request.grouping) {
-        StatisticsGrouping.SELLER -> R.string.tag_seller
-        StatisticsGrouping.VAT -> R.string.tag_vat
-        else -> R.string.stats_period
-    }
+    val groupSortLabel = request.grouping.label()
     val sortLabels = mapOf(StatisticsSort.GROUP to groupSortLabel, StatisticsSort.COUNT to R.string.stats_count_label,
         StatisticsSort.TOTAL to R.string.tag_total, StatisticsSort.TAX to R.string.tag_tax)
     LazyColumn(Modifier.fillMaxSize().testTag("statistics_list"), contentPadding = PaddingValues(16.dp),
