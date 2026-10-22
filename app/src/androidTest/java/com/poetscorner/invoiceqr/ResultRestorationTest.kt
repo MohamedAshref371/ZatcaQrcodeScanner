@@ -165,6 +165,46 @@ class ResultRestorationTest {
         }
     }
 
+    @Test fun tabBackRemembersOnlyOnePageAndCanStartAgainAfterANewSelection() = runBlocking {
+        val store = ViewModelStore()
+        try {
+            withContext(Dispatchers.Main) {
+                val vm = create(store, SavedStateHandle())
+                vm.selectTab(4)
+                vm.selectTab(2)
+                vm.selectTab(2)
+                vm.backFromResultOrHome()
+                assertEquals(4, vm.screen.value)
+                assertNull(vm.previousTab.value)
+                vm.backFromResultOrHome()
+                assertEquals(0, vm.screen.value)
+
+                vm.selectTab(2)
+                vm.selectTab(4)
+                vm.selectTab(3)
+                vm.backFromResultOrHome()
+                assertEquals(4, vm.screen.value)
+                vm.selectTab(2)
+                vm.backFromResultOrHome()
+                assertEquals(4, vm.screen.value)
+                vm.backFromResultOrHome()
+                assertEquals(0, vm.screen.value)
+
+                vm.selectTab(4)
+                vm.selectTab(0)
+                vm.backFromResultOrHome()
+                assertEquals(4, vm.screen.value)
+                vm.backFromResultOrHome()
+                assertEquals(0, vm.screen.value)
+            }
+        } finally {
+            withContext(Dispatchers.Main) {
+                store.clear()
+                viewModelJobs.forEach { it.join() }
+            }
+        }
+    }
+
     @Test fun aDeletedInvoiceIsNotRecreatedDuringRestoration() = runBlocking {
         val db = ScanDatabase.open(app)
         val store = ViewModelStore()

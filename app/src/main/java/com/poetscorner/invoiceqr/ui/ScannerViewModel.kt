@@ -123,6 +123,7 @@ class ScannerViewModel(
     private val mutableResult = MutableStateFlow<ScanResult?>(null)
     val result = mutableResult.asStateFlow()
     val screen = savedState.getStateFlow("screen", 0)
+    val previousTab = savedState.getStateFlow<Int?>("previous_tab", null)
     private val mutableRestoringResult = MutableStateFlow(false)
     val restoringResult = mutableRestoringResult.asStateFlow()
     private var resultLoad: Job? = null
@@ -136,8 +137,19 @@ class ScannerViewModel(
     }
 
     fun navigate(screen: Int) {
+        savedState["previous_tab"] = null
+        moveTo(screen)
+    }
+
+    fun selectTab(screen: Int) {
+        if (this.screen.value == screen) return
+        savedState["previous_tab"] = this.screen.value
+        moveTo(screen, clearCameraResult = false)
+    }
+
+    private fun moveTo(screen: Int, clearCameraResult: Boolean = true) {
         if (screen != 1) savedState["result_return_screen"] = 0
-        if (screen == 0) clearResult()
+        if (screen == 0 && clearCameraResult) clearResult()
         savedState["screen"] = screen
     }
 
@@ -151,6 +163,7 @@ class ScannerViewModel(
     }
 
     private fun showResult(scan: ScanResult) {
+        savedState["previous_tab"] = null
         savedState["result_return_screen"] = 0
         clearResult()
         scan.scanId?.let { savedState["result_scan_id"] = it }
@@ -290,7 +303,12 @@ class ScannerViewModel(
     }
     fun backFromResultOrHome() {
         val destination = savedState.get<Int>("result_return_screen")?.takeIf { it == 2 || it == 4 } ?: 0
-        navigate(if (screen.value == 1) destination else 0)
+        if (screen.value == 1 && destination != 0) {
+            // Returning from an invoice keeps the single previous tab for its parent page.
+            moveTo(destination)
+        } else {
+            navigate(previousTab.value ?: 0)
+        }
     }
     fun gallery(uri: Uri) { viewModelScope.launch {
         busy.value = true

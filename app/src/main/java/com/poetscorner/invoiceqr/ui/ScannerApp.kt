@@ -71,6 +71,7 @@ import java.util.Date
 @Composable
 fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel = viewModel()) {
     val historyScreenState = rememberSaveableStateHolder()
+    val previousTab by vm.previousTab.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val mlKitModule by vm.mlKitModule.collectAsStateWithLifecycle()
     val history by vm.historyState.collectAsStateWithLifecycle()
@@ -187,7 +188,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             }
         }
     }
-    BackHandler(screen != 0) { vm.backFromResultOrHome() }
+    BackHandler(screen != 0 || (previousTab != null && previousTab != 0)) { vm.backFromResultOrHome() }
     ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() },
         goldenTheme = if (previewActive) previewGold else support.owned && settings.goldenTheme) {
         Scaffold(topBar = { TopAppBar(navigationIcon = {
@@ -204,7 +205,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                 4 to R.string.nav_statistics, 3 to R.string.nav_settings).forEach { (index, label) ->
                 NavigationBarItem(selected = screen == index, onClick = {
                     if (index == 2 && (screen == 0 || screen == 1)) reviewOpportunity++
-                    vm.navigate(index)
+                    vm.selectTab(index)
                 }, icon = { AppIcon(listOf(R.drawable.ic_scan, R.drawable.ic_receipt,
                     R.drawable.ic_history, R.drawable.ic_settings, R.drawable.ic_statistics)[index]) },
                     label = { Text(stringResource(label), style = MaterialTheme.typography.labelMedium) },
