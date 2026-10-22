@@ -144,8 +144,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
         HistoryFilter(historyQuery, historyFrom, historyTo, historyDateSource)
     }
     LaunchedEffect(activeHistoryFilter) { vm.filterHistory(activeHistoryFilter) }
-    val visibleHistory = if (history.filter == activeHistoryFilter) history
-        else HistoryPageState(activeHistoryFilter, total = history.total)
+    val visibleHistory = history.forDisplay(activeHistoryFilter)
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(vm::gallery) }
     val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
         pendingFileAction = null

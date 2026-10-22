@@ -69,17 +69,20 @@ class ScannerViewModel(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val statistics = combine(statisticsRequest, statisticsRevision) { request, _ -> request }
         .flatMapLatest { request ->
-            db.scans().observeCounts(HistoryQueries(HistoryFilter()).counts()).mapLatest {
-                withContext(Dispatchers.IO) {
+            db.scans().observeCounts(HistoryQueries(HistoryFilter()).counts()).transformLatest {
+                emit(cachedStatistics?.copy(request = request, loading = true, failed = false) ?: StatisticsState(request))
+                val updated = withContext(Dispatchers.IO) {
                     val result = db.statistics(request)
                     StatisticsState(request, result, loading = false)
                 }
-            }.onEach { cachedStatistics = it }.onStart {
-                // Retain the list while refreshing an unchanged request after returning to the tab.
-                emit(cachedStatistics?.takeIf { it.request == request } ?: StatisticsState(request))
+                cachedStatistics = updated
+                emit(updated)
+            }.onStart {
+                emit(cachedStatistics?.copy(request = request, loading = true, failed = false) ?: StatisticsState(request))
             }.catch { error ->
                 if (error is kotlinx.coroutines.CancellationException) throw error
-                emit(StatisticsState(request, loading = false, failed = true))
+                emit(cachedStatistics?.copy(request = request, loading = false, failed = true)
+                    ?: StatisticsState(request, loading = false, failed = true))
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsState(statisticsRequest.value))
     fun updateStatistics(request: StatisticsRequest) {

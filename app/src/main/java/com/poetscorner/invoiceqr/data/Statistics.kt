@@ -93,7 +93,8 @@ data class StatisticsTotals(val count: Int = 0, val total: BigDecimal = BigDecim
 data class StatisticsGroup(val key: StatisticsKey, val totals: StatisticsTotals)
 data class StatisticsResult(val summary: StatisticsTotals = StatisticsTotals(), val groups: List<StatisticsGroup> = emptyList())
 data class StatisticsState(val request: StatisticsRequest = StatisticsRequest(),
-    val result: StatisticsResult = StatisticsResult(), val loading: Boolean = true, val failed: Boolean = false)
+    val result: StatisticsResult = StatisticsResult(), val loading: Boolean = true, val failed: Boolean = false,
+    val resultRequest: StatisticsRequest = request, val hasResult: Boolean = !loading && !failed)
 
 /** Bound, independent predicates: all filters must match. No pass-status or deduplication predicate. */
 private val statisticsWhitespace = (Char.MIN_VALUE..Char.MAX_VALUE).filter { it.isWhitespace() }.joinToString("")

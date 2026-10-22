@@ -68,6 +68,26 @@ class HistoryScaleTest {
                 assertEquals(50, page.size)
                 assertEquals(10000, db.scans().observeCounts(HistoryQueries(HistoryFilter()).counts()).first().matching)
             }
+            timed("overview_first_50_ms") {
+                val overview = db.scans().overview(HistoryFilter())
+                assertEquals(50, overview.rows.size)
+                assertEquals(10000, overview.counts.matching)
+                assertEquals("1150000.00", overview.amount?.toPlainString())
+            }
+            timed("overview_refresh_500_ms") {
+                val overview = db.scans().overview(HistoryFilter(), rowLimit = 500)
+                assertEquals(500, overview.rows.size)
+                assertEquals(500, overview.rows.map { it.id }.distinct().size)
+                assertEquals("1150000.00", overview.amount?.toPlainString())
+            }
+            for (grouping in listOf(StatisticsGrouping.SELLER, StatisticsGrouping.DAY)) {
+                timed("statistics_${grouping.name.lowercase(java.util.Locale.US)}_10000_ms") {
+                    val statistics = db.statistics(StatisticsRequest(grouping = grouping))
+                    assertEquals(10000, statistics.summary.count)
+                    assertEquals(10000, statistics.groups.sumOf { it.totals.count })
+                    assertEquals("1150000.00", statistics.summary.total.toPlainString())
+                }
+            }
             timed("search_and_date_ms") {
                 val filter = HistoryFilter("متجر 42", historyBaseDay + 12, historyBaseDay + 12)
                 val queries = HistoryQueries(filter)

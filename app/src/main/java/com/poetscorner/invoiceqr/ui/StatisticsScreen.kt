@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -63,8 +63,8 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
     val request = state.request
     val listState = rememberLazyListState()
     var scrollRequest by rememberSaveable { mutableStateOf(request) }
-    LaunchedEffect(request) {
-        if (scrollRequest != request) {
+    LaunchedEffect(request, state.loading, state.failed) {
+        if (!state.loading && !state.failed && scrollRequest != request) {
             listState.scrollToItem(0)
             scrollRequest = request
         }
@@ -147,20 +147,26 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             request.toDay?.let { Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_to),
                 dates.format(LocalDate.ofEpochDay(it))), style = MaterialTheme.typography.bodySmall) }
         }
-        if (state.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-        else if (state.failed) item {
+        item(key = "statistics_progress") {
+            Box(Modifier.fillMaxWidth().height(4.dp)) {
+                if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+        }
+        if (state.failed) item {
             Text(stringResource(R.string.history_load_error))
             TextButton(onClick = onRetry) { Text(stringResource(R.string.history_retry)) }
-        } else {
-            item {
+        }
+        if (state.hasResult) {
+            item(key = "statistics_summary") {
                 StatisticsCard(stringResource(R.string.stats_summary_with_groups, state.result.groups.size),
                     state.result.summary, summary = true)
             }
-            if (state.result.groups.isEmpty()) item { Text(stringResource(R.string.stats_empty)) }
-            items(state.result.groups, key = { it.key.text?.let { value -> "text:$value" }
-                ?: it.key.periodStart?.let { day -> "day:$day" } ?: "unknown" }) { group ->
-                val title = statisticsGroupTitle(context, request.grouping, group.key)
-                StatisticsCard(title, group.totals, onClick = { onOpenGroup(group.key) })
+            if (!state.loading && !state.failed && state.result.groups.isEmpty()) item { Text(stringResource(R.string.stats_empty)) }
+            itemsIndexed(state.result.groups, key = { index, _ -> "statistics_card_$index" },
+                contentType = { _, _ -> "statistics_card" }) { index, group ->
+                val title = statisticsGroupTitle(context, state.resultRequest.grouping, group.key)
+                StatisticsCard(title, group.totals, modifier = Modifier.testTag("statistics_card_$index"),
+                    onClick = if (state.loading || state.failed) null else ({ onOpenGroup(group.key) }))
             }
         }
     }
@@ -190,10 +196,11 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
 }
 
 @Composable
-private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boolean = false, onClick: (() -> Unit)? = null) {
+private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boolean = false,
+    modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val locale = LocalConfiguration.current.locales[0]
     val money = remember(locale) { NumberFormat.getNumberInstance(locale).apply { minimumFractionDigits = 2; maximumFractionDigits = 2 } }
-    Card(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), colors = CardDefaults.cardColors(containerColor =
+    Card(modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), colors = CardDefaults.cardColors(containerColor =
         if (summary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest)) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)

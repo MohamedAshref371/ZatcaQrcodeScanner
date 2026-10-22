@@ -8,7 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,8 +46,8 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
     val amountFormat = remember(locale) { NumberFormat.getNumberInstance(locale).apply {
         minimumFractionDigits = 2; maximumFractionDigits = 2
     } }
-    LaunchedEffect(state.filter) {
-        if (scrollFilter != state.filter) {
+    LaunchedEffect(state.filter, state.loading, state.failed) {
+        if (!state.loading && !state.failed && scrollFilter != state.filter) {
             listState.scrollToItem(0)
             scrollFilter = state.filter
         }
@@ -83,8 +83,12 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
             Text(stringResource(R.string.history_export_filtered), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (state.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-        else if (state.entries.isEmpty() && !state.failed) item {
+        item(key = "history_progress") {
+            Box(Modifier.fillMaxWidth().height(4.dp)) {
+                if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+        }
+        if (!state.loading && state.entries.isEmpty() && !state.failed) item {
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.large) {
                 Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -94,8 +98,8 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                 }
             }
         }
-        if (!state.loading && (!state.failed || state.entries.isNotEmpty())) item {
-            val filtered = state.filter.query.isNotBlank() || state.filter.fromDay != null || state.filter.toDay != null
+        if (state.entries.isNotEmpty() || (!state.loading && !state.failed)) item(key = "history_summary") {
+            val filtered = state.displayedFilter.query.isNotBlank() || state.displayedFilter.fromDay != null || state.displayedFilter.toDay != null
             Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium) {
                 FlowRow(
                     modifier = Modifier.fillMaxWidth().testTag("history_summary").padding(16.dp),
@@ -111,8 +115,10 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                 }
             }
         }
-        items(state.entries, key = { it.id }) { row ->
-            Card(onClick = { onOpen(row) }, modifier = Modifier.fillMaxWidth(),
+        // Slots belong to positions so new results can replace their contents in place.
+        itemsIndexed(state.entries, key = { index, _ -> "history_card_$index" }, contentType = { _, _ -> "history_card" }) { index, row ->
+            Card(onClick = { onOpen(row) }, enabled = !state.loading && !state.failed,
+                modifier = Modifier.fillMaxWidth().testTag("history_card_$index"),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
@@ -134,7 +140,7 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                                 style = MaterialTheme.typography.labelMedium, color = statusColor)
                         }
                     }
-                    if (groupTitle == null) IconButton(onClick = { onDelete(row) }) {
+                    if (groupTitle == null) IconButton(onClick = { onDelete(row) }, enabled = !state.loading && !state.failed) {
                         AppIcon(R.drawable.ic_delete, description = stringResource(R.string.clear),
                             tint = MaterialTheme.colorScheme.error)
                     }

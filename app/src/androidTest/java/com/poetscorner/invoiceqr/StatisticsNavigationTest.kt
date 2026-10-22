@@ -20,7 +20,7 @@ class StatisticsNavigationTest {
     private fun scrollPosition(tag: String): Float = compose.onNodeWithTag(tag).fetchSemanticsNode()
         .config[SemanticsProperties.VerticalScrollAxisRange].value()
 
-    @Test fun overviewAndGroupKeepTheirScrollAfterOpeningAnInvoiceAndRefreshingStatistics() = runBlocking {
+    @Test fun overviewAndGroupKeepTheirScrollAfterOpeningAnInvoiceAndRefreshingStatistics() = runBlocking<Unit> {
         val db = ScanDatabase.open(compose.activity)
         val inserted = mutableListOf<Long>()
         val vm = compose.runOnIdle { ViewModelProvider(compose.activity)[ScannerViewModel::class.java] }

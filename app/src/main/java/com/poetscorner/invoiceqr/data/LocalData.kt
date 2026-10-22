@@ -59,12 +59,19 @@ interface ScanDao {
     @RawQuery suspend fun hasHash(query: SupportSQLiteQuery): Boolean
     @RawQuery suspend fun counts(query: SupportSQLiteQuery): HistoryCounts
     @RawQuery suspend fun amounts(query: SupportSQLiteQuery): List<HistoryAmount>
-    /** One snapshot for the count, first page and exact sum; never loads raw QR payloads. */
+    /** One snapshot for the count, loaded card range and exact sum; never loads raw QR payloads. */
     @Transaction
-    suspend fun overview(filter: HistoryFilter): HistoryOverview {
+    suspend fun overview(filter: HistoryFilter, rowLimit: Int = 50): HistoryOverview {
+        require(rowLimit > 0)
         val queries = HistoryQueries(filter)
         val counts = counts(queries.counts())
-        val rows = summaries(queries.page())
+        val rows = mutableListOf<HistorySummary>()
+        while (rows.size < minOf(rowLimit, counts.matching)) {
+            val last = rows.lastOrNull()?.let { HistoryCursor(it.scannedAt, it.id) }
+            val page = summaries(queries.page(last, minOf(500, rowLimit - rows.size)))
+            if (page.isEmpty()) break
+            rows.addAll(page)
+        }
         var amount = BigDecimal.ZERO.setScale(2)
         var cursor: HistoryCursor? = null
         val validAmount = Regex("[0-9]+(\\.[0-9]{1,2})?")
