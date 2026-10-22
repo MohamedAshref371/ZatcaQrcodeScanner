@@ -76,7 +76,7 @@
     <string name="stats_available_total">الإجمالي المتاح</string>
     <string name="stats_available_tax">الضريبة المتاحة</string>
     <string name="stats_view_invoices">عرض فواتير المجموعة</string>
-    <string name="stats_back">العودة للإحصاءات</string>
+    <string name="stats_back">رجوع</string>
     <string name="stats_export">تصدير الإحصاءات CSV</string>
     <string name="stats_export_success">تم تصدير الإحصاءات</string>
     <string name="stats_missing_total_count">فواتير بدون إجمالي صالح</string>

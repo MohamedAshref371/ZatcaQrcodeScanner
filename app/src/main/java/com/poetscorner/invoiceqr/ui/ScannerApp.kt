@@ -276,7 +276,20 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                             HistoryScreen(invoices, "", {}, vm::loadMoreStatisticsInvoices, vm::retryStatisticsInvoices,
                                 onOpen = { vm.openStatisticsInvoice(it.id) }, onDelete = {},
                                 groupTitle = statisticsGroupTitle(context, selection!!.request.grouping, selection!!.key),
-                                actions = { TextButton(onClick = vm::closeStatisticsGroup) { Text(stringResource(R.string.stats_back)) } })
+                                actions = {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                                        OutlinedButton(onClick = vm::closeStatisticsGroup,
+                                            modifier = Modifier.heightIn(min = 48.dp),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                                contentColor = MaterialTheme.colorScheme.onSurface)) {
+                                            AppIcon(R.drawable.ic_arrow_back, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                            Text(stringResource(R.string.stats_back))
+                                        }
+                                    }
+                                })
                             }
                         } else {
                             historyScreenState.SaveableStateProvider("statistics") {
