@@ -15,6 +15,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -23,9 +24,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.*
 import java.text.NumberFormat
@@ -71,7 +75,7 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
     val dates = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
     val groupSortLabel = request.grouping.label()
     val sortLabels = mapOf(StatisticsSort.GROUP to groupSortLabel, StatisticsSort.COUNT to R.string.stats_count_label,
-        StatisticsSort.TOTAL to R.string.tag_total, StatisticsSort.TAX to R.string.tag_tax)
+        StatisticsSort.TOTAL to R.string.stats_total_including_tax, StatisticsSort.TAX to R.string.tag_tax)
     LazyColumn(Modifier.fillMaxSize().testTag("statistics_list"), state = listState, contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -92,11 +96,42 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             }
         }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { filters = true }, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.history_filter_title))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                val filterState = stringResource(if (request.filtered) R.string.stats_filters_active else R.string.stats_filters_inactive)
+                FilterChip(selected = request.filtered, onClick = { filters = true },
+                    modifier = Modifier.weight(1f).semantics { stateDescription = filterState },
+                    label = { Text(stringResource(R.string.history_filter_title), Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+                    leadingIcon = { AppIcon(R.drawable.ic_filter, Modifier.size(18.dp)) },
+                    trailingIcon = if (request.filtered) { { Badge() } } else null)
+                CompactStatisticsChoice(stringResource(R.string.stats_group_by),
+                    stringResource(R.string.stats_group_compact, stringResource(groupSortLabel)), request.grouping.name,
+                    StatisticsGrouping.entries.map { it.name to stringResource(it.label()) }, modifier = Modifier.weight(2f)) {
+                    onChange(request.copy(grouping = StatisticsGrouping.valueOf(it)))
                 }
-                if (request.filtered) TextButton(onClick = {
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                CompactStatisticsChoice(stringResource(R.string.stats_sort_by),
+                    stringResource(R.string.stats_sort_compact, stringResource(sortLabels.getValue(request.sort))), request.sort.name,
+                    StatisticsSort.entries.map { it.name to stringResource(sortLabels.getValue(it)) }, modifier = Modifier.weight(3f)) {
+                    onChange(request.copy(sort = StatisticsSort.valueOf(it)))
+                }
+                val direction = stringResource(if (request.descending) R.string.stats_descending else R.string.stats_ascending)
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = { PlainTooltip { Text(direction) } }, state = rememberTooltipState()) {
+                        IconButton(onClick = { onChange(request.copy(descending = !request.descending)) },
+                            modifier = Modifier.size(48.dp).semantics { stateDescription = direction }) {
+                            AppIcon(R.drawable.ic_sort_direction,
+                                modifier = Modifier.rotate(if (request.descending) 180f else 0f),
+                                description = stringResource(R.string.stats_sort_direction))
+                        }
+                    }
+                }
+            }
+            if (request.filtered) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TextButton(onClick = {
                     onChange(request.copy(seller = "", vat = "", excludedVat = "", vatMode = StatisticsVatMode.INCLUDE,
                         fromDay = null, toDay = null, datePreset = null))
                 }) { Text(stringResource(R.string.stats_clear_filters)) }
@@ -111,24 +146,6 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                 dates.format(LocalDate.ofEpochDay(it))), style = MaterialTheme.typography.bodySmall) }
             request.toDay?.let { Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_to),
                 dates.format(LocalDate.ofEpochDay(it))), style = MaterialTheme.typography.bodySmall) }
-        }
-        item {
-            Choice(stringResource(R.string.stats_group_by), request.grouping.name,
-                StatisticsGrouping.entries.map { it.name to stringResource(it.label()) }) {
-                onChange(request.copy(grouping = StatisticsGrouping.valueOf(it)))
-            }
-        }
-        item {
-            Choice(stringResource(R.string.stats_sort_by), request.sort.name,
-                StatisticsSort.entries.map { it.name to stringResource(sortLabels.getValue(it)) }) {
-                onChange(request.copy(sort = StatisticsSort.valueOf(it)))
-            }
-        }
-        item {
-            Choice(stringResource(R.string.stats_sort_direction), request.descending.toString(),
-                listOf("false" to stringResource(R.string.stats_ascending), "true" to stringResource(R.string.stats_descending))) {
-                onChange(request.copy(descending = it.toBoolean()))
-            }
         }
         if (state.loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         else if (state.failed) item {
@@ -153,20 +170,38 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
 }
 
 @Composable
+private fun CompactStatisticsChoice(description: String, label: String, selected: String,
+    values: List<Pair<String, String>>, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        AssistChip(onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = description },
+            label = { Text(label, Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+            trailingIcon = { AppIcon(R.drawable.ic_expand, Modifier.size(18.dp)) })
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            values.forEach { (key, text) ->
+                DropdownMenuItem(text = { Text(text) }, onClick = {
+                    expanded = false
+                    onChange(key)
+                }, leadingIcon = if (key == selected) { { AppIcon(R.drawable.ic_check) } } else null)
+            }
+        }
+    }
+}
+
+@Composable
 private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boolean = false, onClick: (() -> Unit)? = null) {
     val locale = LocalConfiguration.current.locales[0]
     val money = remember(locale) { NumberFormat.getNumberInstance(locale).apply { minimumFractionDigits = 2; maximumFractionDigits = 2 } }
     Card(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), colors = CardDefaults.cardColors(containerColor =
         if (summary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.stats_count, totals.count))
             val total = if (totals.count > 0 && totals.missingTotal == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.total)
             val tax = if (totals.count > 0 && totals.missingTax == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.tax)
             Text(stringResource(R.string.stats_filter_value, stringResource(if (totals.missingTotal > 0) R.string.stats_available_total else R.string.tag_total), total))
             Text(stringResource(R.string.stats_filter_value, stringResource(if (totals.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax), tax))
-            if (onClick != null) Text(stringResource(R.string.stats_view_invoices), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary)
             if (totals.missingTotal > 0) Text(stringResource(R.string.stats_excluded_total, totals.missingTotal),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             if (totals.missingTax > 0) Text(stringResource(R.string.stats_excluded_tax, totals.missingTax),

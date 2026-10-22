@@ -45,6 +45,11 @@
     <string name="nav_statistics">الإحصاءات</string>
     <string name="stats_hint">يشمل كل الفواتير المحفوظة</string>
     <string name="stats_group_by">تجميع حسب</string>
+    <string name="stats_group_compact">تجميع: %1$s</string>
+    <string name="stats_sort_compact">ترتيب: %1$s</string>
+    <string name="stats_total_including_tax">الإجمالي شامل الضريبة</string>
+    <string name="stats_filters_active">فلاتر مفعّلة</string>
+    <string name="stats_filters_inactive">لا توجد فلاتر مفعّلة</string>
     <string name="stats_sort_by">ترتيب حسب</string>
     <string name="stats_sort_direction">اتجاه الترتيب</string>
     <string name="stats_ascending">تصاعدي</string>
@@ -256,7 +261,7 @@
     <string name="invoice_date_time">التاريخ والوقت</string>
     <string name="invoice_date_gmt">التاريخ والوقت (بتوقيت جرينتش)</string>
     <string name="invoice_date_makkah">التاريخ والوقت (بتوقيت مكة المكرمة)</string>
-    <string name="tag_total">الإجمالي شامل الضريبة</string>
+    <string name="tag_total">الإجمالي</string>
     <string name="tag_tax">الضريبة</string>
     <string name="tag_hash">Hash الفاتورة</string>
     <string name="tag_signature">التوقيع</string>

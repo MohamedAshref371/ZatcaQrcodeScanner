@@ -118,7 +118,8 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) }, style = MaterialTheme.typography.titleMedium)
+                        Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) },
+                            modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
                         if (row.vat.isNotBlank()) Text(stringResource(R.string.history_vat, row.vat),
                             style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
                             color = MaterialTheme.colorScheme.onSurfaceVariant)

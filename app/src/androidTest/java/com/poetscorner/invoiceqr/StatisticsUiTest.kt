@@ -98,20 +98,20 @@ class StatisticsUiTest {
         compose.setContent { MaterialTheme {
             StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {})
         } }
-        compose.onNodeWithText(text(R.string.stats_group_by)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.stats_group_by)).performClick()
         compose.onNodeWithText(text(R.string.stats_quarter)).performClick()
         compose.runOnIdle { assertEquals(StatisticsGrouping.QUARTER, request.grouping) }
-        compose.onNodeWithTag("statistics_list").performScrollToNode(hasText(text(R.string.stats_sort_by)))
-        compose.onNodeWithText(text(R.string.stats_sort_by)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.stats_sort_by)).performClick()
         compose.onNodeWithText(text(R.string.stats_count_label)).performClick()
-        compose.onNodeWithTag("statistics_list").performScrollToNode(hasText(text(R.string.stats_sort_direction)))
-        compose.onNodeWithText(text(R.string.stats_sort_direction)).performClick()
-        compose.onNodeWithText(text(R.string.stats_descending)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.stats_sort_direction)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.stats_sort_direction)).assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, text(R.string.stats_descending)))
         compose.onNodeWithTag("statistics_list").performScrollToNode(hasText(text(R.string.history_filter_title)))
         compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.tag_seller))).performTextInput("Market")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.tag_vat))).performTextInput("3001")
         compose.onNodeWithText(text(R.string.history_apply_date)).performClick()
+        compose.onNodeWithText(text(R.string.history_filter_title)).assertIsSelected()
         compose.runOnIdle {
             assertEquals("Market", request.seller)
             assertEquals("3001", request.vat)
@@ -121,6 +121,7 @@ class StatisticsUiTest {
         }
         compose.onNodeWithTag("statistics_list").performScrollToNode(hasText(text(R.string.stats_clear_filters)))
         compose.onNodeWithText(text(R.string.stats_clear_filters)).performClick()
+        compose.onNodeWithText(text(R.string.history_filter_title)).assertIsNotSelected()
         compose.runOnIdle {
             assertFalse(request.filtered)
             assertEquals(StatisticsGrouping.QUARTER, request.grouping)
