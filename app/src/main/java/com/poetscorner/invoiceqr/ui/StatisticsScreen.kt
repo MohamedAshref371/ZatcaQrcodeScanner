@@ -173,11 +173,21 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, onDismiss: () -> 
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(seller, { seller = it }, label = { Text(stringResource(R.string.tag_seller)) }, singleLine = true)
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy((-8).dp)) {
                     Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatisticsVatMode.entries.forEach { mode ->
-                            FilterChip(selected = vatMode == mode, onClick = { vatMode = mode },
+                            val selected = vatMode == mode
+                            FilterChip(selected = selected, onClick = { vatMode = mode },
                                 modifier = Modifier.weight(1f).semantics { role = Role.RadioButton },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    labelColor = MaterialTheme.colorScheme.onSurface,
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary),
+                                leadingIcon = if (selected) {
+                                    { AppIcon(R.drawable.ic_check, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                                } else null,
                                 label = { Text(stringResource(if (mode == StatisticsVatMode.INCLUDE) R.string.stats_vat_include else R.string.stats_vat_exclude)) })
                         }
                     }
