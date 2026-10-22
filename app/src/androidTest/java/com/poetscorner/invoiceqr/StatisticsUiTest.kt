@@ -18,6 +18,22 @@ class StatisticsUiTest {
     @get:Rule val compose = createComposeRule()
     private fun text(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
+    @Test fun exclusionChangesTheFieldLabelAndAcceptsAPartialNumber() {
+        var request by mutableStateOf(StatisticsRequest())
+        compose.setContent { MaterialTheme {
+            StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {})
+        } }
+        compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
+        compose.onNodeWithText(text(R.string.stats_vat_exclude)).performClick()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.stats_exclude_vat))).performTextInput("123")
+        compose.onNodeWithText(text(R.string.history_apply_date)).assertIsEnabled().performClick()
+        compose.runOnIdle {
+            assertEquals("123", request.excludedVat)
+            assertEquals("", request.vat)
+            assertEquals(StatisticsVatMode.EXCLUDE, request.vatMode)
+        }
+    }
+
     @Test fun groupingSortingAndFiltersUpdateTheRequestWithoutLosingOtherChoices() {
         var request by mutableStateOf(StatisticsRequest())
         compose.setContent { MaterialTheme {

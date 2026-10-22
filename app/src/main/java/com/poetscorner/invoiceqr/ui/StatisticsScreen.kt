@@ -2,11 +2,13 @@ package com.poetscorner.invoiceqr.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -16,6 +18,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.*
 import java.text.NumberFormat
@@ -31,6 +37,14 @@ internal fun StatisticsGrouping.label(): Int = when (this) {
     StatisticsGrouping.QUARTER -> R.string.stats_quarter
     StatisticsGrouping.HALF_YEAR -> R.string.stats_half_year
     StatisticsGrouping.YEAR -> R.string.stats_year
+}
+
+internal fun StatisticsPreset.label(): Int = when (this) {
+    StatisticsPreset.THIS_MONTH -> R.string.stats_this_month
+    StatisticsPreset.LAST_MONTH -> R.string.stats_last_month
+    StatisticsPreset.THIS_QUARTER -> R.string.stats_this_quarter
+    StatisticsPreset.LAST_QUARTER -> R.string.stats_last_quarter
+    StatisticsPreset.THIS_YEAR -> R.string.stats_this_year
 }
 
 @Composable
@@ -61,13 +75,16 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                     Text(stringResource(R.string.history_filter_title))
                 }
                 if (request.filtered) TextButton(onClick = {
-                    onChange(request.copy(seller = "", vat = "", fromDay = null, toDay = null))
+                    onChange(request.copy(seller = "", vat = "", excludedVat = "", vatMode = StatisticsVatMode.INCLUDE,
+                        fromDay = null, toDay = null, datePreset = null))
                 }) { Text(stringResource(R.string.stats_clear_filters)) }
             }
             if (request.seller.isNotBlank()) Text(stringResource(R.string.stats_filter_value,
                 stringResource(R.string.tag_seller), request.seller), style = MaterialTheme.typography.bodySmall)
             if (request.vat.isNotBlank()) Text(stringResource(R.string.stats_filter_value,
                 stringResource(R.string.tag_vat), request.vat), style = MaterialTheme.typography.bodySmall)
+            if (request.excludedVat.isNotBlank()) Text(stringResource(R.string.stats_filter_value,
+                stringResource(R.string.stats_exclude_vat), request.excludedVat), style = MaterialTheme.typography.bodySmall)
             request.fromDay?.let { Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_from),
                 dates.format(LocalDate.ofEpochDay(it))), style = MaterialTheme.typography.bodySmall) }
             request.toDay?.let { Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_to),
@@ -140,29 +157,38 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boo
 @Composable
 private fun StatisticsFilterDialog(request: StatisticsRequest, onDismiss: () -> Unit, onApply: (StatisticsRequest) -> Unit) {
     var seller by rememberSaveable { mutableStateOf(request.seller) }
-    var vat by rememberSaveable { mutableStateOf(request.vat) }
+    var vatMode by rememberSaveable { mutableStateOf(if (request.excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else request.vatMode) }
+    var vat by rememberSaveable { mutableStateOf(if (request.excludedVat.isNotBlank()) request.excludedVat else request.vat) }
+    var datePreset by rememberSaveable { mutableStateOf(request.datePreset) }
     var from by rememberSaveable { mutableStateOf(request.fromDay) }
     var to by rememberSaveable { mutableStateOf(request.toDay) }
     var pickingFrom by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val locale = LocalConfiguration.current.locales[0]
     val dates = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
+    val normalizedVat = normalizeVatNumber(vat)
     AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.history_filter_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(seller, { seller = it }, label = { Text(stringResource(R.string.tag_seller)) }, singleLine = true)
-                OutlinedTextField(vat, { vat = it }, label = { Text(stringResource(R.string.tag_vat)) }, singleLine = true)
+                Column {
+                    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StatisticsVatMode.entries.forEach { mode ->
+                            FilterChip(selected = vatMode == mode, onClick = { vatMode = mode },
+                                modifier = Modifier.weight(1f).semantics { role = Role.RadioButton },
+                                label = { Text(stringResource(if (mode == StatisticsVatMode.INCLUDE) R.string.stats_vat_include else R.string.stats_vat_exclude)) })
+                        }
+                    }
+                    OutlinedTextField(vat, { vat = it }, label = {
+                        Text(stringResource(if (vatMode == StatisticsVatMode.EXCLUDE) R.string.stats_exclude_vat else R.string.tag_vat))
+                    }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }
                 Text(stringResource(R.string.stats_date_hint), style = MaterialTheme.typography.bodySmall)
                 val today = LocalDate.now()
-                val selectedPreset = StatisticsPreset.entries.firstOrNull { preset ->
-                    val period = request.withPeriod(preset, today)
-                    period.fromDay == from && period.toDay == to
-                }
-                val labels = listOf(R.string.stats_this_month, R.string.stats_last_month, R.string.stats_this_quarter,
-                    R.string.stats_last_quarter, R.string.stats_this_year)
                 Choice(stringResource(R.string.stats_date_shortcuts),
-                    selectedPreset?.name ?: stringResource(if (from == null && to == null) R.string.stats_choose_period else R.string.stats_custom_period),
-                    StatisticsPreset.entries.mapIndexed { index, preset -> preset.name to stringResource(labels[index]) }) { selected ->
+                    datePreset?.name ?: stringResource(if (from == null && to == null) R.string.stats_choose_period else R.string.stats_custom_period),
+                    StatisticsPreset.entries.map { it.name to stringResource(it.label()) }) { selected ->
                     val period = request.withPeriod(StatisticsPreset.valueOf(selected), today)
+                    datePreset = period.datePreset
                     from = period.fromDay; to = period.toDay
                 }
                 OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.fillMaxWidth()) {
@@ -173,17 +199,21 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, onDismiss: () -> 
                     Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_to),
                         to?.let { dates.format(LocalDate.ofEpochDay(it)) } ?: stringResource(R.string.stats_any_date)))
                 }
-                TextButton(onClick = { seller = ""; vat = ""; from = null; to = null }) {
+                TextButton(onClick = { seller = ""; vat = ""; vatMode = StatisticsVatMode.INCLUDE; from = null; to = null; datePreset = null }) {
                     Text(stringResource(R.string.stats_clear_filters))
                 }
             }
-        }, confirmButton = { TextButton(onClick = { onApply(request.copy(seller = seller.trim(), vat = vat.trim(), fromDay = from, toDay = to)) }) {
+        }, confirmButton = { TextButton(onClick = {
+            onApply(request.copy(seller = seller.trim(), fromDay = from, toDay = to, datePreset = datePreset)
+                .withVatFilter(vatMode, normalizedVat))
+        }) {
             Text(stringResource(R.string.history_apply_date))
         } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
     pickingFrom?.let { isFrom ->
         HistoryDatePicker(initial = (if (isFrom) from else to) ?: (if (isFrom) to else from),
             minimum = if (isFrom) null else from, maximum = if (isFrom) to else null,
             onDismiss = { pickingFrom = null }, onSelect = {
+                datePreset = null
                 if (isFrom) from = it else to = it
                 pickingFrom = null
             })

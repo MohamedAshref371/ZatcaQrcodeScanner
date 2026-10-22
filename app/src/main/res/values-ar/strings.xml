@@ -59,6 +59,9 @@
     <string name="stats_summary">ملخص النتائج</string>
     <string name="stats_empty">لا توجد فواتير تطابق الفلاتر المحددة.</string>
     <string name="stats_clear_filters">مسح الفلاتر</string>
+    <string name="stats_exclude_vat">الرقم الضريبي المستبعد</string>
+    <string name="stats_vat_include">تضمين</string>
+    <string name="stats_vat_exclude">استبعاد</string>
     <string name="stats_filter_value">%1$s: %2$s</string>
     <string name="stats_unknown_seller">بائع غير معروف</string>
     <string name="stats_unknown_vat">رقم ضريبي غير معروف</string>
@@ -87,7 +90,7 @@
     <string name="stats_this_year">هذه السنة</string>
     <string name="stats_excluded_total">فواتير مستبعدة من جمع الإجمالي لغياب المبلغ أو عدم صلاحيته: %1$d</string>
     <string name="stats_excluded_tax">فواتير مستبعدة من جمع الضريبة لغياب المبلغ أو عدم صلاحيته: %1$d</string>
-    <string name="stats_date_hint">تاريخ إصدار الفاتورة، شامل يومي البداية والنهاية. البحث بالاسم والرقم الضريبي يطابق جزءًا من النص، ويجب تحقق كل الفلاتر معًا.</string>
+    <string name="stats_date_hint">تاريخ إصدار الفاتورة، شامل يومي البداية والنهاية.</string>
     <string name="stats_any_date">أي تاريخ</string>
     <string name="scan_local">قراءة محلية • QR فقط</string>
     <string name="gallery_pick">صورة من المعرض</string>

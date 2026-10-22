@@ -54,6 +54,15 @@ class ScannerViewModel(
     fun filterHistory(filter: HistoryFilter) = historyPager.setFilter(filter)
     fun loadMoreHistory() = historyPager.loadMore()
     fun retryHistory() = historyPager.refresh()
+    private val statisticsFilters = StatisticsFilterRepository(app)
+    init {
+        val restored = savedState.get<StatisticsRequest>("statistics_request")
+        val persisted = statisticsFilters.load()
+        savedState["statistics_request"] = if (statisticsFilters.hasSavedFilters) {
+            persisted.copy(grouping = restored?.grouping ?: persisted.grouping,
+                sort = restored?.sort ?: persisted.sort, descending = restored?.descending ?: persisted.descending)
+        } else (restored ?: persisted).resolvePeriod()
+    }
     private val statisticsRequest = savedState.getStateFlow("statistics_request", StatisticsRequest())
     private val statisticsRevision = MutableStateFlow(0L)
     private var cachedStatistics: StatisticsState? = null
@@ -73,7 +82,17 @@ class ScannerViewModel(
                 emit(StatisticsState(request, loading = false, failed = true))
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsState(statisticsRequest.value))
-    fun updateStatistics(request: StatisticsRequest) { savedState["statistics_request"] = request }
+    fun updateStatistics(request: StatisticsRequest) {
+        val mode = if (request.excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else request.vatMode
+        val resolved = request.withVatFilter(mode, if (mode == StatisticsVatMode.EXCLUDE) request.excludedVat else request.vat).resolvePeriod()
+        statisticsFilters.save(resolved)
+        savedState["statistics_request"] = resolved
+    }
+    fun refreshStatisticsPeriod() {
+        val request = statisticsRequest.value
+        val resolved = request.resolvePeriod()
+        if (request != resolved) savedState["statistics_request"] = resolved
+    }
     fun retryStatistics() { statisticsRevision.value++ }
     val statisticsSelection = savedState.getStateFlow<StatisticsSelection?>("statistics_group", null)
     private val statisticsGroupPager by lazy {
@@ -148,6 +167,7 @@ class ScannerViewModel(
     }
 
     private fun moveTo(screen: Int, clearCameraResult: Boolean = true) {
+        if (screen == 4) refreshStatisticsPeriod()
         if (screen != 1) savedState["result_return_screen"] = 0
         if (screen == 0 && clearCameraResult) clearResult()
         savedState["screen"] = screen

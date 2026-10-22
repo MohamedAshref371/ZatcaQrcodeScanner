@@ -8,16 +8,36 @@ import java.util.Locale
 
 enum class StatisticsGrouping { SELLER, VAT, DAY, MONTH, QUARTER, HALF_YEAR, YEAR }
 enum class StatisticsSort { GROUP, COUNT, TOTAL, TAX }
+enum class StatisticsVatMode { INCLUDE, EXCLUDE }
 data class StatisticsRequest(
     val grouping: StatisticsGrouping = StatisticsGrouping.SELLER,
     val sort: StatisticsSort = StatisticsSort.GROUP,
     val descending: Boolean = false,
     val seller: String = "", val vat: String = "",
-    val fromDay: Long? = null, val toDay: Long? = null
+    val fromDay: Long? = null, val toDay: Long? = null,
+    val excludedVat: String = "", val datePreset: StatisticsPreset? = null,
+    val vatMode: StatisticsVatMode = if (excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else StatisticsVatMode.INCLUDE
 ) : Serializable {
     init { require(fromDay == null || toDay == null || fromDay <= toDay) }
-    val filtered get() = seller.isNotBlank() || vat.isNotBlank() || fromDay != null || toDay != null
+    val filtered get() = seller.isNotBlank() || vat.isNotBlank() || excludedVat.isNotBlank() || fromDay != null || toDay != null || datePreset != null
 }
+
+internal fun StatisticsRequest.withVatFilter(mode: StatisticsVatMode, number: String): StatisticsRequest {
+    val normalized = normalizeVatNumber(number)
+    return copy(vatMode = mode, vat = if (mode == StatisticsVatMode.INCLUDE) normalized else "",
+        excludedVat = if (mode == StatisticsVatMode.EXCLUDE) normalized else "")
+}
+
+internal fun normalizeVatNumber(value: String): String = value.trim().map {
+    when (it) {
+        in '\u0660'..'\u0669' -> (it - '\u0660').digitToChar()
+        in '\u06F0'..'\u06F9' -> (it - '\u06F0').digitToChar()
+        else -> it
+    }
+}.joinToString("")
+
+fun StatisticsRequest.resolvePeriod(today: LocalDate = LocalDate.now()): StatisticsRequest =
+    datePreset?.let { withPeriod(it, today) } ?: this
 
 data class StatisticsInvoice(val id: Long, val seller: String, val vat: String,
     val invoiceDay: Long?, val total: String, val tax: String)
@@ -29,6 +49,8 @@ data class StatisticsSelection(val request: StatisticsRequest, val key: Statisti
 internal fun StatisticsSelection.matches(seller: String, vat: String, day: Long?): Boolean {
     val vatTerm = request.vat.trim().map { if (it.isDigit()) Character.digit(it, 10).digitToChar() else it }.joinToString("")
     if (!seller.contains(request.seller.trim(), ignoreCase = true) || !vat.contains(vatTerm)) return false
+    val excluded = normalizeVatNumber(request.excludedVat)
+    if (excluded.isNotEmpty() && normalizeVatNumber(vat).contains(excluded)) return false
     if (request.fromDay != null && (day == null || day < request.fromDay)) return false
     if (request.toDay != null && (day == null || day > request.toDay)) return false
     return when (request.grouping) {
@@ -55,7 +77,7 @@ fun StatisticsRequest.withPeriod(preset: StatisticsPreset, today: LocalDate = Lo
         StatisticsPreset.THIS_YEAR -> first.plusYears(1)
         else -> first.plusMonths(1)
     }.minusDays(1)
-    return copy(fromDay = first.toEpochDay(), toDay = end.toEpochDay())
+    return copy(fromDay = first.toEpochDay(), toDay = end.toEpochDay(), datePreset = preset)
 }
 
 internal fun StatisticsGrouping.periodEnd(start: LocalDate): LocalDate = when (this) {
@@ -85,6 +107,14 @@ internal fun statisticsConditions(request: StatisticsRequest, key: StatisticsKey
     request.vat.trim().takeIf { it.isNotEmpty() }?.let {
         clauses += "instr(vat, ?) > 0"
         args += it.map { c -> if (c.isDigit()) Character.digit(c, 10).digitToChar() else c }.joinToString("")
+    }
+    normalizeVatNumber(request.excludedVat).takeIf { it.isNotEmpty() }?.let {
+        var normalizedColumn = "trim(vat, ?)"
+        for (zero in listOf(0x0660, 0x06F0)) for (digit in 0..9) {
+            normalizedColumn = "replace($normalizedColumn, '${(zero + digit).toChar()}', '$digit')"
+        }
+        clauses += "instr($normalizedColumn, ?) = 0"
+        args += statisticsWhitespace; args += it
     }
     request.fromDay?.let { clauses += "invoiceDay >= ?"; args += it }
     request.toDay?.let { clauses += "invoiceDay <= ?"; args += it }

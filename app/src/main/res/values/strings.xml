@@ -59,6 +59,9 @@
     <string name="stats_summary">Results summary</string>
     <string name="stats_empty">No invoices match these filters.</string>
     <string name="stats_clear_filters">Clear filters</string>
+    <string name="stats_exclude_vat">Excluded VAT number</string>
+    <string name="stats_vat_include">Include</string>
+    <string name="stats_vat_exclude">Exclude</string>
     <string name="stats_filter_value">%1$s: %2$s</string>
     <string name="stats_unknown_seller">Unknown seller</string>
     <string name="stats_unknown_vat">Unknown VAT number</string>
@@ -87,7 +90,7 @@
     <string name="stats_this_year">This year</string>
     <string name="stats_excluded_total">Invoices excluded from the total due to missing or invalid amounts: %1$d</string>
     <string name="stats_excluded_tax">Invoices excluded from the tax sum due to missing or invalid amounts: %1$d</string>
-    <string name="stats_date_hint">Invoice issue date, including both boundary days. Seller and VAT filters match part of the text; all filters must match.</string>
+    <string name="stats_date_hint">Invoice issue date, including both boundary days.</string>
     <string name="stats_any_date">Any date</string>
     <string name="scan_local">Offline scanning • QR only</string>
     <string name="gallery_pick">Choose an image</string>

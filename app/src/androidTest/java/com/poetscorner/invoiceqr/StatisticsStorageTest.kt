@@ -51,6 +51,26 @@ class StatisticsStorageTest {
         assertEquals(0, calculate(StatisticsRequest(seller = "' OR 1=1 --")).summary.count)
         assertEquals(3, calculate(StatisticsRequest(seller = "%_")).summary.count)
         assertEquals(3, calculate(StatisticsRequest(toDay = historyBaseDay + 1)).summary.count)
+        val excluded = "300000000000002"
+        assertEquals(3, calculate(StatisticsRequest(excludedVat = excluded)).summary.count)
+        assertEquals(3, calculate(StatisticsRequest(excludedVat = "٣٠٠٠٠٠٠٠٠٠٠٠٠٠٢")).summary.count)
+        assertEquals(0, calculate(StatisticsRequest(vat = excluded, excludedVat = excluded)).summary.count)
+        assertEquals(3, calculate(StatisticsRequest(excludedVat = "0002")).summary.count)
+        assertEquals(0, calculate(StatisticsRequest(excludedVat = "300")).summary.count)
+        assertEquals(4, calculate(StatisticsRequest(excludedVat = "")).summary.count)
+        assertEquals(4, calculate(StatisticsRequest(excludedVat = "%_")).summary.count)
+    }
+
+    @Test fun exclusionAlsoRecognizesArabicDigitsStoredInAnInvoiceThatFailedValidation() = runBlocking {
+        val row = historyFixture(77, seller = "Own invoice", hash = false)
+        val arabicVat = row.details.vat.map { (0x0660 + it.digitToInt()).toChar() }.joinToString("")
+        db.scans().insert(row.copy(passed = false, details = row.details.copy(vat = arabicVat)))
+        assertEquals(1, calculate(StatisticsRequest()).summary.count)
+        val request = StatisticsRequest(excludedVat = row.details.vat)
+        assertEquals(0, calculate(request).summary.count)
+        assertEquals(0, calculate(StatisticsRequest(excludedVat = row.details.vat.takeLast(4))).summary.count)
+        val selected = HistoryFilter(statisticsSelection = StatisticsSelection(request, StatisticsKey(text = "Own invoice")))
+        assertEquals(0, db.scans().counts(HistoryQueries(selected).counts()).matching)
     }
 
     @Test fun openingEveryGroupReturnsExactlyItsInvoicesIncludingUnknownAndUnicodeTrimmedGroups() = runBlocking {
@@ -62,8 +82,8 @@ class StatisticsStorageTest {
             historyFixture(5, seller = "Market", date = "2027-04-01T00:00:00Z")))
         val stored = db.scans().all().map { HistoryEntry.from(it) }
         for (grouping in StatisticsGrouping.entries) {
-            for (sellerFilter in listOf("", "Market")) {
-                val request = StatisticsRequest(grouping = grouping, seller = sellerFilter)
+            for (sellerFilter in listOf("", "Market")) for (excluded in listOf("", "300000000000002", "0002")) {
+                val request = StatisticsRequest(grouping = grouping, seller = sellerFilter, excludedVat = excluded)
                 for (group in calculate(request).groups) {
                     val filter = HistoryFilter(statisticsSelection = StatisticsSelection(request, group.key))
                     val queries = HistoryQueries(filter)

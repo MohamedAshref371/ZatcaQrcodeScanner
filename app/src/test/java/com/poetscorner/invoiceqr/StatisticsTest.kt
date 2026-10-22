@@ -100,7 +100,8 @@ class StatisticsTest {
             val result = request.withPeriod(preset, LocalDate.parse(today))
             assertEquals(LocalDate.parse(expected.first).toEpochDay(), result.fromDay)
             assertEquals(LocalDate.parse(expected.second).toEpochDay(), result.toDay)
-            assertEquals(request, result.copy(fromDay = null, toDay = null))
+            assertEquals(preset, result.datePreset)
+            assertEquals(request, result.copy(fromDay = null, toDay = null, datePreset = null))
         }
     }
 
@@ -119,5 +120,52 @@ class StatisticsTest {
         val unknown = StatisticsSelection(StatisticsRequest(grouping = StatisticsGrouping.DAY), StatisticsKey())
         assertTrue(unknown.matches("A", "3001", null))
         assertFalse(unknown.matches("A", "3001", start))
+    }
+
+    @Test fun excludedVatMatchesAnyContainingNumberAndAcceptsArabicInput() {
+        val excluded = "300000000000001"
+        val request = StatisticsRequest(excludedVat = "٣٠٠٠٠٠٠٠٠٠٠٠٠٠١")
+        val selection = StatisticsSelection(request, StatisticsKey(text = "Market"))
+        assertEquals(excluded, normalizeVatNumber(request.excludedVat))
+        assertTrue(request.filtered)
+        assertFalse(selection.matches("Market", excluded, null))
+        assertFalse(selection.matches("Market", "٣٠٠٠٠٠٠٠٠٠٠٠٠٠١", null))
+        assertEquals(excluded, normalizeVatNumber("۳۰۰۰۰۰۰۰۰۰۰۰۰۰۱"))
+        assertFalse(selection.matches("Market", "\t$excluded ", null))
+        assertTrue(selection.matches("Market", "300000000000002", null))
+        assertTrue(selection.matches("Market", "", null))
+        assertFalse(selection.matches("Market", excluded + "2", null))
+        val partial = StatisticsSelection(StatisticsRequest(excludedVat = "٠٠١"), StatisticsKey(text = "Market"))
+        assertFalse(partial.matches("Market", excluded, null))
+        assertFalse(partial.matches("Market", "100123", null))
+        assertTrue(partial.matches("Market", "300000000000002", null))
+        assertTrue(partial.matches("Market", "", null))
+        val empty = StatisticsSelection(StatisticsRequest(excludedVat = ""), StatisticsKey(text = "Market"))
+        assertTrue(empty.matches("Market", excluded, null))
+    }
+
+    @Test fun relativeDatesMoveForwardWhileManualDatesStayFixed() {
+        val original = StatisticsRequest(excludedVat = "300000000000001")
+            .withPeriod(StatisticsPreset.THIS_MONTH, LocalDate.of(2026, 12, 15))
+        val moved = original.resolvePeriod(LocalDate.of(2027, 1, 3))
+        assertEquals(LocalDate.of(2027, 1, 1).toEpochDay(), moved.fromDay)
+        assertEquals(LocalDate.of(2027, 1, 31).toEpochDay(), moved.toDay)
+        assertEquals(original.excludedVat, moved.excludedVat)
+        val manual = original.copy(datePreset = null)
+        assertEquals(manual, manual.resolvePeriod(LocalDate.of(2027, 1, 3)))
+    }
+
+    @Test fun switchingVatModeUsesOneNumberAndClearsTheOppositeFilter() {
+        val excluded = StatisticsRequest().withVatFilter(StatisticsVatMode.EXCLUDE, "٣٠٠٠٠٠٠٠٠٠٠٠٠٠١")
+        assertEquals(StatisticsVatMode.EXCLUDE, excluded.vatMode)
+        assertEquals("300000000000001", excluded.excludedVat)
+        assertEquals("", excluded.vat)
+        val included = excluded.withVatFilter(StatisticsVatMode.INCLUDE, "٣٠٠")
+        assertEquals(StatisticsVatMode.INCLUDE, included.vatMode)
+        assertEquals("300", included.vat)
+        assertEquals("", included.excludedVat)
+        val empty = included.withVatFilter(StatisticsVatMode.EXCLUDE, "")
+        assertEquals(StatisticsVatMode.EXCLUDE, empty.vatMode)
+        assertFalse(empty.filtered)
     }
 }

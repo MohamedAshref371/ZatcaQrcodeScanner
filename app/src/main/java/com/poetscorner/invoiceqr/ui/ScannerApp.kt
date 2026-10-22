@@ -100,6 +100,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
         supporter.refresh()
         vm.recordReviewUse()
         vm.refreshMlKit()
+        vm.refreshStatisticsPeriod()
     }
     val screen by vm.screen.collectAsStateWithLifecycle()
     val restoringResult by vm.restoringResult.collectAsStateWithLifecycle()
