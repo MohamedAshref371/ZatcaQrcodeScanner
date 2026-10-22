@@ -18,6 +18,12 @@ internal fun invoiceSummary(context: Context, invoice: Invoice): String = buildS
         6 to R.string.tag_hash)
     for ((tag, label) in labels) {
         if (tag == 6 && invoice.value(tag).isBlank()) continue
+        if (tag == 3) {
+            invoiceTimestampFields(context, invoice.value(tag), forSharing = true).forEach { (title, value) ->
+                appendLine("$title: $value")
+            }
+            continue
+        }
         appendLine(context.getString(label) + ": " + invoice.value(tag).ifBlank { context.getString(R.string.missing) })
     }
     val status = when {

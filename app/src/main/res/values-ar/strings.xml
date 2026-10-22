@@ -199,6 +199,12 @@
     <string name="tag_seller">اسم البائع</string>
     <string name="tag_vat">الرقم الضريبي</string>
     <string name="tag_date">التاريخ</string>
+    <string name="invoice_time">الوقت</string>
+    <string name="invoice_time_gmt">الوقت (بتوقيت جرينتش)</string>
+    <string name="invoice_time_makkah">الوقت (بتوقيت مكة المكرمة)</string>
+    <string name="invoice_date_time">التاريخ والوقت</string>
+    <string name="invoice_date_gmt">التاريخ والوقت (بتوقيت جرينتش)</string>
+    <string name="invoice_date_makkah">التاريخ والوقت (بتوقيت مكة المكرمة)</string>
     <string name="tag_total">الإجمالي شامل الضريبة</string>
     <string name="tag_tax">الضريبة</string>
     <string name="tag_hash">Hash الفاتورة</string>

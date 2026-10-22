@@ -198,7 +198,13 @@
     <string name="billing_not_owned">No active supporter pack was found on this store account. All app features remain free.</string>
     <string name="tag_seller">Seller name</string>
     <string name="tag_vat">VAT registration number</string>
-    <string name="tag_date">Timestamp</string>
+    <string name="tag_date">Date</string>
+    <string name="invoice_time">Time</string>
+    <string name="invoice_time_gmt">Time (GMT)</string>
+    <string name="invoice_time_makkah">Time (Makkah time)</string>
+    <string name="invoice_date_time">Date and time</string>
+    <string name="invoice_date_gmt">Date and time (GMT)</string>
+    <string name="invoice_date_makkah">Date and time (Makkah time)</string>
     <string name="tag_total">Total including VAT</string>
     <string name="tag_tax">VAT amount</string>
     <string name="tag_hash">Invoice hash</string>

@@ -405,6 +405,22 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, onShare: () -> Unit,
 @Composable
 private fun InvoiceField(invoice: Invoice, tag: Int) {
     val context = LocalContext.current
+    if (tag == 3) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
+            SelectionContainer {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(invoiceTimestampTitle(context, invoice.value(tag)), style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    invoiceTimestampFields(context, invoice.value(tag)).forEach { (title, value) ->
+                        val line = "$title: $value"
+                        Text(line, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        }
+        return
+    }
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -8,6 +8,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.domain.ZatcaParser
 import com.poetscorner.invoiceqr.ui.invoiceShareIntent
 import com.poetscorner.invoiceqr.ui.invoiceSummary
+import com.poetscorner.invoiceqr.ui.invoiceTimestampFields
+import com.poetscorner.invoiceqr.ui.invoiceTimestampTitle
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,8 +30,12 @@ class InvoiceSharingTest {
         for (language in listOf("en", "ar")) {
             val ctx = context(language)
             val summary = invoiceSummary(ctx, invoice)
-            for (tag in 1..6) assertTrue(summary.contains(invoice.value(tag)))
-            assertTrue(summary.contains(ctx.getString(R.string.export_invoice_date)))
+            for (tag in listOf(1, 2, 4, 5, 6)) assertTrue(summary.contains(invoice.value(tag)))
+            val timestampLines = invoiceTimestampFields(ctx, invoice.value(3), forSharing = true).map { (title, value) -> "$title: $value" }
+            assertEquals(2, timestampLines.size)
+            assertTrue(summary.contains(timestampLines.joinToString("\n")))
+            assertFalse(summary.contains(invoiceTimestampTitle(ctx, invoice.value(3))))
+            assertFalse(summary.contains(invoice.value(3)))
             assertTrue(summary.contains(ctx.getString(R.string.share_phase_two_passed)))
             assertFalse(summary.contains(invoice.raw))
             for (tag in 7..9) assertFalse(summary.contains(invoice.value(tag)))
