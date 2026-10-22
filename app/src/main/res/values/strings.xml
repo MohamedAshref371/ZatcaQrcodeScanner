@@ -43,7 +43,7 @@
     <string name="nav_history">History</string>
     <string name="nav_settings">Settings</string>
     <string name="nav_statistics">Statistics</string>
-    <string name="stats_hint">All saved invoices, including failed checks. Periods use the invoice issue date.</string>
+    <string name="stats_hint">Includes all saved invoices</string>
     <string name="stats_group_by">Group by</string>
     <string name="stats_sort_by">Sort by</string>
     <string name="stats_sort_direction">Sort direction</string>

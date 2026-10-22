@@ -43,7 +43,7 @@
     <string name="nav_history">السجل</string>
     <string name="nav_settings">الإعدادات</string>
     <string name="nav_statistics">الإحصاءات</string>
-    <string name="stats_hint">كل الفواتير المحفوظة، بما فيها التي لم تجتز الفحص. الفترات حسب تاريخ إصدار الفاتورة.</string>
+    <string name="stats_hint">يشمل كل الفواتير المحفوظة</string>
     <string name="stats_group_by">تجميع حسب</string>
     <string name="stats_sort_by">ترتيب حسب</string>
     <string name="stats_sort_direction">اتجاه الترتيب</string>

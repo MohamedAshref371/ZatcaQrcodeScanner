@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +51,7 @@ internal fun StatisticsPreset.label(): Int = when (this) {
     StatisticsPreset.THIS_YEAR -> R.string.stats_this_year
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Unit, onRetry: () -> Unit,
     onOpenGroup: (StatisticsKey) -> Unit = {}, onExport: () -> Unit = {}, exportEnabled: Boolean = true,
@@ -72,7 +74,23 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
         StatisticsSort.TOTAL to R.string.tag_total, StatisticsSort.TAX to R.string.tag_tax)
     LazyColumn(Modifier.fillMaxSize().testTag("statistics_list"), state = listState, contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { SectionHeading(stringResource(R.string.nav_statistics), stringResource(R.string.stats_hint)) }
+        item {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.weight(1f)) {
+                    SectionHeading(stringResource(R.string.nav_statistics), stringResource(R.string.stats_hint))
+                }
+                TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text(stringResource(R.string.stats_export)) } },
+                    state = rememberTooltipState()) {
+                    IconButton(onClick = onExport,
+                        enabled = exportEnabled && !state.loading && !state.failed && state.result.groups.isNotEmpty(),
+                        modifier = Modifier.size(48.dp)) {
+                        AppIcon(R.drawable.ic_download, description = stringResource(R.string.stats_export))
+                    }
+                }
+            }
+        }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { filters = true }, modifier = Modifier.weight(1f)) {
@@ -117,10 +135,6 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             Text(stringResource(R.string.history_load_error))
             TextButton(onClick = onRetry) { Text(stringResource(R.string.history_retry)) }
         } else {
-            item {
-                OutlinedButton(onClick = onExport, enabled = exportEnabled && state.result.groups.isNotEmpty(),
-                    modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.stats_export)) }
-            }
             item {
                 StatisticsCard(stringResource(R.string.stats_summary_with_groups, state.result.groups.size),
                     state.result.summary, summary = true)
