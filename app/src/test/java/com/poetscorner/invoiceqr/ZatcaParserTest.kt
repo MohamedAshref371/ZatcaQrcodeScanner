@@ -105,6 +105,17 @@ class ZatcaParserTest {
         assertTrue(invoice.passed)
         assertEquals(text, invoice.value(3))
     }
+    @Test fun compactOffsetsMatchColonOffsetsWithoutChangingRawInvoiceDate() {
+        for ((compact, colon) in listOf("+0300" to "+03:00", "+0530" to "+05:30", "-0400" to "-04:00")) {
+            val value = "2026-10-22T15:45:08.123$compact"
+            assertEquals(ZatcaParser.parseTimestamp("2026-10-22T15:45:08.123$colon"), ZatcaParser.parseTimestamp(value))
+            val dateOnly = parse(tlv(3, value))
+            assertEquals(value, dateOnly.value(3))
+        }
+        for (offset in listOf("+0360", "+1900", "+030", "+03000")) {
+            assertTrue(runCatching { ZatcaParser.parseTimestamp("2026-10-22T15:45:08$offset") }.isFailure)
+        }
+    }
     @Test fun timestampsAcceptFractionsAndExplicitOffsets() {
         listOf("2024-11-29T14:25:00.123", "2024-11-29T11:25:00.123Z",
             "2024-11-29T14:25:00.123+03:00", "2024-11-29T06:25:00-05:00",

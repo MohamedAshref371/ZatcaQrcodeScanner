@@ -12,6 +12,7 @@ class InvoiceTimestampTest {
         for ((suffix, label) in listOf(
             "Z" to R.string.invoice_date_gmt,
             "+03:00" to R.string.invoice_date_makkah,
+            "+0300" to R.string.invoice_date_makkah,
             "" to R.string.invoice_date_time,
             "+05:30" to R.string.invoice_date_time,
             "-04:00" to R.string.invoice_date_time
