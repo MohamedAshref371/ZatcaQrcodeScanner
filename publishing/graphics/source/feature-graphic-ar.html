@@ -4,25 +4,33 @@
 <style>
 * { box-sizing:border-box }
 html,body { margin:0;width:1024px;height:500px;overflow:hidden }
-body { color:#fff;font-family:Tahoma,"Segoe UI",Arial,sans-serif;
- background:radial-gradient(ellipse at 85% 15%,#14646c 0,transparent 54%),linear-gradient(125deg,#102f3a,#0c4149);position:relative }
-body::before { content:"";position:absolute;width:600px;height:600px;border:1px solid #ffffff12;border-radius:50%;inset-inline-end:-155px;top:-65px }
-body::after { content:"";position:absolute;width:455px;height:455px;border:1px solid #ffffff12;border-radius:50%;inset-inline-end:-83px;top:8px }
-.copy { position:absolute;inset-inline-start:64px;top:73px;width:560px;z-index:2 }
-.eyebrow { font-size:15px;letter-spacing:3px;color:#89d9cf;font-weight:bold;margin-bottom:20px;direction:ltr;unicode-bidi:embed }
-h1 { font-size:65px;line-height:1.14;letter-spacing:-1px;margin:0 0 22px;font-weight:700 }
-.subtitle { font-size:27px;line-height:1.6;color:#e2f5f2;margin:0 0 18px }
-.rule { height:3px;width:48px;background:#72d7c6;margin-bottom:20px;border-radius:3px }
-.detail { font-size:17px;line-height:1.8;color:#b2d4d4;white-space:nowrap }
-.art { width:280px;height:280px;position:absolute;inset-inline-end:65px;top:110px;z-index:2;transform:rotate(-7deg) }
-.tile { width:100%;height:100%;border-radius:50px;overflow:hidden;box-shadow:0 25px 55px #001c2966,0 0 0 1px #ffffff18 }
-.tile svg { width:100%;height:100% }
-.corner { position:absolute;width:34px;height:34px;border-color:#80dfcc;border-style:solid;opacity:.85 }
-.tl { top:-18px;left:-18px;border-width:3px 0 0 3px;border-radius:10px 0 0 0 }
-.br { bottom:-18px;right:-18px;border-width:0 3px 3px 0;border-radius:0 0 10px 0 }
+body { color:#fff;font-family:Tahoma,"Segoe UI",Arial,sans-serif;position:relative;
+ background:radial-gradient(ellipse at 20% 45%,#297d78 0,#174b50 30%,transparent 61%),linear-gradient(115deg,#102f3a,#0b3039) }
+body::before { content:"";position:absolute;width:446px;height:446px;border:1px solid #a0e4d51c;
+ border-radius:50%;inset-inline-end:-13px;top:27px }
+.copy { position:absolute;inset-inline-start:44px;top:36px;width:550px;z-index:2 }
+.brand { display:flex;align-items:center;gap:14px;height:52px }
+.brand-icon { width:52px;height:52px;border-radius:13px;overflow:hidden;box-shadow:0 0 0 1px #ffffff18 }
+.brand-icon svg { width:100%;height:100%;display:block }
+.brand-label { font-size:16px;letter-spacing:3px;color:#95e0d3;font-weight:bold;direction:ltr }
+h1 { font-size:64px;line-height:1.08;letter-spacing:-1px;margin:18px 0 14px;font-weight:700 }
+.subtitle { font-size:27px;line-height:1.5;color:#e2f5f2;margin:0 0 24px }
+.features { display:flex;gap:9px;flex-wrap:wrap }
+.features span { font-size:17px;line-height:1.5;padding:9px 13px;border:1px solid #9be8d52e;
+ border-radius:10px;background:#ffffff09;color:#e0f2ee;white-space:nowrap }
+.footer { font-size:18px;line-height:1.5;color:#a6d9d0;margin:26px 0 0;padding-top:16px;border-top:1px solid #a6d9d026 }
+html[lang="ar"] h1 { font-size:72px;line-height:1.12;margin:26px 0 20px }
+html[lang="ar"] .subtitle { font-size:29px;line-height:1.6;margin-bottom:30px }
+html[lang="ar"] .features span { font-size:18px;padding:11px 13px }
+html[lang="ar"] .footer { font-size:20px;margin-top:34px;padding-top:20px }
+.art { width:320px;height:444px;position:absolute;inset-inline-end:50px;top:28px;
+ border:7px solid #d4e8e4;border-radius:32px;overflow:hidden;background:#f3f6f8;
+ box-shadow:0 24px 60px #001c2973,0 0 0 1px #ffffff38 }
+.art img { display:block;width:100%;height:auto }
 </style>
-<main class="copy"><div class="eyebrow">INVOICE QR</div><h1>قارئ فاتورة</h1>
-<p class="subtitle">اقرأ QR الفواتير السعودية</p><div class="rule"></div><div class="detail">تفاصيل واضحة · سجل فواتير · تصدير ومشاركة</div></main>
-<div class="art"><div class="corner tl"></div><div class="tile"><svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 108 108"><path fill="#102F3A" d="M0 0h108v108H0z"/><path fill="white" d="M38,28L70,28L74,32L74,78L69,75L64,78L59,75L54,78L49,75L44,78L34,74L34,32z"/><path fill="#087F8C" d="M40,36h10v2h-10z M40,44h10v2h-10z M40,38h2v6h-2z M48,38h2v6h-2z M44,40h2v2h-2z M58,36h10v2h-10z M58,44h10v2h-10z M58,38h2v6h-2z M66,38h2v6h-2z M62,40h2v2h-2z M40,54h10v2h-10z M40,62h10v2h-10z M40,56h2v6h-2z M48,56h2v6h-2z M44,58h2v2h-2z M58,54h4v4h-4z M64,54h4v2h-4z M66,58h2v6h-2z M58,60h4v4h-4z M62,62h4v2h-4z M40,69h28v2h-28z"/></svg>
-</div><div class="corner br"></div></div>
+<main class="copy"><div class="brand"><div class="brand-icon"><svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 108 108"><path fill="#102F3A" d="M0 0h108v108H0z"/><path fill="white" d="M30.0,16.5L78.0,16.5L84.0,22.5L84.0,91.5L76.5,87.0L69.0,91.5L61.5,87.0L54.0,91.5L46.5,87.0L39.0,91.5L24.0,85.5L24.0,22.5z"/><path fill="#087F8C" d="M33.0,28.5h15.0v3.0h-15.0z M33.0,40.5h15.0v3.0h-15.0z M33.0,31.5h3.0v9.0h-3.0z M45.0,31.5h3.0v9.0h-3.0z M39.0,34.5h3.0v3.0h-3.0z M60.0,28.5h15.0v3.0h-15.0z M60.0,40.5h15.0v3.0h-15.0z M60.0,31.5h3.0v9.0h-3.0z M72.0,31.5h3.0v9.0h-3.0z M66.0,34.5h3.0v3.0h-3.0z M33.0,55.5h15.0v3.0h-15.0z M33.0,67.5h15.0v3.0h-15.0z M33.0,58.5h3.0v9.0h-3.0z M45.0,58.5h3.0v9.0h-3.0z M39.0,61.5h3.0v3.0h-3.0z M60.0,55.5h6.0v6.0h-6.0z M69.0,55.5h6.0v3.0h-6.0z M72.0,61.5h3.0v9.0h-3.0z M60.0,64.5h6.0v6.0h-6.0z M66.0,67.5h6.0v3.0h-6.0z M33.0,78.0h42.0v3.0h-42.0z"/></svg>
+</div><span class="brand-label">INVOICE QR</span></div>
+<h1>قارئ فاتورة</h1><p class="subtitle">امسح QR الفواتير السعودية</p>
+<div class="features"><span>مسح الفواتير</span><span>سجل محفوظ</span><span>إحصاءات وتصدير</span></div><p class="footer">مسح محلي، بدون حساب</p></main>
+<div class="art"><img src="../screenshots/ar/02-result.png" alt="واجهة نتيجة الفحص"></div>
 </html>

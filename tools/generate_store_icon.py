@@ -3,10 +3,14 @@ Run from the repository root: python tools/generate_store_icon.py
 The QR motif is decorative, not an encoded invoice.
 """
 from pathlib import Path
+import argparse
 import struct
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--store-only", action="store_true", help="Update Play artwork without rewriting Android launcher assets")
+args = parser.parse_args()
 DRAWABLE = ROOT / "app/src/main/res/drawable"
 ART = ROOT / "publishing/graphics"
 BACKGROUND = "#102F3A"
@@ -26,15 +30,23 @@ def rect_path(x, y, w, h):
 paper_path = "M" + "L".join(f"{x},{y}" for x, y in PAPER) + "z"
 qr_path = " ".join(rect_path(*r) for r in RECTS)
 header = '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">'
-DRAWABLE.mkdir(parents=True, exist_ok=True)
 ART.mkdir(parents=True, exist_ok=True)
-(DRAWABLE / "ic_launcher_background.xml").write_text(
-    f'{header}\n    <path android:fillColor="{BACKGROUND}" android:pathData="M0,0h108v108H0z" />\n</vector>\n', encoding="utf-8")
-(DRAWABLE / "ic_launcher_foreground.xml").write_text(
-    f'{header}\n    <path android:fillColor="#FFFFFF" android:pathData="{paper_path}" />\n'
-    f'    <path android:fillColor="{INK}" android:pathData="{qr_path}" />\n</vector>\n', encoding="utf-8")
-(DRAWABLE / "ic_launcher_monochrome.xml").write_text(
-    f'{header}\n    <path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="{paper_path} {qr_path}" />\n</vector>\n', encoding="utf-8")
+if not args.store_only:
+    DRAWABLE.mkdir(parents=True, exist_ok=True)
+    (DRAWABLE / "ic_launcher_background.xml").write_text(
+        f'{header}\n    <path android:fillColor="{BACKGROUND}" android:pathData="M0,0h108v108H0z" />\n</vector>\n', encoding="utf-8")
+    (DRAWABLE / "ic_launcher_foreground.xml").write_text(
+        f'{header}\n    <path android:fillColor="#FFFFFF" android:pathData="{paper_path}" />\n'
+        f'    <path android:fillColor="{INK}" android:pathData="{qr_path}" />\n</vector>\n', encoding="utf-8")
+    (DRAWABLE / "ic_launcher_monochrome.xml").write_text(
+        f'{header}\n    <path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="{paper_path} {qr_path}" />\n</vector>\n', encoding="utf-8")
+
+# Play artwork has no adaptive-launcher masking, so use a larger, centered motif.
+PAPER = [(54 + (x - 54) * 1.5, 54 + (y - 53) * 1.5) for x, y in PAPER]
+RECTS = [(54 + (x - 54) * 1.5, 54 + (y - 53) * 1.5, w * 1.5, h * 1.5)
+         for x, y, w, h in RECTS]
+paper_path = "M" + "L".join(f"{x},{y}" for x, y in PAPER) + "z"
+qr_path = " ".join(rect_path(*r) for r in RECTS)
 (ART / "app-icon.svg").write_text(
     f'<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 108 108">'
     f'<path fill="{BACKGROUND}" d="M0 0h108v108H0z"/>'
@@ -80,4 +92,5 @@ def chunk(kind, data):
 png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", N, N, 8, 6, 0, 0, 0))
 png += chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
 (ART / "app-icon-512.png").write_bytes(png)
-print("Generated Android vectors, SVG source and 512x512 Play icon.")
+print("Generated SVG source and 512x512 Play icon." if args.store_only else
+      "Generated Android vectors, SVG source and 512x512 Play icon.")

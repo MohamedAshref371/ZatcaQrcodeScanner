@@ -19,36 +19,50 @@ def main():
     sources = GRAPHICS / "source"
     sources.mkdir(parents=True, exist_ok=True)
     icon = (GRAPHICS / "app-icon.svg").read_text(encoding="utf-8")
-    for lang, title, subtitle, detail in [
-        ("ar", "قارئ فاتورة", "اقرأ QR الفواتير السعودية", "تفاصيل واضحة · سجل فواتير · تصدير ومشاركة"),
-        ("en", "Invoice QR<br>Reader", "Read Saudi invoice QR codes", "Invoice details · History · Export & share"),
+    for lang, title, subtitle, features, footer in [
+        ("ar", "قارئ فاتورة", "امسح QR الفواتير السعودية",
+         ("مسح الفواتير", "سجل محفوظ", "إحصاءات وتصدير"), "مسح محلي، بدون حساب"),
+        ("en", "Invoice QR<br>Reader", "Read Saudi invoice QR codes",
+         ("Scan invoices", "Saved history", "Statistics & export"), "Local scanning. No account needed."),
     ]:
+        screenshot = GRAPHICS / "screenshots" / lang / "02-result.png"
+        if not screenshot.exists():
+            raise FileNotFoundError(screenshot)
+        feature_labels = "".join(f"<span>{html.escape(label)}</span>" for label in features)
         content = f'''<!doctype html>
 <html lang="{lang}" dir="{'rtl' if lang == 'ar' else 'ltr'}">
 <meta charset="utf-8"><title>Invoice QR Reader — feature graphic</title>
 <style>
 * {{ box-sizing:border-box }}
 html,body {{ margin:0;width:1024px;height:500px;overflow:hidden }}
-body {{ color:#fff;font-family:Tahoma,"Segoe UI",Arial,sans-serif;
- background:radial-gradient(ellipse at 85% 15%,#14646c 0,transparent 54%),linear-gradient(125deg,#102f3a,#0c4149);position:relative }}
-body::before {{ content:"";position:absolute;width:600px;height:600px;border:1px solid #ffffff12;border-radius:50%;inset-inline-end:-155px;top:-65px }}
-body::after {{ content:"";position:absolute;width:455px;height:455px;border:1px solid #ffffff12;border-radius:50%;inset-inline-end:-83px;top:8px }}
-.copy {{ position:absolute;inset-inline-start:64px;top:73px;width:560px;z-index:2 }}
-.eyebrow {{ font-size:15px;letter-spacing:3px;color:#89d9cf;font-weight:bold;margin-bottom:20px;direction:ltr;unicode-bidi:embed }}
-h1 {{ font-size:{'65' if lang == 'ar' else '57'}px;line-height:1.14;letter-spacing:-1px;margin:0 0 22px;font-weight:700 }}
-.subtitle {{ font-size:27px;line-height:1.6;color:#e2f5f2;margin:0 0 18px }}
-.rule {{ height:3px;width:48px;background:#72d7c6;margin-bottom:20px;border-radius:3px }}
-.detail {{ font-size:17px;line-height:1.8;color:#b2d4d4;white-space:nowrap }}
-.art {{ width:280px;height:280px;position:absolute;inset-inline-end:65px;top:110px;z-index:2;transform:rotate({'-7' if lang == 'ar' else '7'}deg) }}
-.tile {{ width:100%;height:100%;border-radius:50px;overflow:hidden;box-shadow:0 25px 55px #001c2966,0 0 0 1px #ffffff18 }}
-.tile svg {{ width:100%;height:100% }}
-.corner {{ position:absolute;width:34px;height:34px;border-color:#80dfcc;border-style:solid;opacity:.85 }}
-.tl {{ top:-18px;left:-18px;border-width:3px 0 0 3px;border-radius:10px 0 0 0 }}
-.br {{ bottom:-18px;right:-18px;border-width:0 3px 3px 0;border-radius:0 0 10px 0 }}
+body {{ color:#fff;font-family:Tahoma,"Segoe UI",Arial,sans-serif;position:relative;
+ background:radial-gradient(ellipse at {'20%' if lang == 'ar' else '80%'} 45%,#297d78 0,#174b50 30%,transparent 61%),linear-gradient(115deg,#102f3a,#0b3039) }}
+body::before {{ content:"";position:absolute;width:446px;height:446px;border:1px solid #a0e4d51c;
+ border-radius:50%;inset-inline-end:-13px;top:27px }}
+.copy {{ position:absolute;inset-inline-start:44px;top:36px;width:550px;z-index:2 }}
+.brand {{ display:flex;align-items:center;gap:14px;height:52px }}
+.brand-icon {{ width:52px;height:52px;border-radius:13px;overflow:hidden;box-shadow:0 0 0 1px #ffffff18 }}
+.brand-icon svg {{ width:100%;height:100%;display:block }}
+.brand-label {{ font-size:16px;letter-spacing:3px;color:#95e0d3;font-weight:bold;direction:ltr }}
+h1 {{ font-size:{'64' if lang == 'ar' else '56'}px;line-height:1.08;letter-spacing:-1px;margin:18px 0 14px;font-weight:700 }}
+.subtitle {{ font-size:27px;line-height:1.5;color:#e2f5f2;margin:0 0 24px }}
+.features {{ display:flex;gap:9px;flex-wrap:wrap }}
+.features span {{ font-size:17px;line-height:1.5;padding:9px 13px;border:1px solid #9be8d52e;
+ border-radius:10px;background:#ffffff09;color:#e0f2ee;white-space:nowrap }}
+.footer {{ font-size:18px;line-height:1.5;color:#a6d9d0;margin:26px 0 0;padding-top:16px;border-top:1px solid #a6d9d026 }}
+html[lang="ar"] h1 {{ font-size:72px;line-height:1.12;margin:26px 0 20px }}
+html[lang="ar"] .subtitle {{ font-size:29px;line-height:1.6;margin-bottom:30px }}
+html[lang="ar"] .features span {{ font-size:18px;padding:11px 13px }}
+html[lang="ar"] .footer {{ font-size:20px;margin-top:34px;padding-top:20px }}
+.art {{ width:320px;height:444px;position:absolute;inset-inline-end:50px;top:28px;
+ border:7px solid #d4e8e4;border-radius:32px;overflow:hidden;background:#f3f6f8;
+ box-shadow:0 24px 60px #001c2973,0 0 0 1px #ffffff38 }}
+.art img {{ display:block;width:100%;height:auto }}
 </style>
-<main class="copy"><div class="eyebrow">INVOICE QR</div><h1>{title}</h1>
-<p class="subtitle">{html.escape(subtitle)}</p><div class="rule"></div><div class="detail">{html.escape(detail)}</div></main>
-<div class="art"><div class="corner tl"></div><div class="tile">{icon}</div><div class="corner br"></div></div>
+<main class="copy"><div class="brand"><div class="brand-icon">{icon}</div><span class="brand-label">INVOICE QR</span></div>
+<h1>{title}</h1><p class="subtitle">{html.escape(subtitle)}</p>
+<div class="features">{feature_labels}</div><p class="footer">{html.escape(footer)}</p></main>
+<div class="art"><img src="../screenshots/{lang}/02-result.png" alt="{'واجهة نتيجة الفحص' if lang == 'ar' else 'Scan result screen'}"></div>
 </html>'''
         source = sources / f"feature-graphic-{lang}.html"
         source.write_text(content, encoding="utf-8")
@@ -56,6 +70,7 @@ h1 {{ font-size:{'65' if lang == 'ar' else '57'}px;line-height:1.14;letter-spaci
             target = GRAPHICS / f"feature-graphic-{lang}-1024x500.png"
             command = [args.browser, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                        "--no-first-run", "--no-default-browser-check", "--force-device-scale-factor=1",
+                       "--run-all-compositor-stages-before-draw", "--virtual-time-budget=1200",
                        f"--user-data-dir={ROOT / 'build/store-browser'}", "--window-size=1024,500",
                        f"--screenshot={target}", source.as_uri()]
             result = subprocess.run(command, capture_output=True, timeout=60)

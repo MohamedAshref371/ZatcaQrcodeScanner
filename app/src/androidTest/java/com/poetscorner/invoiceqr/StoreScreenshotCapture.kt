@@ -1,81 +1,124 @@
 package com.poetscorner.invoiceqr
 
-import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor.AutoCloseInputStream
-import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
+import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.poetscorner.invoiceqr.data.StatisticsRequest
+import com.poetscorner.invoiceqr.data.StatisticsSort
 import com.poetscorner.invoiceqr.ui.ScannerViewModel
 import java.io.File
 import java.util.Base64
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
-import org.junit.Assume.assumeTrue
 import org.junit.runner.RunWith
 
-/** Publishing tool: run explicitly on an isolated emulator with -PisolatedValidation=true. */
+/** Uses the real frame clock: Compose test-clock rendering is unsuitable for store captures. */
 @RunWith(AndroidJUnit4::class)
 class StoreScreenshotCapture {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule val activityRule = ActivityScenarioRule(MainActivity::class.java)
+    private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
+
+    private suspend fun waitUntil(condition: () -> Boolean) = withTimeout(15_000) {
+        while (!condition()) delay(100)
+    }
+
+    // This publishing tool is intentionally calibrated to its documented 1080x1920 emulator.
+    private suspend fun swipe(fromY: Int, toY: Int) {
+        AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(
+            "input swipe 540 $fromY 540 $toY 800")).use { it.readBytes() }
+        delay(400)
+    }
 
     @Test fun captureStoreScreens() = runBlocking<Unit> {
         assumeTrue(InstrumentationRegistry.getArguments().getString("storeScreenshots") == "true")
         check(BuildConfig.APPLICATION_ID.endsWith(".validation")) {
             "Capture only in the isolated validation app; never use a user's invoice history."
         }
-        val vm = compose.runOnIdle { ViewModelProvider(compose.activity)[ScannerViewModel::class.java] }
-        val arabic = compose.activity.resources.configuration.locales[0].language == "ar"
-        val language = if (arabic) "ar" else "en"
-        val output = File(compose.activity.getExternalFilesDir(null), "store-captures/$language").apply { mkdirs() }
-        fun capture(name: String) {
-            compose.waitForIdle()
-            compose.activityRule.scenario.recreate()
-            compose.waitForIdle()
-            AutoCloseInputStream(InstrumentationRegistry.getInstrumentation().uiAutomation
-                .executeShellCommand("cmd statusbar collapse")).use { it.readBytes() }
-            Thread.sleep(800) // Allow system bars, camera and theme transitions to settle.
-            val bitmap = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
-            File(output, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            bitmap.recycle()
+        lateinit var vm: ScannerViewModel
+        lateinit var activity: MainActivity
+        activityRule.scenario.onActivity {
+            activity = it
+            vm = ViewModelProvider(it)[ScannerViewModel::class.java]
         }
-        withContext(Dispatchers.Main) { vm.update { it.copy(theme = "LIGHT") } }
-        compose.waitUntil(10000) { vm.settings.value.theme == "LIGHT" }
-        withContext(Dispatchers.Main) { vm.navigate(1) }
-        Thread.sleep(6000) // Let the system's camera privacy indicator disappear.
-        capture("06-manual-entry")
+        val arabic = activity.resources.configuration.locales[0].language == "ar"
+        val language = if (arabic) "ar" else "en"
+        val output = File(activity.getExternalFilesDir(null), "store-captures/$language").apply { mkdirs() }
+        suspend fun navigate(screen: Int) {
+            val index = listOf(0, 1, 2, 4, 3).indexOf(screen)
+            val x = if (arabic) 972 - index * 216 else 108 + index * 216
+            AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(
+                "input tap $x 1755")).use { it.readBytes() }
+            delay(600)
+        }
+        suspend fun capture(name: String) {
+            withContext(Dispatchers.Main) { vm.message.value = null }
+            instrumentation.waitForIdleSync()
+            delay(1500)
+            withContext(Dispatchers.Main) { check(activity.window.decorView.isShown) }
+            AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand("screencap -p")).use { source ->
+                File(output, "$name.png").outputStream().use { target -> source.copyTo(target) }
+            }
+        }
+        suspend fun captureBackup() {
+            navigate(3)
+            repeat(3) { swipe(1400, 700) }
+            swipe(1000, 900)
+            capture("06-backup")
+        }
+        if (InstrumentationRegistry.getArguments().getString("storeCaptureOnly") == "backup") {
+            withContext(Dispatchers.Main) { vm.update { it.copy(theme = "LIGHT") } }
+            waitUntil { vm.settings.value.theme == "LIGHT" }
+            captureBackup()
+            return@runBlocking
+        }
+        withContext(Dispatchers.Main) { vm.update { it.copy(theme = "LIGHT") }; vm.clearResult() }
+        navigate(1)
+        waitUntil { vm.settings.value.theme == "LIGHT" }
+        delay(6000)
+        capture("08-manual-entry")
 
         val sellers = if (arabic) listOf("متجر تجريبي", "مقهى تجريبي", "مكتبة تجريبية")
             else listOf("Sample Store", "Sample Cafe", "Sample Bookshop")
-        for (index in sellers.indices.reversed()) {
-            val seller = sellers[index]
-            val values = listOf(1 to seller, 2 to "300000000000003", 3 to "2026-10-${20 - index}T10:30:00+03:00",
-                4 to listOf("230.00", "57.50", "115.00")[index],
-                5 to listOf("30.00", "7.50", "15.00")[index])
+        for (index in (0..5).reversed()) {
+            val values = listOf(1 to sellers[index % sellers.size], 2 to "300000000000003",
+                3 to "2026-10-${20 - index}T10:30:00+03:00",
+                4 to listOf("230.00", "57.50", "115.00")[index % sellers.size],
+                5 to listOf("30.00", "7.50", "15.00")[index % sellers.size])
             val bytes = values.fold(byteArrayOf()) { all, (tag, text) ->
                 val data = text.toByteArray(Charsets.UTF_8)
                 all + byteArrayOf(tag.toByte(), data.size.toByte()) + data
             }
             withContext(Dispatchers.Main) { check(vm.scanned(Base64.getEncoder().encodeToString(bytes))) }
         }
-        compose.onNodeWithTag("result_list").assertExists()
-        capture("01-result")
-        compose.onNodeWithTag("result_list").performScrollToNode(hasText(compose.activity.getString(R.string.tag_tax)))
-        capture("02-invoice-details")
-        compose.onNodeWithTag("result_list").performScrollToIndex(0)
+        capture("02-result")
+        swipe(1400, 600)
+        capture("03-invoice-details")
+        repeat(3) { swipe(600, 1400) }
         withContext(Dispatchers.Main) { vm.update { it.copy(theme = "DARK") } }
-        compose.waitUntil(10000) { vm.settings.value.theme == "DARK" }
-        capture("05-dark-mode")
-        withContext(Dispatchers.Main) { vm.update { it.copy(theme = "LIGHT") }; vm.navigate(2) }
-        compose.waitUntil(10000) { !vm.historyState.value.loading && vm.historyState.value.total == 3 }
-        capture("03-history")
-        compose.onNodeWithText(compose.activity.getString(R.string.nav_settings)).performClick()
-        compose.onNodeWithTag("settings_list").performScrollToIndex(14)
-        compose.onNodeWithText(compose.activity.getString(R.string.backup_import)).assertIsDisplayed()
-        capture("04-backup")
+        waitUntil { vm.settings.value.theme == "DARK" }
+        capture("07-dark-mode")
+        withContext(Dispatchers.Main) { vm.update { it.copy(theme = "LIGHT") } }
+        navigate(2)
+        waitUntil { !vm.historyState.value.loading && vm.historyState.value.total == 6 }
+        capture("04-history")
+        withContext(Dispatchers.Main) {
+            vm.updateStatistics(StatisticsRequest(sort = StatisticsSort.TOTAL, descending = true))
+        }
+        navigate(4)
+        waitUntil { !vm.statistics.value.loading && vm.statistics.value.result.groups.size == 3 }
+        capture("05-statistics")
+        captureBackup()
+        withContext(Dispatchers.Main) { vm.setContinuousScanning(true) }
+        navigate(0)
+        delay(14_000)
+        capture("01-camera")
     }
 }

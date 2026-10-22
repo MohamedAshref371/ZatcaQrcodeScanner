@@ -7,8 +7,9 @@ import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / "publishing/graphics"
-SHOTS = ["01-result", "02-invoice-details", "03-history", "04-backup", "05-dark-mode", "06-manual-entry"]
-LABELS = ["نتيجة الفحص والمشاركة", "تفاصيل الفاتورة", "السجل والتصدير", "النسخ الاحتياطي", "المظهر الداكن", "الإدخال اليدوي"]
+SHOTS = ["01-camera", "02-result", "03-invoice-details", "04-history", "05-statistics", "06-backup", "07-dark-mode", "08-manual-entry"]
+LABELS = ["مسح الفاتورة بالكاميرا", "نتيجة الفحص والمشاركة", "تفاصيل الفاتورة", "السجل والتصدير", "الإحصاءات", "النسخ الاحتياطي", "المظهر الداكن", "الإدخال اليدوي"]
+ENGLISH_LABELS = ["Scan an invoice", "Scan result and sharing", "Invoice details", "History and export", "Statistics", "Backup and restore", "Dark mode", "Manual Base64 entry"]
 
 
 def verify(path, expected, color):
@@ -33,11 +34,13 @@ def main():
     assert images[0].stat().st_size <= 1024 * 1024
     sections = []
     for language in ("ar", "en"):
+        actual_shots = {path.stem for path in (ART / "screenshots" / language).glob("*.png")}
+        assert actual_shots == set(SHOTS), f"Unexpected or missing screenshots for {language}: {actual_shots ^ set(SHOTS)}"
         feature = ART / f"feature-graphic-{language}-1024x500.png"
         verify(feature, (1024, 500), 2)
         images.append(feature)
         figures = []
-        for name, label in zip(SHOTS, LABELS):
+        for name, label in zip(SHOTS, LABELS if language == "ar" else ENGLISH_LABELS):
             shot = ART / f"screenshots/{language}/{name}.png"
             verify(shot, (1080, 1920), 2)
             assert shot.stat().st_size < 8 * 1024 * 1024
