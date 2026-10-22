@@ -1,6 +1,6 @@
 # Invoice QR Reader Privacy Policy
 
-Last updated: 21 October 2026
+Last updated: 22 October 2026
 
 Developer: Mohamed Ashraf (محمد أشرف)
 
@@ -15,6 +15,8 @@ This policy describes how Invoice QR Reader (قارئ فاتورة), package `co
 With permission, the app uses the camera to read QR codes. Alternatively, it processes an image you select through the system picker. Processing takes place on your device. The app does not record video, save camera frames or retain a copy of the selected image.
 
 The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. The app does not upload invoice content to a developer or publisher server. Invoice features do not require an app account. The default ZXing scanner works offline immediately. The app contains no advertising and the developer does not operate an analytics backend; the Google services described below have their own technical data practices.
+
+Statistics filters, including seller names, VAT numbers and selected date ranges, are stored locally. Deleting invoice history does not clear these filters; clearing app data or uninstalling removes them. Statistics and seller name suggestions are computed locally from history, without sending seller names or search requests to a server.
 
 ## Google ML Kit and Play services
 
@@ -35,6 +37,8 @@ The app is free and ad-free, and all invoice features remain free. An optional o
 Google libraries used by the app add internet, network-state and billing permissions. Google Play Billing communicates with Google billing services; the app may check store availability and existing ownership when opened. Refer to [Google Privacy Policy](https://policies.google.com/privacy) for the store service's data practices.
 
 ## Deletion and export
+
+You can export grouped statistics and totals as CSV to a destination you choose; the exported-file practices below also apply.
 
 You can share one invoice’s seller, VAT number, invoice date, total, tax, optional hash and local check result through an app you choose in Android’s share menu. That app handles the shared text under its own privacy practices. The VAT copy action puts only the displayed VAT number on the system clipboard.
 

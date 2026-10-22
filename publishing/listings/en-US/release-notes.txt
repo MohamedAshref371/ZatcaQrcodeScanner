@@ -1,3 +1,4 @@
-Clearer results keep invoice details and the hash visible, with expandable advanced details for phase-two invoices only.
-Search history by seller or VAT number and choose an invoice-date or check-date range in the Search dialog.
-Inspect Base64 text from another app on the empty Result screen.
+Explore Statistics: group, filter and sort invoices, then export results as CSV.
+Scan multiple invoices continuously with a session counter and duplicate notices.
+Back up and restore history without duplicating existing invoices.
+Seller name suggestions in statistics filters and improvements to result and history layouts.

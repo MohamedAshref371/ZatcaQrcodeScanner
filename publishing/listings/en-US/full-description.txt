@@ -1,27 +1,31 @@
-Saudi Invoice QR Reader helps you read Saudi e-invoice QR codes and review the seller, VAT number, total and tax amount. Scan with your camera, choose an image, or paste Base64 text from another app and tap Inspect. Scanning and analysis work offline without an account.
+Read Saudi e-invoice QR codes and review the seller, VAT number, total and tax amount. Scan with your camera, select an image or paste Base64 text from another app. Scanning and analysis run on your device, offline and without an account.
 
 Review invoice details
-See the seller name, VAT registration number, invoice timestamp, total including VAT and VAT amount directly. The invoice hash stays with these basic details when phase-two fields are present.
+See the seller name, VAT registration number, invoice timestamp, total including VAT and VAT amount. Phase-two invoices also show the invoice hash, with expandable signature, public key and stamp details. Review local checks and original QR content, copy the VAT number or share an invoice summary.
 
-For phase-two invoices, expand Advanced details to view the signature, public key and stamp. This section is hidden for phase-one invoices. Expand the check details or original QR content when needed. Failed local checks are listed for review.
-
-Adjust your scanner
-Use the torch, zoom and tap to focus. Choose scan resolution, scan frequency and image-processing options to suit your device and the QR code. Results depend on camera capability and image quality.
+Scan multiple invoices
+Enable continuous scanning to read invoices without leaving the camera. Track new invoices in the current session and see when an invoice is already saved. Use the torch, zoom and tap to focus, with adjustable resolution, scan frequency and image processing. Results depend on camera capability and QR image quality.
 
 Keep a local history
-Search previous scans by seller name or VAT number, and tap Search to filter by an inclusive invoice-date or check-date range. Tap OK to apply your choice or Cancel to keep the current filter. VAT search accepts Arabic and English digits. Open a saved scan, delete an individual entry, or keep only scans from the most recent day you scanned.
+Search saved scans by seller or VAT number, and filter by invoice date or check date. VAT search accepts Arabic and English digits. Open entries to review their details, delete individual scans or keep only scans from your most recent scan day.
+Export entries matching your search and date filter as JSON or CSV to a destination you choose. Clear the filters to export your full history.
 
-Export scans matching your search and applied date filter as JSON or CSV to a location you choose. Clear the search and date range first to export your entire history.
+Explore invoice statistics
+Review invoice counts, totals and VAT. Group by seller, VAT number, day, month, quarter, half-year or year. Sort groups by name or period, invoice count, total or VAT, and open any group to view its invoices.
+Filter by seller with suggestions from your history, include or exclude VAT numbers, and choose an invoice-date range. Export statistics as CSV. Statistics cover all saved invoices; only valid amounts contribute to totals, with notices for missing or invalid values.
 
-Offline operation
-Scanning and analysis work without an internet connection or an account. Invoice contents and preferences stay in the app's local storage. The app has no ads. Google services may process technical data as described in the privacy policy. Exported files are saved to the destination you select.
+Back up and restore
+Create a backup of all invoices, their original QR content and check dates. Import a backup created by the app to merge invoices with your history without deleting or duplicating existing entries. Backups do not include settings or supporter purchases.
+
+Local storage and privacy
+Invoice contents and preferences stay in the app's local storage. No account or ads. You choose where to save exports and backups. Google services may process technical data as described in the privacy policy. ZXing works without an additional download; downloading the optional Google ML Kit scanning component requires internet access.
+
+Arabic and English
+Use Arabic or English with the appropriate layout direction and light, dark or system themes. Requires Android 8 or later. Camera permission is requested for live scanning. Select images through the system picker without granting access to your entire photo library.
 
 Optional developer support
-The app is free and ad-free. All invoice features remain free. An optional one-time supporter purchase adds a gold theme and supporter badge. Preview both from Settings without payment or login, and end the preview at any time. Purchasing and restoring use Google Play and require an internet connection. The local price is displayed before you confirm payment. There is no subscription.
+The app is free and ad-free. All invoice features remain free. An optional one-time supporter purchase adds a gold theme and supporter badge, with a free preview in Settings. Purchasing and restoring use Google Play and require internet access. The local price appears before payment confirmation. There is no subscription.
 
 Understand the checks
-The app checks data structure, required fields, VAT number format, timestamps and numeric amounts. It labels a scan as a simplified tax invoice when the stamp field is present, or a tax invoice when it is absent. This classification uses the available QR data.
-
-Saudi Invoice QR Reader is an independent app. It is not affiliated with, endorsed by or approved by the Zakat, Tax and Customs Authority (ZATCA). Its checks are local and structural. They do not establish the cryptographic authenticity of a signature or official acceptance of an invoice. The app does not connect to the Fatoora platform.
-
-Supports Arabic and English with the appropriate layout direction, and light and dark themes. Requires Android 8 or later. Camera permission is requested for live scanning. You can also select an image through the system picker without granting access to your entire photo library.
+The app checks data structure, fields, VAT number format, timestamps and amounts. It labels a scan as a simplified tax invoice when the stamp field is present, or a tax invoice when absent, using the available QR data.
+Saudi Invoice QR Reader is independent and is not affiliated with, endorsed by or approved by the Zakat, Tax and Customs Authority (ZATCA). Checks are local and structural. They do not establish a signature's cryptographic authenticity or official acceptance of an invoice. The app does not connect to the Fatoora platform.

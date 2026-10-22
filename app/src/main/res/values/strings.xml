@@ -1,6 +1,7 @@
 <resources>
     <string name="privacy_policy">Privacy policy</string>
-    <string name="privacy_load_error">Unable to load the privacy policy</string>
+    <string name="privacy_open_message">The privacy policy will open in your browser. An internet connection is required.</string>
+    <string name="privacy_open_link">Open link</string>
     <string name="privacy_link_error">Unable to open the link</string>
     <string name="share_invoice">Share invoice summary</string>
     <string name="share_summary_title">Invoice summary</string>

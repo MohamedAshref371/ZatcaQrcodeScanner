@@ -2,7 +2,6 @@
 import argparse
 from pathlib import Path
 import re
-from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLISHING = ROOT / "publishing"
@@ -41,13 +40,5 @@ def prepare(check=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
-    parser.add_argument("--apk", type=Path, help="Also verify the built APK contains the exact canonical policies")
     args = parser.parse_args()
     prepare(args.check)
-    if args.apk:
-        with ZipFile(args.apk) as apk:
-            for language in ("ar", "en"):
-                filename = f"privacy-policy-{language}.md"
-                if apk.read(f"assets/{filename}") != (PUBLISHING / filename).read_bytes():
-                    raise ValueError(f"Packaged policy is out of date: {filename}")
-        print("PASS: APK privacy assets match the canonical policy files byte-for-byte.")
