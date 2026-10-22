@@ -56,6 +56,7 @@ class ScannerViewModel(
     fun retryHistory() = historyPager.refresh()
     private val statisticsRequest = savedState.getStateFlow("statistics_request", StatisticsRequest())
     private val statisticsRevision = MutableStateFlow(0L)
+    private var cachedStatistics: StatisticsState? = null
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val statistics = combine(statisticsRequest, statisticsRevision) { request, _ -> request }
         .flatMapLatest { request ->
@@ -64,13 +65,61 @@ class ScannerViewModel(
                     val result = db.statistics(request)
                     StatisticsState(request, result, loading = false)
                 }
-            }.onStart { emit(StatisticsState(request)) }.catch { error ->
+            }.onEach { cachedStatistics = it }.onStart {
+                // Retain the list while refreshing an unchanged request after returning to the tab.
+                emit(cachedStatistics?.takeIf { it.request == request } ?: StatisticsState(request))
+            }.catch { error ->
                 if (error is kotlinx.coroutines.CancellationException) throw error
                 emit(StatisticsState(request, loading = false, failed = true))
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsState(statisticsRequest.value))
     fun updateStatistics(request: StatisticsRequest) { savedState["statistics_request"] = request }
     fun retryStatistics() { statisticsRevision.value++ }
+    val statisticsSelection = savedState.getStateFlow<StatisticsSelection?>("statistics_group", null)
+    private val statisticsGroupPager by lazy {
+        HistoryPager(db.scans(), viewModelScope).also { pager ->
+            statisticsSelection.value?.let { pager.setFilter(HistoryFilter(statisticsSelection = it)) }
+        }
+    }
+    val statisticsInvoices get() = statisticsGroupPager.state
+    fun openStatisticsGroup(selection: StatisticsSelection) {
+        savedState["statistics_group"] = selection
+        statisticsGroupPager.setFilter(HistoryFilter(statisticsSelection = selection))
+    }
+    fun closeStatisticsGroup() { savedState["statistics_group"] = null }
+    fun loadMoreStatisticsInvoices() = statisticsGroupPager.loadMore()
+    fun retryStatisticsInvoices() = statisticsGroupPager.refresh()
+    private var pendingStatisticsExport: StatisticsState? = null
+    fun prepareStatisticsExport(state: StatisticsState): Boolean {
+        if (state.loading || state.failed || state.result.groups.isEmpty()) return false
+        pendingStatisticsExport = state
+        savedState["statistics_export_request"] = state.request
+        return true
+    }
+    fun cancelStatisticsExport() {
+        pendingStatisticsExport = null
+        savedState.remove<StatisticsRequest>("statistics_export_request")
+    }
+    fun exportStatistics(uri: Uri): Job? {
+        val snapshot = pendingStatisticsExport
+        val request = savedState.get<StatisticsRequest>("statistics_export_request") ?: return null
+        val job = startTransfer(TransferKind.EXPORT) {
+            val result = snapshot?.result ?: db.statistics(request)
+            val context = getApplication<Application>()
+            val headers = listOf(request.grouping.label(), R.string.stats_count_label,
+                if (result.summary.missingTotal > 0) R.string.stats_available_total else R.string.tag_total,
+                if (result.summary.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax,
+                R.string.stats_missing_total_count, R.string.stats_missing_tax_count).map(context::getString)
+            outputDocument(uri) { writer ->
+                StatisticsExporter.write(writer, result, headers, context.getString(R.string.stats_summary)) {
+                    statisticsGroupTitle(context, request.grouping, it)
+                }
+            }
+            UiText(R.string.stats_export_success)
+        }
+        if (job != null) cancelStatisticsExport()
+        return job
+    }
     private val mutableResult = MutableStateFlow<ScanResult?>(null)
     val result = mutableResult.asStateFlow()
     val screen = savedState.getStateFlow("screen", 0)
@@ -87,6 +136,7 @@ class ScannerViewModel(
     }
 
     fun navigate(screen: Int) {
+        if (screen != 1) savedState["result_return_screen"] = 0
         if (screen == 0) clearResult()
         savedState["screen"] = screen
     }
@@ -101,6 +151,7 @@ class ScannerViewModel(
     }
 
     private fun showResult(scan: ScanResult) {
+        savedState["result_return_screen"] = 0
         clearResult()
         scan.scanId?.let { savedState["result_scan_id"] = it }
         mutableResult.value = scan
@@ -230,7 +281,16 @@ class ScannerViewModel(
         return true
     }
     fun open(id: Long) {
+        savedState["result_return_screen"] = 2
         loadResult(id, navigate = true)
+    }
+    fun openStatisticsInvoice(id: Long) {
+        savedState["result_return_screen"] = 4
+        loadResult(id, navigate = true)
+    }
+    fun backFromResultOrHome() {
+        val destination = savedState.get<Int>("result_return_screen")?.takeIf { it == 2 || it == 4 } ?: 0
+        navigate(if (screen.value == 1) destination else 0)
     }
     fun gallery(uri: Uri) { viewModelScope.launch {
         busy.value = true

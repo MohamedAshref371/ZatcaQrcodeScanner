@@ -21,9 +21,51 @@ data class StatisticsRequest(
 
 data class StatisticsInvoice(val id: Long, val seller: String, val vat: String,
     val invoiceDay: Long?, val total: String, val tax: String)
-data class StatisticsKey(val text: String? = null, val periodStart: Long? = null) {
+data class StatisticsKey(val text: String? = null, val periodStart: Long? = null) : Serializable {
     val unknown get() = text == null && periodStart == null
 }
+
+data class StatisticsSelection(val request: StatisticsRequest, val key: StatisticsKey) : Serializable
+internal fun StatisticsSelection.matches(seller: String, vat: String, day: Long?): Boolean {
+    val vatTerm = request.vat.trim().map { if (it.isDigit()) Character.digit(it, 10).digitToChar() else it }.joinToString("")
+    if (!seller.contains(request.seller.trim(), ignoreCase = true) || !vat.contains(vatTerm)) return false
+    if (request.fromDay != null && (day == null || day < request.fromDay)) return false
+    if (request.toDay != null && (day == null || day > request.toDay)) return false
+    return when (request.grouping) {
+        StatisticsGrouping.SELLER -> seller.trim().ifEmpty { null } == key.text
+        StatisticsGrouping.VAT -> vat.trim().ifEmpty { null } == key.text
+        else -> if (key.periodStart == null) day == null else day != null &&
+            day >= key.periodStart && day <= request.grouping.periodEnd(LocalDate.ofEpochDay(key.periodStart)).toEpochDay()
+    }
+}
+enum class StatisticsPreset { THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR }
+
+fun StatisticsRequest.withPeriod(preset: StatisticsPreset, today: LocalDate = LocalDate.now()): StatisticsRequest {
+    val first = when (preset) {
+        StatisticsPreset.THIS_MONTH -> today.withDayOfMonth(1)
+        StatisticsPreset.LAST_MONTH -> today.withDayOfMonth(1).minusMonths(1)
+        StatisticsPreset.THIS_QUARTER, StatisticsPreset.LAST_QUARTER ->
+            LocalDate.of(today.year, (today.monthValue - 1) / 3 * 3 + 1, 1).let {
+                if (preset == StatisticsPreset.LAST_QUARTER) it.minusMonths(3) else it
+            }
+        StatisticsPreset.THIS_YEAR -> today.withDayOfYear(1)
+    }
+    val end = when (preset) {
+        StatisticsPreset.THIS_QUARTER, StatisticsPreset.LAST_QUARTER -> first.plusMonths(3)
+        StatisticsPreset.THIS_YEAR -> first.plusYears(1)
+        else -> first.plusMonths(1)
+    }.minusDays(1)
+    return copy(fromDay = first.toEpochDay(), toDay = end.toEpochDay())
+}
+
+internal fun StatisticsGrouping.periodEnd(start: LocalDate): LocalDate = when (this) {
+    StatisticsGrouping.DAY -> start.plusDays(1)
+    StatisticsGrouping.MONTH -> start.plusMonths(1)
+    StatisticsGrouping.QUARTER -> start.plusMonths(3)
+    StatisticsGrouping.HALF_YEAR -> start.plusMonths(6)
+    StatisticsGrouping.YEAR -> start.plusYears(1)
+    else -> error("Not a calendar grouping")
+}.minusDays(1)
 data class StatisticsTotals(val count: Int = 0, val total: BigDecimal = BigDecimal.ZERO.setScale(2),
     val tax: BigDecimal = BigDecimal.ZERO.setScale(2), val missingTotal: Int = 0, val missingTax: Int = 0)
 data class StatisticsGroup(val key: StatisticsKey, val totals: StatisticsTotals)
@@ -32,9 +74,11 @@ data class StatisticsState(val request: StatisticsRequest = StatisticsRequest(),
     val result: StatisticsResult = StatisticsResult(), val loading: Boolean = true, val failed: Boolean = false)
 
 /** Bound, independent predicates: all filters must match. No pass-status or deduplication predicate. */
-fun statisticsQuery(request: StatisticsRequest, afterId: Long = 0): SimpleSQLiteQuery {
-    val clauses = mutableListOf("id > ?")
-    val args = mutableListOf<Any>(afterId)
+private val statisticsWhitespace = (Char.MIN_VALUE..Char.MAX_VALUE).filter { it.isWhitespace() }.joinToString("")
+
+internal fun statisticsConditions(request: StatisticsRequest, key: StatisticsKey? = null): Pair<MutableList<String>, MutableList<Any>> {
+    val clauses = mutableListOf<String>()
+    val args = mutableListOf<Any>()
     request.seller.trim().takeIf { it.isNotEmpty() }?.let {
         clauses += "instr(sellerSearch, ?) > 0"; args += it.lowercase(Locale.ROOT)
     }
@@ -44,6 +88,26 @@ fun statisticsQuery(request: StatisticsRequest, afterId: Long = 0): SimpleSQLite
     }
     request.fromDay?.let { clauses += "invoiceDay >= ?"; args += it }
     request.toDay?.let { clauses += "invoiceDay <= ?"; args += it }
+    if (key != null) {
+        if (request.grouping == StatisticsGrouping.SELLER || request.grouping == StatisticsGrouping.VAT) {
+            val column = if (request.grouping == StatisticsGrouping.SELLER) "seller" else "vat"
+            // Match Kotlin trim() for every Unicode whitespace character, including tabs and NBSP.
+            clauses += "trim($column, ?) = ?"
+            args += statisticsWhitespace
+            args += key.text.orEmpty()
+        } else if (key.periodStart == null) clauses += "invoiceDay IS NULL"
+        else {
+            clauses += "invoiceDay >= ? AND invoiceDay <= ?"
+            args += key.periodStart
+            args += request.grouping.periodEnd(LocalDate.ofEpochDay(key.periodStart)).toEpochDay()
+        }
+    }
+    return clauses to args
+}
+
+fun statisticsQuery(request: StatisticsRequest, afterId: Long = 0): SimpleSQLiteQuery {
+    val (clauses, args) = statisticsConditions(request)
+    clauses += "id > ?"; args += afterId
     return SimpleSQLiteQuery("SELECT id, seller, vat, invoiceDay, total, tax FROM scans WHERE " +
         clauses.joinToString(" AND ") + " ORDER BY id LIMIT 200", args.toTypedArray())
 }

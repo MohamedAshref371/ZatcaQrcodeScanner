@@ -1,8 +1,10 @@
 package com.poetscorner.invoiceqr.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -10,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -31,15 +34,25 @@ internal fun StatisticsGrouping.label(): Int = when (this) {
 }
 
 @Composable
-internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Unit, onRetry: () -> Unit) {
+internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Unit, onRetry: () -> Unit,
+    onOpenGroup: (StatisticsKey) -> Unit = {}, onExport: () -> Unit = {}, exportEnabled: Boolean = true) {
     val request = state.request
+    val listState = rememberLazyListState()
+    var scrollRequest by rememberSaveable { mutableStateOf(request) }
+    LaunchedEffect(request) {
+        if (scrollRequest != request) {
+            listState.scrollToItem(0)
+            scrollRequest = request
+        }
+    }
+    val context = LocalContext.current
     var filters by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
     val dates = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
     val groupSortLabel = request.grouping.label()
     val sortLabels = mapOf(StatisticsSort.GROUP to groupSortLabel, StatisticsSort.COUNT to R.string.stats_count_label,
         StatisticsSort.TOTAL to R.string.tag_total, StatisticsSort.TAX to R.string.tag_tax)
-    LazyColumn(Modifier.fillMaxSize().testTag("statistics_list"), contentPadding = PaddingValues(16.dp),
+    LazyColumn(Modifier.fillMaxSize().testTag("statistics_list"), state = listState, contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SectionHeading(stringResource(R.string.nav_statistics), stringResource(R.string.stats_hint)) }
         item {
@@ -83,30 +96,16 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             Text(stringResource(R.string.history_load_error))
             TextButton(onClick = onRetry) { Text(stringResource(R.string.history_retry)) }
         } else {
+            item {
+                OutlinedButton(onClick = onExport, enabled = exportEnabled && state.result.groups.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.stats_export)) }
+            }
             item { StatisticsCard(stringResource(R.string.stats_summary), state.result.summary, summary = true) }
             if (state.result.groups.isEmpty()) item { Text(stringResource(R.string.stats_empty)) }
             items(state.result.groups, key = { it.key.text?.let { value -> "text:$value" }
                 ?: it.key.periodStart?.let { day -> "day:$day" } ?: "unknown" }) { group ->
-                val key = group.key
-                val title = when {
-                    key.unknown -> stringResource(when (request.grouping) {
-                        StatisticsGrouping.SELLER -> R.string.stats_unknown_seller
-                        StatisticsGrouping.VAT -> R.string.stats_unknown_vat
-                        else -> R.string.stats_unknown_date
-                    })
-                    key.text != null -> key.text
-                    else -> {
-                        val day = LocalDate.ofEpochDay(requireNotNull(key.periodStart))
-                        when (request.grouping) {
-                            StatisticsGrouping.DAY -> dates.format(day)
-                            StatisticsGrouping.MONTH -> DateTimeFormatter.ofPattern("MMMM uuuu", locale).format(day)
-                            StatisticsGrouping.QUARTER -> stringResource(R.string.stats_quarter_title, (day.monthValue - 1) / 3 + 1, day.year)
-                            StatisticsGrouping.HALF_YEAR -> stringResource(R.string.stats_half_title, if (day.monthValue <= 6) 1 else 2, day.year)
-                            else -> day.year.toString()
-                        }
-                    }
-                }
-                StatisticsCard(title, group.totals)
+                val title = statisticsGroupTitle(context, request.grouping, group.key)
+                StatisticsCard(title, group.totals, onClick = { onOpenGroup(group.key) })
             }
         }
     }
@@ -116,18 +115,20 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
 }
 
 @Composable
-private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boolean = false) {
+private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boolean = false, onClick: (() -> Unit)? = null) {
     val locale = LocalConfiguration.current.locales[0]
     val money = remember(locale) { NumberFormat.getNumberInstance(locale).apply { minimumFractionDigits = 2; maximumFractionDigits = 2 } }
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor =
+    Card(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), colors = CardDefaults.cardColors(containerColor =
         if (summary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.stats_count, totals.count))
             val total = if (totals.count > 0 && totals.missingTotal == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.total)
             val tax = if (totals.count > 0 && totals.missingTax == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.tax)
-            Text(stringResource(R.string.stats_filter_value, stringResource(R.string.tag_total), total))
-            Text(stringResource(R.string.stats_filter_value, stringResource(R.string.tag_tax), tax))
+            Text(stringResource(R.string.stats_filter_value, stringResource(if (totals.missingTotal > 0) R.string.stats_available_total else R.string.tag_total), total))
+            Text(stringResource(R.string.stats_filter_value, stringResource(if (totals.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax), tax))
+            if (onClick != null) Text(stringResource(R.string.stats_view_invoices), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary)
             if (totals.missingTotal > 0) Text(stringResource(R.string.stats_excluded_total, totals.missingTotal),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             if (totals.missingTax > 0) Text(stringResource(R.string.stats_excluded_tax, totals.missingTax),
@@ -151,6 +152,19 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, onDismiss: () -> 
                 OutlinedTextField(seller, { seller = it }, label = { Text(stringResource(R.string.tag_seller)) }, singleLine = true)
                 OutlinedTextField(vat, { vat = it }, label = { Text(stringResource(R.string.tag_vat)) }, singleLine = true)
                 Text(stringResource(R.string.stats_date_hint), style = MaterialTheme.typography.bodySmall)
+                val today = LocalDate.now()
+                val selectedPreset = StatisticsPreset.entries.firstOrNull { preset ->
+                    val period = request.withPeriod(preset, today)
+                    period.fromDay == from && period.toDay == to
+                }
+                val labels = listOf(R.string.stats_this_month, R.string.stats_last_month, R.string.stats_this_quarter,
+                    R.string.stats_last_quarter, R.string.stats_this_year)
+                Choice(stringResource(R.string.stats_date_shortcuts),
+                    selectedPreset?.name ?: stringResource(if (from == null && to == null) R.string.stats_choose_period else R.string.stats_custom_period),
+                    StatisticsPreset.entries.mapIndexed { index, preset -> preset.name to stringResource(labels[index]) }) { selected ->
+                    val period = request.withPeriod(StatisticsPreset.valueOf(selected), today)
+                    from = period.fromDay; to = period.toDay
+                }
                 OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_from),
                         from?.let { dates.format(LocalDate.ofEpochDay(it)) } ?: stringResource(R.string.stats_any_date)))

@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
@@ -69,6 +70,7 @@ import java.util.Date
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel = viewModel()) {
+    val historyScreenState = rememberSaveableStateHolder()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val mlKitModule by vm.mlKitModule.collectAsStateWithLifecycle()
     val history by vm.historyState.collectAsStateWithLifecycle()
@@ -151,6 +153,10 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
         pendingFileAction = null
         it?.let { uri -> vm.export(uri, true, exportFilter) }
     }
+    val statisticsCsv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) {
+        pendingFileAction = null
+        if (it != null) vm.exportStatistics(it) else vm.cancelStatisticsExport()
+    }
     val backup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
         pendingFileAction = null
         it?.let { uri -> vm.backup(uri) }
@@ -181,7 +187,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             }
         }
     }
-    BackHandler(screen != 0) { vm.navigate(0) }
+    BackHandler(screen != 0) { vm.backFromResultOrHome() }
     ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() },
         goldenTheme = if (previewActive) previewGold else support.owned && settings.goldenTheme) {
         Scaffold(topBar = { TopAppBar(navigationIcon = {
@@ -220,6 +226,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         vm.navigate(0)
                     } else if (!restoringResult) ManualInvoiceEntry(busy, vm::inspectBase64)
                     2 -> {
+                        historyScreenState.SaveableStateProvider("history") {
                         HistoryScreen(visibleHistory, historyQuery, { historyQuery = it },
                             onLoadMore = vm::loadMoreHistory, onRetry = vm::retryHistory,
                             onOpen = { vm.open(it.id) }, onDelete = {
@@ -256,10 +263,32 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                                 Text(stringResource(R.string.clear), style = MaterialTheme.typography.labelMedium)
                             }
                         } })
+                        }
                     }
                     4 -> {
-                        val statistics by vm.statistics.collectAsStateWithLifecycle()
-                        StatisticsScreen(statistics, vm::updateStatistics, vm::retryStatistics)
+                        val selection by vm.statisticsSelection.collectAsStateWithLifecycle()
+                        if (selection != null) {
+                            historyScreenState.SaveableStateProvider("statistics_invoices") {
+                            val invoices by vm.statisticsInvoices.collectAsStateWithLifecycle()
+                            BackHandler { vm.closeStatisticsGroup() }
+                            HistoryScreen(invoices, "", {}, vm::loadMoreStatisticsInvoices, vm::retryStatisticsInvoices,
+                                onOpen = { vm.openStatisticsInvoice(it.id) }, onDelete = {},
+                                groupTitle = statisticsGroupTitle(context, selection!!.request.grouping, selection!!.key),
+                                actions = { TextButton(onClick = vm::closeStatisticsGroup) { Text(stringResource(R.string.stats_back)) } })
+                            }
+                        } else {
+                            historyScreenState.SaveableStateProvider("statistics") {
+                            val statistics by vm.statistics.collectAsStateWithLifecycle()
+                            StatisticsScreen(statistics, vm::updateStatistics, vm::retryStatistics,
+                                onOpenGroup = { vm.openStatisticsGroup(com.poetscorner.invoiceqr.data.StatisticsSelection(statistics.request, it)) },
+                                exportEnabled = !transferLocked, onExport = {
+                                    if (vm.prepareStatisticsExport(statistics)) {
+                                        pendingFileAction = "statistics_csv"
+                                        statisticsCsv.launch("invoice-statistics.csv")
+                                    }
+                                })
+                            }
+                        }
                     }
                     else -> SettingsScreen(settings, vm::update, support,
                         preview = previewActive, previewGold = previewGold,

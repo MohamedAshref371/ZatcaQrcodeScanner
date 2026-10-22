@@ -83,4 +83,41 @@ class StatisticsTest {
         assertTrue(result.groups.isEmpty())
         assertEquals(BigDecimal("0.00"), result.summary.total)
     }
+
+    @Test fun dateShortcutsUseFullGregorianPeriodsAndPreserveOtherFilters() {
+        val request = StatisticsRequest(grouping = StatisticsGrouping.VAT, sort = StatisticsSort.TAX,
+            descending = true, seller = "Market", vat = "300")
+        val examples = listOf(
+            Triple(StatisticsPreset.LAST_MONTH, "2026-01-10", "2025-12-01" to "2025-12-31"),
+            Triple(StatisticsPreset.THIS_MONTH, "2024-02-15", "2024-02-01" to "2024-02-29"),
+            Triple(StatisticsPreset.THIS_QUARTER, "2026-05-10", "2026-04-01" to "2026-06-30"),
+            Triple(StatisticsPreset.LAST_QUARTER, "2026-01-10", "2025-10-01" to "2025-12-31"),
+            Triple(StatisticsPreset.LAST_QUARTER, "2026-04-01", "2026-01-01" to "2026-03-31"),
+            Triple(StatisticsPreset.LAST_QUARTER, "2026-10-22", "2026-07-01" to "2026-09-30"),
+            Triple(StatisticsPreset.THIS_YEAR, "2026-10-22", "2026-01-01" to "2026-12-31")
+        )
+        for ((preset, today, expected) in examples) {
+            val result = request.withPeriod(preset, LocalDate.parse(today))
+            assertEquals(LocalDate.parse(expected.first).toEpochDay(), result.fromDay)
+            assertEquals(LocalDate.parse(expected.second).toEpochDay(), result.toDay)
+            assertEquals(request, result.copy(fromDay = null, toDay = null))
+        }
+    }
+
+    @Test fun groupSelectionMatchesExactNamesAndIntersectsTheOriginalFilters() {
+        val seller = StatisticsSelection(StatisticsRequest(seller = "Market", vat = "300"), StatisticsKey(text = "Market"))
+        assertTrue(seller.matches("\u00a0Market\t", "3001", null))
+        assertFalse(seller.matches("Market Branch", "3001", null))
+        assertFalse(seller.matches("Market", "4001", null))
+        val start = LocalDate.of(2026, 4, 1).toEpochDay()
+        val quarter = StatisticsSelection(StatisticsRequest(grouping = StatisticsGrouping.QUARTER,
+            fromDay = start + 10, toDay = start + 20), StatisticsKey(periodStart = start))
+        assertTrue(quarter.matches("A", "3001", start + 10))
+        assertTrue(quarter.matches("A", "3001", start + 20))
+        assertFalse(quarter.matches("A", "3001", start + 9))
+        assertFalse(quarter.matches("A", "3001", null))
+        val unknown = StatisticsSelection(StatisticsRequest(grouping = StatisticsGrouping.DAY), StatisticsKey())
+        assertTrue(unknown.matches("A", "3001", null))
+        assertFalse(unknown.matches("A", "3001", start))
+    }
 }

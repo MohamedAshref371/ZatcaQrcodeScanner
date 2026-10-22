@@ -10,9 +10,13 @@ enum class HistoryDateSource { INVOICE, SCAN }
 /** Snapshot taken when export starts, retained while the system file picker is open. */
 data class HistoryFilter(val query: String = "", val fromDay: Long? = null, val toDay: Long? = null,
     val dateSource: HistoryDateSource = HistoryDateSource.INVOICE,
-    val zoneId: String = ZoneId.systemDefault().id) : Serializable {
+    val zoneId: String = ZoneId.systemDefault().id,
+    val statisticsSelection: StatisticsSelection? = null) : Serializable {
     fun apply(entries: List<HistoryEntry>): List<HistoryEntry> =
-        filterHistory(entries, query, fromDay, toDay, ZoneId.of(zoneId), dateSource)
+        filterHistory(entries, query, fromDay, toDay, ZoneId.of(zoneId), dateSource).let { rows ->
+            val selected = statisticsSelection
+            if (selected == null) rows else rows.filter { selected.matches(it.scan.seller, it.vat, it.invoiceDay) }
+        }
 }
 
 data class HistoryEntry(val scan: ScanEntity, val vat: String, val invoiceDay: Long? = null, val total: String = "") {

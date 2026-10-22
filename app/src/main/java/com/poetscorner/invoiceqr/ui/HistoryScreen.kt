@@ -38,14 +38,20 @@ import java.text.NumberFormat
 internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> Unit,
     onLoadMore: () -> Unit, onRetry: () -> Unit,
     onOpen: (HistorySummary) -> Unit, onDelete: (HistorySummary) -> Unit,
-    actions: (@Composable () -> Unit)? = null) {
+    actions: (@Composable () -> Unit)? = null, groupTitle: String? = null) {
     val listState = rememberLazyListState()
+    var scrollFilter by rememberSaveable { mutableStateOf(state.filter) }
     val locale = LocalConfiguration.current.locales[0]
     val countFormat = remember(locale) { NumberFormat.getIntegerInstance(locale) }
     val amountFormat = remember(locale) { NumberFormat.getNumberInstance(locale).apply {
         minimumFractionDigits = 2; maximumFractionDigits = 2
     } }
-    LaunchedEffect(state.filter) { listState.scrollToItem(0) }
+    LaunchedEffect(state.filter) {
+        if (scrollFilter != state.filter) {
+            listState.scrollToItem(0)
+            scrollFilter = state.filter
+        }
+    }
     LaunchedEffect(state.entries.size, state.loading, state.loadingMore, state.failed) {
         if (!state.loading && !state.loadingMore && !state.failed && state.hasMore) {
             snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
@@ -56,9 +62,10 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
     }
     LazyColumn(Modifier.fillMaxSize().imePadding().testTag("history_list"), state = listState, contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { SectionHeading(stringResource(R.string.history_heading), stringResource(R.string.history_subtitle)) }
+        item { SectionHeading(groupTitle ?: stringResource(R.string.history_heading),
+            stringResource(if (groupTitle == null) R.string.history_subtitle else R.string.stats_view_invoices)) }
         if (actions != null) item { actions() }
-        item {
+        if (groupTitle == null) item {
             OutlinedTextField(value = query, onValueChange = onQuery,
                 label = { Text(stringResource(R.string.history_search)) },
                 shape = MaterialTheme.shapes.medium,
@@ -72,7 +79,7 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                     TextButton(onClick = { onQuery("") }) { Text(stringResource(R.string.history_clear_search)) }
                 }) else null)
         }
-        item {
+        if (groupTitle == null) item {
             Text(stringResource(R.string.history_export_filtered), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -126,7 +133,7 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                                 style = MaterialTheme.typography.labelMedium, color = statusColor)
                         }
                     }
-                    IconButton(onClick = { onDelete(row) }) {
+                    if (groupTitle == null) IconButton(onClick = { onDelete(row) }) {
                         AppIcon(R.drawable.ic_delete, description = stringResource(R.string.clear),
                             tint = MaterialTheme.colorScheme.error)
                     }

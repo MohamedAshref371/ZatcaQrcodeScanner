@@ -123,6 +123,48 @@ class ResultRestorationTest {
         }
     }
 
+    @Test fun backReturnsToTheInvoiceSourceAfterRestorationAndNewScansReturnToCamera() = runBlocking {
+        val db = ScanDatabase.open(app)
+        val fixture = historyFixture(92004, seller = "Return destination", hash = false)
+        try {
+            val id = db.scans().saveIfNew(fixture).scan.id
+            for (source in listOf(2, 4)) {
+                val firstStore = ViewModelStore()
+                val secondStore = ViewModelStore()
+                try {
+                    withContext(Dispatchers.Main) {
+                        val state = SavedStateHandle(mapOf("screen" to source))
+                        val first = create(firstStore, state)
+                        if (source == 2) first.open(id) else first.openStatisticsInvoice(id)
+                        withTimeout(10000) { first.restoringResult.first { !it } }
+                        assertEquals(1, first.screen.value)
+                        val restored = roundTrip(state)
+                        val firstJob = first.viewModelScope.coroutineContext[Job]!!
+                        firstStore.clear()
+                        firstJob.join()
+                        val second = create(secondStore, restored)
+                        withTimeout(10000) { second.restoringResult.first { !it } }
+                        second.backFromResultOrHome()
+                        assertEquals(source, second.screen.value)
+                        second.navigate(0)
+                        second.scanned(fixture.raw)
+                        assertEquals(1, second.screen.value)
+                        second.backFromResultOrHome()
+                        assertEquals(0, second.screen.value)
+                    }
+                } finally {
+                    withContext(Dispatchers.Main) {
+                        firstStore.clear(); secondStore.clear()
+                        viewModelJobs.forEach { it.join() }
+                    }
+                }
+            }
+        } finally {
+            db.scans().byPayloadKey(fixture.payloadKey)?.let { db.scans().delete(it.id) }
+            db.close()
+        }
+    }
+
     @Test fun aDeletedInvoiceIsNotRecreatedDuringRestoration() = runBlocking {
         val db = ScanDatabase.open(app)
         val store = ViewModelStore()

@@ -44,6 +44,10 @@ class HistoryQueries(private val filter: HistoryFilter) {
     private fun conditions(): Pair<MutableList<String>, MutableList<Any>> {
         val clauses = mutableListOf<String>()
         val args = mutableListOf<Any>()
+        filter.statisticsSelection?.let {
+            val (selectedClauses, selectedArgs) = statisticsConditions(it.request, it.key)
+            clauses.addAll(selectedClauses); args.addAll(selectedArgs)
+        }
         val term = filter.query.trim()
         if (term.isNotEmpty()) {
             val digits = term.map { if (it.isDigit()) Character.digit(it, 10).digitToChar() else it }.joinToString("")

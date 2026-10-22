@@ -52,4 +52,25 @@ class StatisticsStorageTest {
         assertEquals(3, calculate(StatisticsRequest(seller = "%_")).summary.count)
         assertEquals(3, calculate(StatisticsRequest(toDay = historyBaseDay + 1)).summary.count)
     }
+
+    @Test fun openingEveryGroupReturnsExactlyItsInvoicesIncludingUnknownAndUnicodeTrimmedGroups() = runBlocking {
+        db.scans().insertBatch(listOf(
+            historyFixture(1, seller = "Market", date = "2026-04-01T23:59:59Z"),
+            historyFixture(2, seller = "Market Branch", date = "2026-05-01T00:00:00+03:00"),
+            historyFixture(3, seller = "\u00a0Market\t", date = "2026-06-30T12:00:00Z"),
+            historyFixture(4, seller = " ", date = "invalid"),
+            historyFixture(5, seller = "Market", date = "2027-04-01T00:00:00Z")))
+        val stored = db.scans().all().map { HistoryEntry.from(it) }
+        for (grouping in StatisticsGrouping.entries) {
+            for (sellerFilter in listOf("", "Market")) {
+                val request = StatisticsRequest(grouping = grouping, seller = sellerFilter)
+                for (group in calculate(request).groups) {
+                    val filter = HistoryFilter(statisticsSelection = StatisticsSelection(request, group.key))
+                    val queries = HistoryQueries(filter)
+                    assertEquals(group.totals.count, db.scans().counts(queries.counts()).matching)
+                    assertEquals(filter.apply(stored).map { it.scan.id }, db.scans().summaries(queries.page()).map { it.id })
+                }
+            }
+        }
+    }
 }
