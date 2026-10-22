@@ -250,24 +250,25 @@ private fun SellerFilterField(value: String, onValueChange: (String) -> Unit,
     var suggestions by remember { mutableStateOf(emptyList<String>()) }
     val lookup by rememberUpdatedState(suggestionsFor)
     LaunchedEffect(value, focused, dismissed) {
-        suggestions = emptyList()
         if (focused && !dismissed && value.isNotBlank()) {
-            kotlinx.coroutines.delay(150)
+            kotlinx.coroutines.delay(300)
             try {
                 suggestions = lookup(value)
             } catch (error: Exception) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
+                suggestions = emptyList()
                 // Suggestions are optional; manual filtering remains available.
             }
-        }
+        } else suggestions = emptyList()
     }
     val expanded = focused && !dismissed && value.isNotBlank() && suggestions.isNotEmpty()
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { dismissed = !it }) {
         OutlinedTextField(displayedValue, {
             fieldValue = it
-            suggestions = emptyList()
-            dismissed = false
-            onValueChange(it.text)
+            if (it.text != value) {
+                dismissed = false
+                onValueChange(it.text)
+            }
         }, label = { Text(stringResource(R.string.tag_seller)) }, singleLine = true,
             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable)
                 .onFocusChanged { focused = it.isFocused })

@@ -20,6 +20,29 @@ class StatisticsUiTest {
     @get:Rule val compose = createComposeRule()
     private fun text(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
+    @Test fun typingAndDeletingKeepSuggestionsStableUntilTheNextLookupCompletes() {
+        val pendingLookup = kotlinx.coroutines.CompletableDeferred<List<String>>()
+        compose.setContent { MaterialTheme {
+            StatisticsScreen(StatisticsState(loading = false), {}, {},
+                sellerSuggestions = { if (it == "Mar") listOf("North Market") else pendingLookup.await() })
+        } }
+        compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
+        val sellerField = hasSetTextAction() and hasText(text(R.string.tag_seller))
+        compose.onNode(sellerField).performTextInput("Mar")
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("North Market").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNode(sellerField).performTextInput("ket")
+        compose.onNode(sellerField).assertTextContains("Market")
+        compose.onNodeWithText("North Market").assertIsDisplayed()
+        compose.onNode(sellerField).performTextReplacement("Mark")
+        compose.onNode(sellerField).assertTextContains("Mark")
+        compose.onNodeWithText("North Market").assertIsDisplayed()
+        compose.onNode(sellerField).performTextReplacement("South")
+        compose.onNode(sellerField).assertTextContains("South")
+        compose.onNodeWithText("North Market").assertIsDisplayed()
+        compose.onNode(sellerField).performTextClearance()
+        compose.onNodeWithText("North Market").assertDoesNotExist()
+    }
+
     @Test fun choosingSellerSuggestionFillsTheFieldAndWaitsForApply() {
         var request by mutableStateOf(StatisticsRequest(vat = "123"))
         compose.setContent { MaterialTheme {

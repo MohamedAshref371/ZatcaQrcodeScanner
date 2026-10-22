@@ -343,7 +343,7 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
     var raw by rememberSaveable { mutableStateOf("") }
     val keyboard = LocalSoftwareKeyboardController.current
     Column(
-        Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         IconTile(R.drawable.ic_receipt)

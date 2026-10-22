@@ -60,7 +60,7 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                 }
         }
     }
-    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("history_list"), state = listState, contentPadding = PaddingValues(16.dp),
+    LazyColumn(Modifier.fillMaxSize().testTag("history_list"), state = listState, contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { SectionHeading(groupTitle ?: stringResource(R.string.history_heading),
             stringResource(if (groupTitle == null) R.string.history_subtitle else R.string.stats_view_invoices)) }
