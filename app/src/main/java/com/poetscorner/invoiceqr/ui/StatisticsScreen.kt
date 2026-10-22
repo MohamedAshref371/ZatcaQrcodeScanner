@@ -13,12 +13,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -49,7 +52,8 @@ internal fun StatisticsPreset.label(): Int = when (this) {
 
 @Composable
 internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Unit, onRetry: () -> Unit,
-    onOpenGroup: (StatisticsKey) -> Unit = {}, onExport: () -> Unit = {}, exportEnabled: Boolean = true) {
+    onOpenGroup: (StatisticsKey) -> Unit = {}, onExport: () -> Unit = {}, exportEnabled: Boolean = true,
+    sellerSuggestions: suspend (String) -> List<String> = { emptyList() }) {
     val request = state.request
     val listState = rememberLazyListState()
     var scrollRequest by rememberSaveable { mutableStateOf(request) }
@@ -129,7 +133,7 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             }
         }
     }
-    if (filters) StatisticsFilterDialog(request, onDismiss = { filters = false }, onApply = {
+    if (filters) StatisticsFilterDialog(request, sellerSuggestions, onDismiss = { filters = false }, onApply = {
         onChange(it); filters = false
     })
 }
@@ -158,7 +162,8 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boo
 }
 
 @Composable
-private fun StatisticsFilterDialog(request: StatisticsRequest, onDismiss: () -> Unit, onApply: (StatisticsRequest) -> Unit) {
+private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions: suspend (String) -> List<String>,
+    onDismiss: () -> Unit, onApply: (StatisticsRequest) -> Unit) {
     var seller by rememberSaveable { mutableStateOf(request.seller) }
     var vatMode by rememberSaveable { mutableStateOf(if (request.excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else request.vatMode) }
     var vat by rememberSaveable { mutableStateOf(if (request.excludedVat.isNotBlank()) request.excludedVat else request.vat) }
@@ -172,7 +177,7 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, onDismiss: () -> 
     AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.history_filter_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(seller, { seller = it }, label = { Text(stringResource(R.string.tag_seller)) }, singleLine = true)
+                SellerFilterField(seller, { seller = it }, sellerSuggestions)
                 Column(verticalArrangement = Arrangement.spacedBy((-8).dp)) {
                     Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatisticsVatMode.entries.forEach { mode ->
@@ -230,5 +235,51 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, onDismiss: () -> 
                 if (isFrom) from = it else to = it
                 pickingFrom = null
             })
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SellerFilterField(value: String, onValueChange: (String) -> Unit,
+    suggestionsFor: suspend (String) -> List<String>) {
+    var fieldValue by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+    val displayedValue = if (fieldValue.text == value) fieldValue else TextFieldValue(value, TextRange(value.length))
+    SideEffect { fieldValue = displayedValue }
+    var focused by remember { mutableStateOf(false) }
+    var dismissed by remember { mutableStateOf(false) }
+    var suggestions by remember { mutableStateOf(emptyList<String>()) }
+    val lookup by rememberUpdatedState(suggestionsFor)
+    LaunchedEffect(value, focused, dismissed) {
+        suggestions = emptyList()
+        if (focused && !dismissed && value.isNotBlank()) {
+            kotlinx.coroutines.delay(150)
+            try {
+                suggestions = lookup(value)
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                // Suggestions are optional; manual filtering remains available.
+            }
+        }
+    }
+    val expanded = focused && !dismissed && value.isNotBlank() && suggestions.isNotEmpty()
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { dismissed = !it }) {
+        OutlinedTextField(displayedValue, {
+            fieldValue = it
+            suggestions = emptyList()
+            dismissed = false
+            onValueChange(it.text)
+        }, label = { Text(stringResource(R.string.tag_seller)) }, singleLine = true,
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable)
+                .onFocusChanged { focused = it.isFocused })
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { dismissed = true }) {
+            suggestions.forEach { name ->
+                DropdownMenuItem(text = { Text(name) }, onClick = {
+                    dismissed = true
+                    suggestions = emptyList()
+                    fieldValue = TextFieldValue(name, TextRange(name.length))
+                    onValueChange(name)
+                })
+            }
+        }
     }
 }

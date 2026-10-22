@@ -2,6 +2,8 @@ package com.poetscorner.invoiceqr
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -17,6 +19,40 @@ import org.junit.runner.RunWith
 class StatisticsUiTest {
     @get:Rule val compose = createComposeRule()
     private fun text(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+
+    @Test fun choosingSellerSuggestionFillsTheFieldAndWaitsForApply() {
+        var request by mutableStateOf(StatisticsRequest(vat = "123"))
+        compose.setContent { MaterialTheme {
+            StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {},
+                sellerSuggestions = { if (it.contains("Market")) listOf("North Market") else emptyList() })
+        } }
+        compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
+        val sellerField = hasSetTextAction() and hasText(text(R.string.tag_seller))
+        compose.onNode(sellerField).performTextInput("Market")
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("North Market").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("North Market").performClick()
+        compose.onNode(sellerField).assertTextContains("North Market")
+        compose.onNode(sellerField).assert(SemanticsMatcher.expectValue(
+            SemanticsProperties.TextSelectionRange, TextRange("North Market".length)))
+        compose.runOnIdle { assertEquals("", request.seller) }
+        compose.onNodeWithText(text(R.string.history_apply_date)).performClick()
+        compose.runOnIdle {
+            assertEquals("North Market", request.seller)
+            assertEquals("123", request.vat)
+        }
+    }
+
+    @Test fun sellerCanStillApplyAPartialNameWithoutChoosingASuggestion() {
+        var request by mutableStateOf(StatisticsRequest())
+        compose.setContent { MaterialTheme {
+            StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {},
+                sellerSuggestions = { emptyList() })
+        } }
+        compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
+        compose.onNode(hasSetTextAction() and hasText(text(R.string.tag_seller))).performTextInput("Market")
+        compose.onNodeWithText(text(R.string.history_apply_date)).performClick()
+        compose.runOnIdle { assertEquals("Market", request.seller) }
+    }
 
     @Test fun exclusionChangesTheFieldLabelAndAcceptsAPartialNumber() {
         var request by mutableStateOf(StatisticsRequest())

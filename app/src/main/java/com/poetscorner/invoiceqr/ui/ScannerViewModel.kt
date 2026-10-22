@@ -94,6 +94,8 @@ class ScannerViewModel(
         if (request != resolved) savedState["statistics_request"] = resolved
     }
     fun retryStatistics() { statisticsRevision.value++ }
+    suspend fun sellerSuggestions(query: String): List<String> =
+        db.scans().sellerSuggestions(query.trim().lowercase(java.util.Locale.ROOT))
     val statisticsSelection = savedState.getStateFlow<StatisticsSelection?>("statistics_group", null)
     private val statisticsGroupPager by lazy {
         HistoryPager(db.scans(), viewModelScope).also { pager ->

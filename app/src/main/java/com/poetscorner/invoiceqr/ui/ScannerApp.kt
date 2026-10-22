@@ -282,6 +282,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                             historyScreenState.SaveableStateProvider("statistics") {
                             val statistics by vm.statistics.collectAsStateWithLifecycle()
                             StatisticsScreen(statistics, vm::updateStatistics, vm::retryStatistics,
+                                sellerSuggestions = vm::sellerSuggestions,
                                 onOpenGroup = { vm.openStatisticsGroup(com.poetscorner.invoiceqr.data.StatisticsSelection(statistics.request, it)) },
                                 exportEnabled = !transferLocked, onExport = {
                                     if (vm.prepareStatisticsExport(statistics)) {

@@ -42,6 +42,8 @@ data class ScanEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val raw
 }
 @Dao
 interface ScanDao {
+    @Query("SELECT DISTINCT trim(seller) AS name FROM scans WHERE :term != '' AND instr(sellerSearch, :term) > 0 AND trim(seller) != '' ORDER BY name COLLATE NOCASE LIMIT 5")
+    suspend fun sellerSuggestions(term: String): List<String>
     @Query("SELECT COUNT(*) FROM scans") suspend fun count(): Int
     @Query("SELECT id, raw, scannedAt FROM scans WHERE id > :afterId ORDER BY id LIMIT 50")
     suspend fun backupRows(afterId: Long): List<BackupRow>

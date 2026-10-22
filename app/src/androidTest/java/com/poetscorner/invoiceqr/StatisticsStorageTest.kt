@@ -23,6 +23,17 @@ class StatisticsStorageTest {
 
     private suspend fun calculate(request: StatisticsRequest) = db.statistics(request)
 
+    @Test fun sellerSuggestionsMatchSubstringsWithoutDuplicatesAndLimitResults() = runBlocking {
+        db.scans().insertBatch((1..8).map { historyFixture(it, seller = "North Market $it") } +
+            listOf(historyFixture(9, seller = "North Market 1"),
+                historyFixture(10, seller = "South"), historyFixture(11, seller = "North %_")))
+        assertEquals((1..5).map { "North Market $it" }, db.scans().sellerSuggestions("market"))
+        assertEquals(listOf("North Market 1"), db.scans().sellerSuggestions("market 1"))
+        assertEquals(listOf("North %_"), db.scans().sellerSuggestions("%_"))
+        assertTrue(db.scans().sellerSuggestions("").isEmpty())
+        assertTrue(db.scans().sellerSuggestions("missing").isEmpty())
+    }
+
     @Test fun readsEveryPageAndIncludesFailedInvoicesAndIndependentValidAmounts() = runBlocking {
         db.scans().insertBatch((1..450).map { historyFixture(it, seller = "Market", hash = false) })
         val invalid = historyFixture(451, seller = "Market", date = "invalid", hash = false)
