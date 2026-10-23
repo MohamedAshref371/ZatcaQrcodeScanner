@@ -292,7 +292,7 @@
     <string name="error_utf8">Invalid UTF-8 in tag %1$d</string>
     <string name="rate_app">Rate the app</string>
     <string name="store_open_error">Unable to open Google Play or a browser.</string>
-    <string name="app_tagline">Your invoices, clearly</string>
+    <string name="app_tagline">Accurate scanning, clear details</string>
     <string name="scanner_heading">Scan an invoice</string>
     <string name="history_heading">Your invoice archive</string>
     <string name="history_subtitle">Find, review and export your saved invoices.</string>

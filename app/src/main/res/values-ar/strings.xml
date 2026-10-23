@@ -292,7 +292,7 @@
     <string name="error_utf8">UTF-8 غير صالح في Tag %1$d</string>
     <string name="rate_app">قيّم التطبيق</string>
     <string name="store_open_error">تعذّر فتح Google Play أو المتصفح.</string>
-    <string name="app_tagline">تفاصيل فواتيرك، بوضوح</string>
+    <string name="app_tagline">قراءة دقيقة، وتفاصيل واضحة</string>
     <string name="scanner_heading">امسح فاتورتك</string>
     <string name="history_heading">أرشيف فواتيرك</string>
     <string name="history_subtitle">ابحث في فواتيرك المحفوظة وراجعها وصدّرها.</string>
