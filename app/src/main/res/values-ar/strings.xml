@@ -28,7 +28,7 @@
     <string name="transfer_progress">%1$s من %2$s فاتورة</string>
     <string name="transfer_processed">تمت معالجة %1$s فاتورة</string>
     <string name="continuous_scan">الفحص المتتابع</string>
-    <string name="continuous_scan_count">الفواتير الجديدة خلال الجلسة: %1$s</string>
+    <string name="continuous_scan_count">الفواتير: %1$s</string>
     <string name="continuous_scan_saved">تمت إضافة الفاتورة</string>
     <string name="continuous_scan_review">تم حفظ الفاتورة وبها ملاحظات</string>
     <string name="continuous_scan_duplicate">الفاتورة مضافة مسبقًا</string>

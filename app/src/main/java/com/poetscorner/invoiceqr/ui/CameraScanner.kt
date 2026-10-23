@@ -92,9 +92,11 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
     var zoom by remember { mutableFloatStateOf(0f) }
     val currentSettings by rememberUpdatedState(settings)
     val currentOnScan by rememberUpdatedState(onScan)
+    val currentContinuous by rememberUpdatedState(continuous)
     val scope = rememberCoroutineScope()
-    val deliveryGate = remember(continuous) { QrDeliveryGate(continuous) }
-    DisposableEffect(owner, settings.resolution, settings.scanEngine, previewSize, continuous) {
+    val deliveryGate by rememberUpdatedState(remember(continuous) { QrDeliveryGate(continuous) })
+    // Switching scan mode updates delivery rules without rebinding the camera.
+    DisposableEffect(owner, settings.resolution, settings.scanEngine, previewSize) {
         if (previewSize.width == 0 || previewSize.height == 0) return@DisposableEffect onDispose { }
         val executor = Executors.newSingleThreadExecutor()
         val decoder = settings.scanEngine.decoder()
@@ -131,12 +133,15 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                                 && delivered.compareAndSet(false, true)) {
                                 scope.launch {
                                     var accepted = false
+                                    val scanWasContinuous = currentContinuous
                                     try {
                                         if (!disposed && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                                             accepted = currentOnScan(result)
                                         }
                                     }
-                                    finally { if (!accepted || continuous) delivered.set(false) }
+                                    finally {
+                                        if (!accepted || scanWasContinuous || currentContinuous) delivered.set(false)
+                                    }
                                 }
                             }
                         }

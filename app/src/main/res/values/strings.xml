@@ -28,7 +28,7 @@
     <string name="transfer_progress">%1$s of %2$s invoices</string>
     <string name="transfer_processed">%1$s invoices processed</string>
     <string name="continuous_scan">Continuous scanning</string>
-    <string name="continuous_scan_count">New invoices this session: %1$s</string>
+    <string name="continuous_scan_count">Invoices: %1$s</string>
     <string name="continuous_scan_saved">Invoice added</string>
     <string name="continuous_scan_review">Invoice saved with review notes</string>
     <string name="continuous_scan_duplicate">Invoice already saved</string>

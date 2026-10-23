@@ -28,12 +28,15 @@ class ContinuousScanningUiTest {
         val invoice = historyFixture(901, seller = "Continuous UI seller", hash = false)
         val db = Room.databaseBuilder(compose.activity.applicationContext, ScanDatabase::class.java, "invoices.db").build()
         try {
+            val cameraBounds = compose.onNodeWithTag("camera_preview").fetchSemanticsNode().boundsInRoot
+            val toggleBounds = compose.onNodeWithTag("continuous_scan_toggle").fetchSemanticsNode().boundsInRoot
             compose.onNodeWithTag("continuous_scan_toggle").performClick()
             compose.runOnIdle { assertTrue(vm.continuousScan.value.enabled) }
-            val cameraBounds = compose.onNodeWithTag("camera_preview").fetchSemanticsNode().boundsInRoot
+            assertEquals(toggleBounds, compose.onNodeWithTag("continuous_scan_toggle").fetchSemanticsNode().boundsInRoot)
+            assertEquals(cameraBounds, compose.onNodeWithTag("camera_preview").fetchSemanticsNode().boundsInRoot)
             withContext(Dispatchers.Main) { assertTrue(vm.scanned(invoice.raw)) }
             compose.onNodeWithTag("continuous_scan_notice").assertDoesNotExist()
-            compose.onNodeWithTag("continuous_scan_count").assertIsDisplayed()
+            compose.onNodeWithTag("continuous_scan_count", useUnmergedTree = true).assertIsDisplayed()
             compose.onNodeWithTag("continuous_scan_toggle").assertIsDisplayed()
             compose.runOnIdle { assertNull(vm.result.value) }
             val viewResult = compose.activity.getString(R.string.continuous_scan_view_result)

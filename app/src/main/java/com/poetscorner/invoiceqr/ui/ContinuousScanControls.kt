@@ -25,15 +25,19 @@ internal fun ContinuousScanControls(state: ContinuousScanState, onEnabled: (Bool
     val locale = LocalConfiguration.current.locales[0]
     val numbers = remember(locale) { NumberFormat.getIntegerInstance(locale) }
     Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.medium) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.fillMaxWidth().testTag("continuous_scan_toggle").toggleable(state.enabled,
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)
+            .testTag("continuous_scan_toggle").toggleable(state.enabled,
             role = Role.Switch, onValueChange = onEnabled), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.continuous_scan), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-            Switch(checked = state.enabled, onCheckedChange = null)
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                if (state.enabled) {
+                    Text(stringResource(R.string.continuous_scan_count, numbers.format(state.added)),
+                        Modifier.testTag("continuous_scan_count"), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                Switch(checked = state.enabled, onCheckedChange = null)
+            }
         }
-        if (state.enabled) {
-            Text(stringResource(R.string.continuous_scan_count, numbers.format(state.added)),
-                Modifier.testTag("continuous_scan_count"), style = MaterialTheme.typography.bodySmall)
-        }
-    } }
+    }
 }
