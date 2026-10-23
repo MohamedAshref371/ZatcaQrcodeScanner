@@ -32,16 +32,19 @@ class SupporterPreviewUiTest {
         compose.onNodeWithText(text(R.string.nav_settings)).performClick()
         settingsItem(R.string.supporter_preview_start)
         compose.onNodeWithTag("supporter_preview_toggle").assertIsEnabled().performClick()
-        compose.onNodeWithTag("supporter_preview_banner").assertIsDisplayed()
+        compose.onNodeWithTag("supporter_preview_banner").assertDoesNotExist()
+        compose.onNodeWithTag("supporter_preview_toggle").assertTextContains(text(R.string.supporter_preview_end))
         settingsItem(R.string.gold_theme)
         compose.onNodeWithText(text(R.string.gold_theme)).assertIsOn().performClick().assertIsOff()
 
         for (screen in listOf(R.string.nav_history, R.string.nav_result, R.string.nav_scanner, R.string.nav_settings)) {
             compose.onNodeWithText(text(screen)).performClick()
-            compose.onNodeWithTag("supporter_preview_banner").assertIsDisplayed()
+            compose.onNodeWithTag("supporter_preview_banner").assertDoesNotExist()
         }
         compose.activityRule.scenario.recreate()
-        compose.onNodeWithTag("supporter_preview_banner").assertIsDisplayed()
+        compose.onNodeWithTag("supporter_preview_banner").assertDoesNotExist()
+        settingsItem(R.string.supporter_preview_end)
+        compose.onNodeWithTag("supporter_preview_toggle").assertTextContains(text(R.string.supporter_preview_end))
         settingsItem(R.string.gold_theme)
         compose.onNodeWithText(text(R.string.gold_theme)).assertIsOff()
 
@@ -51,14 +54,16 @@ class SupporterPreviewUiTest {
         compose.onNodeWithText(text(R.string.supporter_badge)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.close)).performClick()
 
-        compose.onNodeWithTag("supporter_preview_end").performClick()
+        settingsItem(R.string.supporter_preview_end)
+        compose.onNodeWithTag("supporter_preview_toggle").performClick()
         compose.onNodeWithTag("supporter_preview_banner").assertDoesNotExist()
         settingsItem(R.string.supporter_preview_start)
         compose.onNodeWithText(text(R.string.gold_theme)).assertDoesNotExist()
         compose.onNodeWithTag("supporter_preview_toggle").performClick()
         settingsItem(R.string.gold_theme)
         compose.onNodeWithText(text(R.string.gold_theme)).assertIsOn()
-        compose.onNodeWithTag("supporter_preview_end").performClick()
+        settingsItem(R.string.supporter_preview_end)
+        compose.onNodeWithTag("supporter_preview_toggle").performClick()
 
         assertFalse(supporter.state.value.owned)
         assertEquals(entitlementBefore, entitlement.all)

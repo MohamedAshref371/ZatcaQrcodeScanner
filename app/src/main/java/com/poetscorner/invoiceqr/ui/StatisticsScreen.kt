@@ -227,8 +227,8 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boo
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.stats_count, totals.count), style = MaterialTheme.typography.bodySmall,
-                    color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.stats_count, totals.count), style = MaterialTheme.typography.bodyMedium,
+                    color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
             }
             val total = if (totals.count > 0 && totals.missingTotal == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.total)
             val tax = if (totals.count > 0 && totals.missingTax == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.tax)

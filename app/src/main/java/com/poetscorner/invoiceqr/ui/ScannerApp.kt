@@ -215,7 +215,6 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
             }
         } } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
             Column(Modifier.padding(padding).fillMaxSize()) {
-                if (previewActive) SupporterPreviewBanner { supporterPreview = false }
                 if (busy || restoringResult) LinearProgressIndicator(Modifier.fillMaxWidth())
                 transfer?.let { TransferProgress(it) }
                 when(screen) {

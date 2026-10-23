@@ -213,7 +213,6 @@
     <string name="supporter_active">Thank you! Your supporter pack is active.</string>
     <string name="supporter_preview_start">Preview supporter pack</string>
     <string name="supporter_preview_end">End preview</string>
-    <string name="supporter_preview_active">Supporter pack preview</string>
     <string name="supporter_preview_description">Try the gold theme and badge without payment. No purchase is made, and you can end the preview at any time. See the badge in About.</string>
     <string name="supporter_preview_badge">Badge preview · not a purchased supporter pack</string>
     <string name="gold_theme">Gold theme</string>
