@@ -164,7 +164,9 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                 StatisticsCard(stringResource(R.string.stats_summary_with_groups, state.result.groups.size),
                     state.result.summary, summary = true)
             }
-            if (!state.loading && !state.failed && state.result.groups.isEmpty()) item { Text(stringResource(R.string.stats_empty)) }
+            if (!state.loading && !state.failed && state.result.groups.isEmpty()) item {
+                Text(stringResource(if (request.filtered) R.string.stats_empty else R.string.stats_no_invoices))
+            }
             itemsIndexed(state.result.groups, key = { index, _ -> "statistics_card_$index" },
                 contentType = { _, _ -> "statistics_card" }) { index, group ->
                 val title = statisticsGroupTitle(context, state.resultRequest.grouping, group.key)

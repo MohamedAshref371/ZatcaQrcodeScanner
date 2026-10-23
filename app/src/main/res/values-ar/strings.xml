@@ -65,6 +65,7 @@
     <string name="stats_summary">ملخص النتائج</string>
     <string name="stats_summary_with_groups">ملخص النتائج (%1$d)</string>
     <string name="stats_empty">لا توجد فواتير تطابق الفلاتر المحددة.</string>
+    <string name="stats_no_invoices">لا توجد فواتير</string>
     <string name="stats_clear_filters">مسح الفلاتر</string>
     <string name="stats_exclude_vat">الرقم الضريبي المستبعد</string>
     <string name="stats_vat_include">تضمين</string>

@@ -65,6 +65,7 @@
     <string name="stats_summary">Results summary</string>
     <string name="stats_summary_with_groups">Results summary (%1$d)</string>
     <string name="stats_empty">No invoices match these filters.</string>
+    <string name="stats_no_invoices">No invoices</string>
     <string name="stats_clear_filters">Clear filters</string>
     <string name="stats_exclude_vat">Excluded VAT number</string>
     <string name="stats_vat_include">Include</string>
