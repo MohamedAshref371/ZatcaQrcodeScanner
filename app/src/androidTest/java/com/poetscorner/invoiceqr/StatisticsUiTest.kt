@@ -26,7 +26,7 @@ class StatisticsUiTest {
             StatisticsScreen(StatisticsState(loading = false), {}, {},
                 sellerSuggestions = { if (it == "Mar") listOf("North Market") else pendingLookup.await() })
         } }
-        compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.history_filter_title)).performClick()
         val sellerField = hasSetTextAction() and hasText(text(R.string.tag_seller))
         compose.onNode(sellerField).performTextInput("Mar")
         compose.waitUntil(5_000) { compose.onAllNodesWithText("North Market").fetchSemanticsNodes().isNotEmpty() }
@@ -49,7 +49,7 @@ class StatisticsUiTest {
             StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {},
                 sellerSuggestions = { if (it.contains("Market")) listOf("North Market") else emptyList() })
         } }
-        compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.history_filter_title)).performClick()
         val sellerField = hasSetTextAction() and hasText(text(R.string.tag_seller))
         compose.onNode(sellerField).performTextInput("Market")
         compose.waitUntil(5_000) { compose.onAllNodesWithText("North Market").fetchSemanticsNodes().isNotEmpty() }
@@ -71,7 +71,7 @@ class StatisticsUiTest {
             StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {},
                 sellerSuggestions = { emptyList() })
         } }
-        compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.history_filter_title)).performClick()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.tag_seller))).performTextInput("Market")
         compose.onNodeWithText(text(R.string.history_apply_date)).performClick()
         compose.runOnIdle { assertEquals("Market", request.seller) }
@@ -82,7 +82,7 @@ class StatisticsUiTest {
         compose.setContent { MaterialTheme {
             StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {})
         } }
-        compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.history_filter_title)).performClick()
         compose.onNodeWithText(text(R.string.stats_vat_exclude)).performClick()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.stats_exclude_vat))).performTextInput("123")
         compose.onNodeWithText(text(R.string.history_apply_date)).assertIsEnabled().performClick()
@@ -106,12 +106,12 @@ class StatisticsUiTest {
         compose.onNodeWithContentDescription(text(R.string.stats_sort_direction)).performClick()
         compose.onNodeWithContentDescription(text(R.string.stats_sort_direction)).assert(
             SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, text(R.string.stats_descending)))
-        compose.onNodeWithTag("statistics_list").performScrollToNode(hasText(text(R.string.history_filter_title)))
-        compose.onNodeWithText(text(R.string.history_filter_title)).performClick()
+        compose.onNodeWithTag("statistics_list").performScrollToNode(hasContentDescription(text(R.string.history_filter_title)))
+        compose.onNodeWithContentDescription(text(R.string.history_filter_title)).performClick()
         compose.onNode(hasSetTextAction() and hasText(text(R.string.tag_seller))).performTextInput("Market")
         compose.onNode(hasSetTextAction() and hasText(text(R.string.tag_vat))).performTextInput("3001")
         compose.onNodeWithText(text(R.string.history_apply_date)).performClick()
-        compose.onNodeWithText(text(R.string.history_filter_title)).assertIsSelected()
+        compose.onNodeWithContentDescription(text(R.string.history_filter_title)).assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, text(R.string.stats_filters_active)))
         compose.runOnIdle {
             assertEquals("Market", request.seller)
             assertEquals("3001", request.vat)
@@ -121,7 +121,7 @@ class StatisticsUiTest {
         }
         compose.onNodeWithTag("statistics_list").performScrollToNode(hasText(text(R.string.stats_clear_filters)))
         compose.onNodeWithText(text(R.string.stats_clear_filters)).performClick()
-        compose.onNodeWithText(text(R.string.history_filter_title)).assertIsNotSelected()
+        compose.onNodeWithContentDescription(text(R.string.history_filter_title)).assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, text(R.string.stats_filters_inactive)))
         compose.runOnIdle {
             assertFalse(request.filtered)
             assertEquals(StatisticsGrouping.QUARTER, request.grouping)

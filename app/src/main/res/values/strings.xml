@@ -46,8 +46,8 @@
     <string name="nav_statistics">Statistics</string>
     <string name="stats_hint">Includes all saved invoices</string>
     <string name="stats_group_by">Group by</string>
-    <string name="stats_group_compact">Group: %1$s</string>
-    <string name="stats_sort_compact">Sort: %1$s</string>
+    <string name="stats_group_compact">Group by: %1$s</string>
+    <string name="stats_sort_compact">Sort by: %1$s</string>
     <string name="stats_total_including_tax">Invoice total</string>
     <string name="stats_filters_active">Filters active</string>
     <string name="stats_filters_inactive">No active filters</string>

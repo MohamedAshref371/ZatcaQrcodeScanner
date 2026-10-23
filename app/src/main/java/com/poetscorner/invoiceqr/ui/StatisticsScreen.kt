@@ -99,14 +99,19 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 val filterState = stringResource(if (request.filtered) R.string.stats_filters_active else R.string.stats_filters_inactive)
-                FilterChip(selected = request.filtered, onClick = { filters = true },
-                    modifier = Modifier.weight(1f).semantics { stateDescription = filterState },
-                    label = { Text(stringResource(R.string.history_filter_title), Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
-                    leadingIcon = { AppIcon(R.drawable.ic_filter, Modifier.size(18.dp)) },
-                    trailingIcon = if (request.filtered) { { Badge() } } else null)
+                TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text(stringResource(R.string.history_filter_title)) } },
+                    state = rememberTooltipState()) {
+                    IconButton(onClick = { filters = true },
+                        modifier = Modifier.size(48.dp).semantics { stateDescription = filterState }) {
+                        BadgedBox(badge = { if (request.filtered) Badge() }) {
+                            AppIcon(R.drawable.ic_filter, description = stringResource(R.string.history_filter_title))
+                        }
+                    }
+                }
                 CompactStatisticsChoice(stringResource(R.string.stats_group_by),
                     stringResource(R.string.stats_group_compact, stringResource(groupSortLabel)), request.grouping.name,
-                    StatisticsGrouping.entries.map { it.name to stringResource(it.label()) }, modifier = Modifier.weight(2f)) {
+                    StatisticsGrouping.entries.map { it.name to stringResource(it.label()) }, modifier = Modifier.weight(1f)) {
                     onChange(request.copy(grouping = StatisticsGrouping.valueOf(it)))
                 }
             }
@@ -114,11 +119,11 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                 verticalAlignment = Alignment.CenterVertically) {
                 CompactStatisticsChoice(stringResource(R.string.stats_sort_by),
                     stringResource(R.string.stats_sort_compact, stringResource(sortLabels.getValue(request.sort))), request.sort.name,
-                    StatisticsSort.entries.map { it.name to stringResource(sortLabels.getValue(it)) }, modifier = Modifier.weight(3f)) {
+                    StatisticsSort.entries.map { it.name to stringResource(sortLabels.getValue(it)) }, modifier = Modifier.weight(1f)) {
                     onChange(request.copy(sort = StatisticsSort.valueOf(it)))
                 }
                 val direction = stringResource(if (request.descending) R.string.stats_descending else R.string.stats_ascending)
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                         tooltip = { PlainTooltip { Text(direction) } }, state = rememberTooltipState()) {
                         IconButton(onClick = { onChange(request.copy(descending = !request.descending)) },
