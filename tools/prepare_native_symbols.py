@@ -45,7 +45,7 @@ def main():
     merged = ROOT / "app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib"
     output = ROOT / "app/build/outputs/native-debug-symbols/release"
     output.mkdir(parents=True, exist_ok=True)
-    included, stripped, unavailable = [], [], []
+    included, stripped, unavailable, embedded = [], [], [], []
     payloads = {}
     with zipfile.ZipFile(args.bundle) as bundle:
         native_names = sorted(name for name in bundle.namelist()
@@ -66,19 +66,32 @@ def main():
             if not sections.get(".symtab") and not sections.get(".debug_info"):
                 stripped.append(name)
                 continue
-            payloads[name] = data
+            metadata_name = "BUNDLE-METADATA/com.android.tools.build.debugsymbols/" + name + ".sym"
+            if metadata_name in bundle.namelist():
+                metadata = bundle.read(metadata_name)
+                metadata_sections = elf_sections(metadata)
+                if not metadata_sections.get(".symtab") or (
+                    metadata != data and (not build_id or build_id != metadata_sections.get(".note.gnu.build-id"))
+                ):
+                    raise ValueError(f"Embedded native symbols do not match the AAB: {name}")
+                payloads[name] = metadata
+                embedded.append(name)
+            else:
+                payloads[name] = data
             included.append(name)
     if not payloads:
         raise SystemExit("No usable symbols found; obtain matching symbols from the library publishers.")
     target = output / "native-debug-symbols.zip"
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
         for name, data in payloads.items():
-            archive.writestr(name, data)
+            archive.writestr(name + ".sym", data)
     report = {"bundle": str(args.bundle.resolve()),
               "bundle_sha256": hashlib.sha256(args.bundle.read_bytes()).hexdigest(),
-              "included": included, "already_stripped": stripped, "unavailable": unavailable}
+              "included": included, "embedded_in_bundle": embedded,
+              "already_stripped": stripped, "unavailable": unavailable}
     (output / "coverage.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"Packaged {len(included)} native binaries with real symbols; {len(stripped)} already stripped; {len(unavailable)} unavailable.")
+    print(f"Verified {len(embedded)} symbol files already embedded in the AAB.")
     print(target.relative_to(ROOT))
 
 

@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.core.view.WindowCompat
 import com.poetscorner.invoiceqr.billing.SupporterViewModel
 import com.poetscorner.invoiceqr.billing.SupporterState
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -189,8 +190,17 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
         }
     }
     BackHandler(screen != 0 || (previousTab != null && previousTab != 0)) { vm.backFromResultOrHome() }
-    ZatcaQrcodeScannerTheme(darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() },
+    val darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() }
+    ZatcaQrcodeScannerTheme(darkTheme = darkTheme,
         goldenTheme = if (previewActive) previewGold else support.owned && settings.goldenTheme) {
+        SideEffect {
+            context.activity()?.window?.let { window ->
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+            }
+        }
         Scaffold(topBar = { TopAppBar(navigationIcon = {
             IconTile(R.drawable.ic_scan, Modifier.padding(start = 16.dp, end = 8.dp))
         }, title = { Column {
@@ -214,7 +224,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                         indicatorColor = MaterialTheme.colorScheme.primaryContainer))
             }
         } } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
-            Column(Modifier.padding(padding).fillMaxSize()) {
+            Column(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
                 if (busy || restoringResult) LinearProgressIndicator(Modifier.fillMaxWidth())
                 transfer?.let { TransferProgress(it) }
                 when(screen) {

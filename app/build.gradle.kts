@@ -1,7 +1,67 @@
+import com.android.build.api.artifact.MultipleArtifact
+import com.android.build.api.artifact.SingleArtifact
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp") version "2.3.12"
+}
+
+// Preserve real symbols from prebuilt libraries when the local NDK cannot extract them.
+abstract class CollectNativeSymbolTables : DefaultTask() {
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val nativeLibraries: DirectoryProperty
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val existingSymbols: ListProperty<Directory>
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val collectorScript: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val symbolTables: DirectoryProperty
+
+    @get:Input
+    abstract val pythonExecutable: Property<String>
+
+    @TaskAction
+    fun collect() {
+        val arguments = buildList {
+            add(pythonExecutable.get())
+            add(collectorScript.get().asFile.absolutePath)
+            addAll(listOf("--merged-libs", nativeLibraries.get().asFile.absolutePath,
+                "--output", symbolTables.get().asFile.absolutePath))
+            existingSymbols.get().forEach {
+                addAll(listOf("--existing-metadata", it.asFile.absolutePath))
+            }
+        }
+        execOperations.exec { commandLine(arguments) }
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        val collectSymbols = tasks.register<CollectNativeSymbolTables>(
+            "collect${variant.name.replaceFirstChar { it.uppercaseChar() }}NativeSymbolTables"
+        ) {
+            nativeLibraries.set(variant.artifacts.get(SingleArtifact.MERGED_NATIVE_LIBS))
+            collectorScript.set(rootProject.layout.projectDirectory.file("tools/collect_native_symbol_tables.py"))
+            inputs.file(rootProject.file("tools/prepare_native_symbols.py"))
+            pythonExecutable.set(providers.gradleProperty("nativeSymbolsPython").orElse("python"))
+        }
+        // Transform before bundle packaging/signing; preserve AGP-generated symbols when available.
+        variant.artifacts.use(collectSymbols)
+            .wiredWith(CollectNativeSymbolTables::existingSymbols, CollectNativeSymbolTables::symbolTables)
+            .toTransform(MultipleArtifact.NATIVE_SYMBOL_TABLES)
+    }
 }
 
 ksp {
@@ -78,7 +138,7 @@ dependencies {
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")
-    implementation("androidx.datastore:datastore-preferences:1.2.0")
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
     implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
