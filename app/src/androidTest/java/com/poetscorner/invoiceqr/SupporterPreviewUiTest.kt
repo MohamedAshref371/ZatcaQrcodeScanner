@@ -30,6 +30,10 @@ class SupporterPreviewUiTest {
         val goldenBefore = vm.settings.value.goldenTheme
 
         compose.onNodeWithText(text(R.string.nav_settings)).performClick()
+        settingsItem(R.string.supporter_details)
+        compose.onNodeWithText(text(R.string.supporter_details)).performClick()
+        compose.onNodeWithText(text(R.string.supporter_description)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.close)).performClick()
         settingsItem(R.string.supporter_preview_start)
         compose.onNodeWithTag("supporter_preview_toggle").assertIsEnabled().performClick()
         compose.onNodeWithTag("supporter_preview_banner").assertDoesNotExist()

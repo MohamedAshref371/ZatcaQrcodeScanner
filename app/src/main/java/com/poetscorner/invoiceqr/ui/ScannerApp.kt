@@ -553,46 +553,67 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
 private fun SupporterCard(state: SupporterState, golden: Boolean, preview: Boolean,
     onPreview: (Boolean) -> Unit, onPurchase: () -> Unit,
     onRestore: () -> Unit, onGolden: (Boolean) -> Unit) {
+    var showDetails by rememberSaveable { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 IconTile(R.drawable.ic_heart)
-                Text(stringResource(R.string.free_no_ads), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.supporter_pack), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             }
-            Text(stringResource(R.string.free_features))
-            Text(stringResource(R.string.supporter_pack), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.supporter_description))
             if (state.owned) {
                 Text(stringResource(R.string.supporter_active), color = MaterialTheme.colorScheme.primary)
                 Toggle(stringResource(R.string.gold_theme), golden, onGolden)
             } else {
-                Text(stringResource(R.string.supporter_preview_description), style = MaterialTheme.typography.bodyMedium)
-                OutlinedButton(onClick = { onPreview(!preview) },
-                    modifier = Modifier.fillMaxWidth().testTag("supporter_preview_toggle")) {
-                    Text(stringResource(if (preview) R.string.supporter_preview_end else R.string.supporter_preview_start))
+                Text(stringResource(R.string.supporter_compact_description), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.supporter_free_note), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = onPurchase,
+                        enabled = state.available && !state.loading && !state.purchasing && !state.pending,
+                        modifier = Modifier.weight(1.4f).heightIn(min = 48.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text(when {
+                            state.pending -> stringResource(R.string.purchase_pending)
+                            state.purchasing -> stringResource(R.string.purchase_processing)
+                            state.loading -> stringResource(R.string.store_connecting)
+                            state.price != null -> stringResource(R.string.support_price, state.price.orEmpty())
+                            else -> stringResource(R.string.purchase_unavailable)
+                        })
+                    }
+                    OutlinedButton(onClick = { onPreview(!preview) },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("supporter_preview_toggle"),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text(stringResource(if (preview) R.string.supporter_preview_end else R.string.supporter_preview_start))
+                    }
                 }
                 if (preview) Toggle(stringResource(R.string.gold_theme), golden, onGolden)
-                Button(onClick = onPurchase,
-                    enabled = state.available && !state.loading && !state.purchasing && !state.pending,
-                    modifier = Modifier.fillMaxWidth()) {
-                    Text(when {
-                        state.pending -> stringResource(R.string.purchase_pending)
-                        state.purchasing -> stringResource(R.string.purchase_processing)
-                        state.loading -> stringResource(R.string.store_connecting)
-                        state.price != null -> stringResource(R.string.support_price, state.price.orEmpty())
-                        else -> stringResource(R.string.purchase_unavailable)
-                    })
-                }
             }
             if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             state.message?.let { Text(it.localized(), style = MaterialTheme.typography.bodySmall) }
-            TextButton(onClick = onRestore, enabled = !state.loading && !state.purchasing) {
-                Text(stringResource(R.string.restore_retry))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onRestore, enabled = !state.loading && !state.purchasing) {
+                    Text(stringResource(R.string.restore_retry))
+                }
+                if (!state.owned) TextButton(onClick = { showDetails = true }) {
+                    Text(stringResource(R.string.supporter_details))
+                }
             }
-            Text(stringResource(R.string.billing_connection_note), style = MaterialTheme.typography.bodySmall)
         }
     }
+    if (showDetails) AlertDialog(onDismissRequest = { showDetails = false },
+        title = { Text(stringResource(R.string.supporter_details)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.supporter_description))
+                Text(stringResource(R.string.free_features))
+                Text(stringResource(R.string.supporter_preview_description))
+                Text(stringResource(R.string.billing_connection_note))
+            }
+        },
+        confirmButton = { TextButton(onClick = { showDetails = false }) { Text(stringResource(R.string.close)) } })
 }
 
 private fun Context.activity(): Activity? = when (this) {

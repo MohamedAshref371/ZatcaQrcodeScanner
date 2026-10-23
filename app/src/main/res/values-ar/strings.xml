@@ -209,9 +209,12 @@
     <string name="free_no_ads">التطبيق مجاني وبدون إعلانات</string>
     <string name="free_features">جميع وظائف المسح والتحليل والسجل والتصدير متاحة مجانًا.</string>
     <string name="supporter_pack">باقة داعم التطبيق</string>
+    <string name="supporter_compact_description">مظهر ذهبي وشارة داعم · شراء مرة واحدة</string>
+    <string name="supporter_free_note">كل وظائف التطبيق مجانية وبدون إعلانات.</string>
+    <string name="supporter_details">تفاصيل الباقة</string>
     <string name="supporter_description">ادعم استمرار التطوير واحصل على مظهر ذهبي اختياري وشارة داعم في صفحة حول التطبيق. شراء مرة واحدة، بدون اشتراك.</string>
     <string name="supporter_active">شكرًا لدعمك! الباقة مفعّلة.</string>
-    <string name="supporter_preview_start">معاينة باقة الداعم</string>
+    <string name="supporter_preview_start">معاينة</string>
     <string name="supporter_preview_end">إنهاء المعاينة</string>
     <string name="supporter_preview_description">جرّب المظهر الذهبي والشارة دون دفع. لا تتم أي عملية شراء، ويمكنك إنهاء المعاينة في أي وقت. الشارة ظاهرة في «حول التطبيق».</string>
     <string name="supporter_preview_badge">معاينة الشارة · الباقة غير مشتراة</string>
@@ -221,7 +224,7 @@
     <string name="store_connecting">جارٍ الاتصال بالمتجر</string>
     <string name="support_price">دعم التطبيق · %1$s</string>
     <string name="purchase_unavailable">الشراء غير متاح حاليًا</string>
-    <string name="restore_retry">استعادة المشتريات / إعادة المحاولة</string>
+    <string name="restore_retry">استعادة المشتريات</string>
     <string name="billing_connection_note">الشراء والاستعادة يتطلبان Google Play واتصالًا بالإنترنت. استخدام الفواتير يظل متاحًا دون إنترنت.</string>
     <string name="camera_permission_note">اسمح بالكاميرا لقراءة الفاتورة. يمكنك استخدام المعرض أيضًا.</string>
     <string name="camera_allow">السماح بالكاميرا</string>

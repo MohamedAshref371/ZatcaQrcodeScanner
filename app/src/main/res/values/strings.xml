@@ -209,9 +209,12 @@
     <string name="free_no_ads">Free and ad-free</string>
     <string name="free_features">All scanning, analysis, history and export features are free.</string>
     <string name="supporter_pack">App supporter pack</string>
+    <string name="supporter_compact_description">Gold theme and supporter badge · One-time purchase</string>
+    <string name="supporter_free_note">All app features are free and ad-free.</string>
+    <string name="supporter_details">Pack details</string>
     <string name="supporter_description">Support ongoing development and receive an optional gold theme and a supporter badge in About. A one-time purchase, with no subscription.</string>
     <string name="supporter_active">Thank you! Your supporter pack is active.</string>
-    <string name="supporter_preview_start">Preview supporter pack</string>
+    <string name="supporter_preview_start">Preview</string>
     <string name="supporter_preview_end">End preview</string>
     <string name="supporter_preview_description">Try the gold theme and badge without payment. No purchase is made, and you can end the preview at any time. See the badge in About.</string>
     <string name="supporter_preview_badge">Badge preview · not a purchased supporter pack</string>
@@ -221,7 +224,7 @@
     <string name="store_connecting">Connecting to store</string>
     <string name="support_price">Support the app · %1$s</string>
     <string name="purchase_unavailable">Purchase unavailable</string>
-    <string name="restore_retry">Restore purchases / retry</string>
+    <string name="restore_retry">Restore purchases</string>
     <string name="billing_connection_note">Purchasing and restoring require Google Play and an internet connection. Invoice features remain available offline.</string>
     <string name="camera_permission_note">Allow camera access to scan invoices. You can also choose an image.</string>
     <string name="camera_allow">Allow camera</string>
