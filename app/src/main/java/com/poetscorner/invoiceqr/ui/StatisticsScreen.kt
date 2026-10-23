@@ -1,6 +1,8 @@
 package com.poetscorner.invoiceqr.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -84,6 +85,17 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                 Box(Modifier.weight(1f)) {
                     SectionHeading(stringResource(R.string.nav_statistics), stringResource(R.string.stats_hint))
                 }
+                val filterState = stringResource(if (request.filtered) R.string.stats_filters_active else R.string.stats_filters_inactive)
+                TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text(stringResource(R.string.history_filter_title)) } },
+                    state = rememberTooltipState()) {
+                    IconButton(onClick = { filters = true },
+                        modifier = Modifier.size(48.dp).semantics { stateDescription = filterState }) {
+                        BadgedBox(badge = { if (request.filtered) Badge() }) {
+                            AppIcon(R.drawable.ic_filter, description = stringResource(R.string.history_filter_title))
+                        }
+                    }
+                }
                 TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                     tooltip = { PlainTooltip { Text(stringResource(R.string.stats_export)) } },
                     state = rememberTooltipState()) {
@@ -96,29 +108,15 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             }
         }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                val filterState = stringResource(if (request.filtered) R.string.stats_filters_active else R.string.stats_filters_inactive)
-                TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                    tooltip = { PlainTooltip { Text(stringResource(R.string.history_filter_title)) } },
-                    state = rememberTooltipState()) {
-                    IconButton(onClick = { filters = true },
-                        modifier = Modifier.size(48.dp).semantics { stateDescription = filterState }) {
-                        BadgedBox(badge = { if (request.filtered) Badge() }) {
-                            AppIcon(R.drawable.ic_filter, description = stringResource(R.string.history_filter_title))
-                        }
-                    }
-                }
-                CompactStatisticsChoice(stringResource(R.string.stats_group_by),
-                    stringResource(R.string.stats_group_compact, stringResource(groupSortLabel)), request.grouping.name,
-                    StatisticsGrouping.entries.map { it.name to stringResource(it.label()) }, modifier = Modifier.weight(1f)) {
-                    onChange(request.copy(grouping = StatisticsGrouping.valueOf(it)))
-                }
+            CompactStatisticsChoice(stringResource(R.string.stats_group_by),
+                stringResource(groupSortLabel), request.grouping.name,
+                StatisticsGrouping.entries.map { it.name to stringResource(it.label()) }, modifier = Modifier.fillMaxWidth()) {
+                onChange(request.copy(grouping = StatisticsGrouping.valueOf(it)))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 CompactStatisticsChoice(stringResource(R.string.stats_sort_by),
-                    stringResource(R.string.stats_sort_compact, stringResource(sortLabels.getValue(request.sort))), request.sort.name,
+                    stringResource(sortLabels.getValue(request.sort)), request.sort.name,
                     StatisticsSort.entries.map { it.name to stringResource(sortLabels.getValue(it)) }, modifier = Modifier.weight(1f)) {
                     onChange(request.copy(sort = StatisticsSort.valueOf(it)))
                 }
@@ -184,17 +182,30 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
 private fun CompactStatisticsChoice(description: String, label: String, selected: String,
     values: List<Pair<String, String>>, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    Box(modifier) {
-        AssistChip(onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = description },
-            label = { Text(label, Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
-            trailingIcon = { AppIcon(R.drawable.ic_expand, Modifier.size(18.dp)) })
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            values.forEach { (key, text) ->
-                DropdownMenuItem(text = { Text(text) }, onClick = {
-                    expanded = false
-                    onChange(key)
-                }, leadingIcon = if (key == selected) { { AppIcon(R.drawable.ic_check) } } else null)
+    Row(modifier.padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(description, modifier = Modifier.width(80.dp),
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(Modifier.weight(1f)) {
+            OutlinedButton(onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { contentDescription = description },
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    contentColor = MaterialTheme.colorScheme.onSurface),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+                Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.width(8.dp))
+                AppIcon(R.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                values.forEach { (key, text) ->
+                    DropdownMenuItem(text = { Text(text) }, onClick = {
+                        expanded = false
+                        onChange(key)
+                    }, leadingIcon = if (key == selected) { { AppIcon(R.drawable.ic_check) } } else null)
+                }
             }
         }
     }
