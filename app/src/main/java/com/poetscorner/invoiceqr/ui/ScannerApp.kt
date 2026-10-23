@@ -540,7 +540,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     if (showAbout) AlertDialog(onDismissRequest = { showAbout = false },
         title = { Text(stringResource(R.string.app_name)) },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE))
+            Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME))
             if (preview) Text(stringResource(R.string.supporter_preview_badge), style = MaterialTheme.typography.labelMedium)
             if (support.owned || preview) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
                 Text(stringResource(R.string.supporter_badge), Modifier.padding(10.dp))
