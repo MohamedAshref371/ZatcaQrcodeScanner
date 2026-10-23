@@ -216,19 +216,45 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boo
     modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val locale = LocalConfiguration.current.locales[0]
     val money = remember(locale) { NumberFormat.getNumberInstance(locale).apply { minimumFractionDigits = 2; maximumFractionDigits = 2 } }
-    Card(modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), colors = CardDefaults.cardColors(containerColor =
-        if (summary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.stats_count, totals.count))
+    val actionLabel = stringResource(R.string.stats_view_invoices)
+    Card(modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(
+        onClickLabel = actionLabel, role = Role.Button, onClick = onClick) else Modifier),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, if (summary) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+            else MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor =
+            if (summary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest)) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.stats_count, totals.count), style = MaterialTheme.typography.bodySmall,
+                    color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             val total = if (totals.count > 0 && totals.missingTotal == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.total)
             val tax = if (totals.count > 0 && totals.missingTax == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.tax)
-            Text(stringResource(R.string.stats_filter_value, stringResource(if (totals.missingTotal > 0) R.string.stats_available_total else R.string.tag_total), total))
-            Text(stringResource(R.string.stats_filter_value, stringResource(if (totals.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax), tax))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.Bottom) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(if (totals.missingTotal > 0) R.string.stats_available_total else R.string.tag_total),
+                        style = MaterialTheme.typography.labelMedium)
+                    Text(total, style = MaterialTheme.typography.headlineSmall,
+                        color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(if (totals.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax),
+                        style = MaterialTheme.typography.labelMedium)
+                    Text(tax, style = MaterialTheme.typography.titleMedium)
+                }
+            }
             if (totals.missingTotal > 0) Text(stringResource(R.string.stats_excluded_total, totals.missingTotal),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             if (totals.missingTax > 0) Text(stringResource(R.string.stats_excluded_tax, totals.missingTax),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            if (summary && totals.count > 0) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f))
+                Text(stringResource(R.string.stats_groups_hint), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
         }
     }
 }

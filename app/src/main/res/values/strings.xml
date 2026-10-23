@@ -82,6 +82,7 @@
     <string name="stats_available_total">Available total</string>
     <string name="stats_available_tax">Available VAT</string>
     <string name="stats_view_invoices">View group invoices</string>
+    <string name="stats_groups_hint">Tap a group to view its invoices</string>
     <string name="stats_back">Back</string>
     <string name="stats_export">Export statistics as CSV</string>
     <string name="stats_export_success">Statistics exported</string>
