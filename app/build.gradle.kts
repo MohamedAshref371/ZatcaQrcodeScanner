@@ -6,7 +6,7 @@ import javax.inject.Inject
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.devtools.ksp") version "2.3.12"
+    alias(libs.plugins.ksp)
 }
 
 // Preserve real symbols from prebuilt libraries when the local NDK cannot extract them.
@@ -124,28 +124,28 @@ android {
 }
 
 dependencies {
-    implementation("com.google.android.play:review:2.0.2")
-    implementation("com.android.billingclient:billing:9.1.0")
-    implementation("io.github.zxing-cpp:android:3.1.1")
-    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
-    implementation("com.google.android.gms:play-services-base:18.5.0")
-    implementation("androidx.camera:camera-camera2:1.5.0")
-    implementation("androidx.camera:camera-lifecycle:1.5.0")
-    implementation("androidx.camera:camera-view:1.5.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
-    implementation("androidx.room:room-runtime:2.8.4")
-    implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
-    implementation("androidx.datastore:datastore-preferences:1.2.1")
-    implementation("androidx.exifinterface:exifinterface:1.4.1")
+    implementation(libs.google.play.review)
+    implementation(libs.google.play.billing)
+    implementation(libs.zxing.android)
+    implementation(libs.google.mlkit.barcode)
+    implementation(libs.google.play.services.base)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.savedstate)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     // Runtime dependencies already select Foundation 1.9.2; compile against the same ABI.
-    implementation("androidx.compose.foundation:foundation:1.9.2")
+    implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)

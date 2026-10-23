@@ -46,8 +46,6 @@
     <string name="nav_statistics">Statistics</string>
     <string name="stats_hint">Includes all saved invoices</string>
     <string name="stats_group_by">Group by</string>
-    <string name="stats_group_compact">Group by: %1$s</string>
-    <string name="stats_sort_compact">Sort by: %1$s</string>
     <string name="stats_total_including_tax">Invoice total</string>
     <string name="stats_filters_active">Filters active</string>
     <string name="stats_filters_inactive">No active filters</string>
@@ -128,7 +126,6 @@
     <string name="history_to">To</string>
     <string name="history_any_date">Any date</string>
     <string name="history_apply_date">Apply</string>
-    <string name="history_reset_filters">Clear search and filters</string>
     <string name="history_no_matches">No scans match this search and date range. Try changing the search or clearing the filters.</string>
     <string name="history_vat">VAT number: %1$s</string>
     <string name="history_invoice_total">Invoice total: %1$s</string>
@@ -168,14 +165,12 @@
     <string name="checks_passed">Passed</string>
     <string name="checks_failed">Failed</string>
     <string name="structural_passed">Structural checks passed</string>
-    <string name="tag_title">%1$d · %2$s</string>
     <string name="missing">Not present</string>
     <string name="stamp_optional">Not present · optional for tax invoices</string>
     <string name="base64_original">Original Base64 text</string>
     <string name="base64_binary">Binary data displayed as Base64</string>
     <string name="check_details">Check details</string>
     <string name="check_status">%1$s %2$s · Phase %3$d</string>
-    <string name="phase_explanation">Phase-two details and checks appear when any tag from 6 to 9 is present.</string>
     <string name="scan_again">Scan another invoice</string>
     <string name="raw_qr">Original QR content</string>
     <string name="scan_engine">Scan engine (offline)</string>
@@ -207,7 +202,6 @@
     <string name="camera_settings_note">Actual resolution depends on your camera. Intensive options and higher resolutions may increase battery use and scan time. Zoom is available below the camera preview.</string>
     <string name="close">Close</string>
     <string name="supporter_badge">App supporter · thank you</string>
-    <string name="free_no_ads">Free and ad-free</string>
     <string name="free_features">All scanning, analysis, history and export features are free.</string>
     <string name="supporter_pack">App supporter pack</string>
     <string name="supporter_compact_description">Gold theme and supporter badge · One-time purchase</string>

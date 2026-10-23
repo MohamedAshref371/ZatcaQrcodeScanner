@@ -4,7 +4,7 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import com.google.android.gms.tasks.Task
 import com.google.android.play.core.review.ReviewManagerFactory
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -31,13 +31,13 @@ private suspend fun <T> Task<T>.awaitReviewTask(): T = suspendCancellableCorouti
 internal fun openAppStore(context: Context): Boolean {
     val id = context.packageName
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$id"))
+        context.startActivity(Intent(Intent.ACTION_VIEW, "market://details?id=$id".toUri())
             .setPackage("com.android.vending"))
         return true
     } catch (_: ActivityNotFoundException) {
         return try {
             context.startActivity(Intent(Intent.ACTION_VIEW,
-                Uri.parse("https://play.google.com/store/apps/details?id=$id")))
+                "https://play.google.com/store/apps/details?id=$id".toUri()))
             true
         } catch (_: ActivityNotFoundException) {
             false

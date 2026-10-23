@@ -5,6 +5,7 @@ import android.app.Application
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.ui.text.UiText
 import androidx.lifecycle.AndroidViewModel
+import androidx.core.content.edit
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.*
 import com.poetscorner.invoiceqr.BuildConfig
@@ -156,7 +157,7 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun setOwned(owned: Boolean) {
-        prefs.edit().putBoolean("owned", owned).apply()
+        prefs.edit { putBoolean("owned", owned) }
         mutableState.value = state.value.copy(owned = owned)
     }
     private fun failed(message: UiText) {

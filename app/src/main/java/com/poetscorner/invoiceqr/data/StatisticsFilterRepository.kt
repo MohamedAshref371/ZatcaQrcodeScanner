@@ -2,6 +2,7 @@ package com.poetscorner.invoiceqr.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import java.time.LocalDate
 
 /** Store filters independently of the invoice database and of temporary navigation state. */
@@ -27,11 +28,14 @@ internal class StatisticsFilterRepository(private val preferences: SharedPrefere
         val mode = if (request.excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else request.vatMode
         val filter = request.withVatFilter(mode, if (mode == StatisticsVatMode.EXCLUDE) request.excludedVat else request.vat)
         // apply() updates memory immediately and Android flushes its queued write on lifecycle changes.
-        preferences.edit().putString("seller", request.seller).putString("vat", filter.vat)
-            .putString("excluded_vat", filter.excludedVat).putString("vat_mode", filter.vatMode.name)
-            .putString("date_preset", request.datePreset?.name)
-            .putString("from_day", if (request.datePreset == null) request.fromDay?.toString() else null)
-            .putString("to_day", if (request.datePreset == null) request.toDay?.toString() else null)
-            .apply()
+        preferences.edit {
+            putString("seller", request.seller)
+            putString("vat", filter.vat)
+            putString("excluded_vat", filter.excludedVat)
+            putString("vat_mode", filter.vatMode.name)
+            putString("date_preset", request.datePreset?.name)
+            putString("from_day", if (request.datePreset == null) request.fromDay?.toString() else null)
+            putString("to_day", if (request.datePreset == null) request.toDay?.toString() else null)
+        }
     }
 }

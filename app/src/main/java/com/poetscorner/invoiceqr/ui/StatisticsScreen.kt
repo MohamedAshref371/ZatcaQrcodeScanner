@@ -214,8 +214,8 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
 }
 
 @Composable
-private fun StatisticsCard(title: String, totals: StatisticsTotals, summary: Boolean = false,
-    modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Modifier = Modifier,
+    summary: Boolean = false, onClick: (() -> Unit)? = null) {
     val locale = LocalConfiguration.current.locales[0]
     val money = remember(locale) { NumberFormat.getNumberInstance(locale).apply { minimumFractionDigits = 2; maximumFractionDigits = 2 } }
     val actionLabel = stringResource(R.string.stats_view_invoices)

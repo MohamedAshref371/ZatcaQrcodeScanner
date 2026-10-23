@@ -2,7 +2,7 @@ package com.poetscorner.invoiceqr.ui
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import android.widget.Toast
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -23,7 +23,7 @@ internal fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
         confirmButton = {
             TextButton(onClick = {
                 try {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL)))
+                    context.startActivity(Intent(Intent.ACTION_VIEW, BuildConfig.PRIVACY_POLICY_URL.toUri()))
                     onDismiss()
                 } catch (_: ActivityNotFoundException) {
                     Toast.makeText(context, R.string.privacy_link_error, Toast.LENGTH_SHORT).show()
