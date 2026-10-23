@@ -88,16 +88,6 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                 if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         }
-        if (!state.loading && state.entries.isEmpty() && !state.failed) item {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.large) {
-                Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    IconTile(R.drawable.ic_history)
-                    Text(stringResource(if (state.total == 0) R.string.no_history else R.string.history_no_matches),
-                        style = MaterialTheme.typography.bodyLarge)
-                }
-            }
-        }
         if (state.entries.isNotEmpty() || (!state.loading && !state.failed)) item(key = "history_summary") {
             val filtered = state.displayedFilter.query.isNotBlank() || state.displayedFilter.fromDay != null || state.displayedFilter.toDay != null
             Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium) {
@@ -112,6 +102,16 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                     Text(stringResource(if (filtered) R.string.history_summary_result_total else R.string.history_summary_total,
                         state.amount?.let { amountFormat.format(it) } ?: stringResource(R.string.history_total_unavailable)),
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        if (!state.loading && state.entries.isEmpty() && !state.failed) item {
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.large) {
+                Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    IconTile(R.drawable.ic_history)
+                    Text(stringResource(if (state.total == 0) R.string.no_history else R.string.history_no_matches),
+                        style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
