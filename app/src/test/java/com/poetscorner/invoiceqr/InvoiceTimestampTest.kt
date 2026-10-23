@@ -11,6 +11,7 @@ class InvoiceTimestampTest {
     @Test fun preservesInvoiceClockAndOnlyLabelsExplicitKnownZones() {
         for ((suffix, label) in listOf(
             "Z" to R.string.invoice_date_gmt,
+            "+00:00" to R.string.invoice_date_gmt,
             "+03:00" to R.string.invoice_date_makkah,
             "+0300" to R.string.invoice_date_makkah,
             "" to R.string.invoice_date_time,

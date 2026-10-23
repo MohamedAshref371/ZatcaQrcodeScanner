@@ -48,7 +48,7 @@
     <string name="stats_group_by">Group by</string>
     <string name="stats_group_compact">Group: %1$s</string>
     <string name="stats_sort_compact">Sort: %1$s</string>
-    <string name="stats_total_including_tax">Total including VAT</string>
+    <string name="stats_total_including_tax">Invoice total</string>
     <string name="stats_filters_active">Filters active</string>
     <string name="stats_filters_inactive">No active filters</string>
     <string name="stats_sort_by">Sort by</string>
@@ -262,7 +262,7 @@
     <string name="invoice_date_time">Date and time</string>
     <string name="invoice_date_gmt">Date and time (GMT)</string>
     <string name="invoice_date_makkah">Date and time (Makkah time)</string>
-    <string name="tag_total">Total</string>
+    <string name="tag_total">Invoice total</string>
     <string name="tag_tax">VAT amount</string>
     <string name="tag_hash">Invoice hash</string>
     <string name="tag_signature">Signature</string>
