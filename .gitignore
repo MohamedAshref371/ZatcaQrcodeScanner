@@ -13,6 +13,7 @@ build/
 !**/src/**/build/
 
 # ---- Local config (machine-specific, never commit) ----
+.android/
 local.properties
 /local.properties
 

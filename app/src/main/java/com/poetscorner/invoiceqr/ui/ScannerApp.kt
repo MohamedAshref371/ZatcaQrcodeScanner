@@ -42,6 +42,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -90,6 +91,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
     val previewActive = supporterPreview && !support.owned
     LaunchedEffect(support.owned) { if (support.owned) supporterPreview = false }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val configuration = LocalConfiguration.current
     val haptic = LocalHapticFeedback.current
     val snackbar = remember { SnackbarHostState() }
@@ -168,7 +170,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
         it?.let { uri -> vm.importBackup(uri) }
     }
     LaunchedEffect(message, configuration) { message?.let { snackbar.showSnackbar(it.resolve(context)); vm.message.value = null } }
-    LaunchedEffect(vm, configuration, lifecycle) {
+    LaunchedEffect(vm, configuration, resources, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             vm.continuousNotices.collectLatest { notice ->
                 val title = when (notice.status) {
@@ -178,12 +180,12 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
                     ContinuousScanStatus.SAVE_FAILED -> R.string.history_save_error
                 }
                 val invoice = notice.result.invoice
-                val details = context.getString(R.string.continuous_scan_details,
-                    invoice.value(1).ifBlank { context.getString(R.string.unknown_seller) },
-                    invoice.value(4).ifBlank { context.getString(R.string.missing) })
+                val details = resources.getString(R.string.continuous_scan_details,
+                    invoice.value(1).ifBlank { resources.getString(R.string.unknown_seller) },
+                    invoice.value(4).ifBlank { resources.getString(R.string.missing) })
                 snackbar.currentSnackbarData?.dismiss()
-                val action = snackbar.showSnackbar(context.getString(title) + "\n" + details,
-                    actionLabel = context.getString(R.string.continuous_scan_view_result),
+                val action = snackbar.showSnackbar(resources.getString(title) + "\n" + details,
+                    actionLabel = resources.getString(R.string.continuous_scan_view_result),
                     duration = SnackbarDuration.Short)
                 if (action == SnackbarResult.ActionPerformed) vm.viewContinuousResult(notice)
             }

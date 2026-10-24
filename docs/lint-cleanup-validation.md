@@ -2,6 +2,39 @@
 
 Date: 2026-10-23. App version: 1.0.4 (7).
 
+Latest status after Core 1.19.1 and Lifecycle 2.11.0: zero lint errors and five
+warnings (four library/tooling notices and the retained plural warning). Fresh
+unit tests: 72 passed. Debug/Release builds passed. API 36.1 emulator checks:
+17 passed, one skipped because camera zoom is unsupported. The update also
+required fixing five Compose resource-access lint errors in continuous-scan
+snackbars. See [Core/Lifecycle validation](core-lifecycle-update-validation.md).
+
+Current status after the requested target SDK 37 update: zero lint errors and
+10 warnings (nine library/tooling notices and the retained plural warning).
+Debug, Release and instrumentation APK builds passed. Fresh unit tests passed.
+Android 17 device validation remains outstanding. See
+[Target SDK 37 validation](target-sdk-37-validation.md).
+The follow-ups below describe earlier stages.
+
+Latest follow-up on 2026-10-24: Android Studio 2026.2.1 is installed and IDE
+sync succeeds. The project now uses AGP 9.4.1 / Gradle 9.6.0 / JetBrains Java 25.
+Fresh unit tests (72), Debug/Release builds, and lint passed; lint now reports
+0 errors and 11 warnings. See [Studio update validation](studio-update-validation.md).
+The following paragraph records the preceding toolchain validation.
+
+Follow-up on 2026-10-24: Play Services Base was updated to 18.11.1, DataStore
+to 1.3.0, and CameraX to 1.6.2, with validation. The subsequent AGP 9.2.1 / Gradle
+9.4.1 / compile SDK 37 upgrade passed command-line validation. Current lint has
+0 errors and 12 warnings: ten update notices, the intentional target SDK 36
+notice, and the retained plural warning. See
+[Play services update validation](play-services-update-validation.md).
+See also [DataStore update validation](datastore-update-validation.md).
+The [CameraX validation and Core compatibility review](camera-update-validation.md)
+records the SDK/toolchain requirements preventing an isolated Core 1.19.1 update.
+The [toolchain upgrade report](toolchain-upgrade-validation.md) records the new
+build requirements and the installed Android Studio's required update for IDE sync.
+The counts below describe the original cleanup before that follow-up.
+
 ## Changes
 
 - Centralized all 17 directly declared library dependencies in
