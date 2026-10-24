@@ -144,7 +144,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
-    // Declare Foundation directly; transitive dependencies can select a newer version.
+    // Keep Foundation aligned with the other Compose libraries through the BOM.
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)

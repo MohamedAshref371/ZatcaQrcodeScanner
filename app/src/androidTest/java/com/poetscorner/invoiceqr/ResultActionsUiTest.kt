@@ -52,7 +52,14 @@ class ResultActionsUiTest {
             compose.onNodeWithTag("result_list").performScrollToNode(hasContentDescription(shareLabel))
             compose.onNodeWithContentDescription(shareLabel).performClick()
             compose.waitUntil(10000) { !compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) }
-            AutoCloseInputStream(InstrumentationRegistry.getInstrumentation().uiAutomation
+            val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+            // Activity pause precedes the system chooser becoming ready to receive Back.
+            compose.waitUntil(10000) {
+                automation.rootInActiveWindow?.packageName?.toString() in
+                    setOf("android", "com.android.intentresolver")
+            }
+            automation.waitForIdle(500, 5000)
+            AutoCloseInputStream(automation
                 .executeShellCommand("input keyevent KEYCODE_BACK")).use { it.readBytes() }
             compose.waitUntil(10000) { compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) }
             compose.onNodeWithContentDescription(shareLabel).assertIsDisplayed()

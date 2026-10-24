@@ -86,7 +86,7 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                     SectionHeading(stringResource(R.string.nav_statistics), stringResource(R.string.stats_hint))
                 }
                 val filterState = stringResource(if (request.filtered) R.string.stats_filters_active else R.string.stats_filters_inactive)
-                TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                     tooltip = { PlainTooltip { Text(stringResource(R.string.history_filter_title)) } },
                     state = rememberTooltipState()) {
                     IconButton(onClick = { filters = true },
@@ -96,7 +96,7 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                         }
                     }
                 }
-                TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                     tooltip = { PlainTooltip { Text(stringResource(R.string.stats_export)) } },
                     state = rememberTooltipState()) {
                     IconButton(onClick = onExport,
@@ -122,7 +122,7 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                 }
                 val direction = stringResource(if (request.descending) R.string.stats_descending else R.string.stats_ascending)
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                         tooltip = { PlainTooltip { Text(direction) } }, state = rememberTooltipState()) {
                         IconButton(onClick = { onChange(request.copy(descending = !request.descending)) },
                             modifier = Modifier.size(48.dp).semantics { stateDescription = direction }) {
@@ -370,7 +370,7 @@ private fun SellerFilterField(value: String, onValueChange: (String) -> Unit,
                 onValueChange(it.text)
             }
         }, label = { Text(stringResource(R.string.tag_seller)) }, singleLine = true,
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable)
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
                 .onFocusChanged { focused = it.isFocused })
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { dismissed = true }) {
             suggestions.forEach { name ->

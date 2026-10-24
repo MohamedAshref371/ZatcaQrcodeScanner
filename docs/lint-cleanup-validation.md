@@ -2,6 +2,15 @@
 
 Date: 2026-10-23. App version: 1.0.4 (7).
 
+Current status after Compose BOM 2026.09.00: zero lint errors and three warnings
+(Gradle update, Kotlin Compose plugin update, retained plural heuristic).
+Foundation now follows the BOM. Unit tests: 72 passed. Final API 37 interface
+suite: 37 passed, no failures/skips. Optimized Release launch/navigation passed.
+Instrumentation compilation separately emits 14 legacy Compose JUnit rule API
+deprecation warnings; these are documented, not suppressed, for a v2 test-harness
+migration. See [Compose update validation](compose-update-validation.md).
+The entries below describe earlier stages.
+
 Android 17 follow-up: selected API 37 runtime suite passed all 42 tests, with no
 failures/skips; optimized Release launch and five-tab checks passed. Old API 36.1
 AVDs/image were removed after verification, as requested. See
