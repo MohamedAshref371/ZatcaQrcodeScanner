@@ -121,13 +121,14 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                         val now = SystemClock.elapsedRealtime()
                         if (!delivered.get() && now - last >= currentSettings.intervalMs) {
                             last = now
-                            // The shared ViewPort maps this crop to the preview's visible sensor area.
-                            // Both engines read only this crop, excluding pixels outside the guide.
-                            val visible = image.cropRect
-                            val window = scanWindow(visible.width(), visible.height())
-                            val left = visible.left + window.left
-                            val top = visible.top + window.top
-                            image.setCropRect(Rect(left, top, left + window.size, top + window.size))
+                            // Without the guide, retain the whole visible ViewPort for both engines.
+                            if (currentSettings.cropEnabled) {
+                                val visible = image.cropRect
+                                val window = scanWindow(visible.width(), visible.height())
+                                val left = visible.left + window.left
+                                val top = visible.top + window.top
+                                image.setCropRect(Rect(left, top, left + window.size, top + window.size))
+                            }
                             val result = decoder.read(image, currentSettings)
                             val shouldDeliver = deliveryGate.shouldDeliver(result, now)
                             if (result != null && shouldDeliver
@@ -183,7 +184,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                     true
                 }
             })
-            Canvas(Modifier.fillMaxSize()) {
+            if (settings.cropEnabled) Canvas(Modifier.fillMaxSize().testTag("camera_crop_guide")) {
                 if (size.width < 1 || size.height < 1) return@Canvas
                 val window = scanWindow(size.width.toInt(), size.height.toInt())
                 val left = window.left.toFloat()
@@ -212,7 +213,8 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
             }
             Surface(Modifier.align(Alignment.TopCenter).padding(16.dp),
                 color = Color.Black.copy(alpha = 0.6f), shape = RoundedCornerShape(16.dp)) {
-                Text(stringResource(R.string.camera_hint), Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                Text(stringResource(if (settings.cropEnabled) R.string.camera_hint else R.string.camera_hint_full_frame),
+                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     style = MaterialTheme.typography.bodySmall, color = Color.White, textAlign = TextAlign.Center)
             }
             error?.let { Text(it.localized(), color = Color.White,

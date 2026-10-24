@@ -192,6 +192,8 @@
     <string name="resolution_fhd">FHD · 1080p</string>
     <string name="resolution_qhd">QHD · 1440p</string>
     <string name="scan_frequency">تردد المسح</string>
+    <string name="scan_crop">قص منطقة المسح</string>
+    <string name="camera_hint_full_frame">وجّه الكاميرا إلى رمز QR الفاتورة • اضغط للتركيز</string>
     <string name="speed_normal">عادي · كل 300ms</string>
     <string name="speed_fast">سريع · كل 100ms</string>
     <string name="speed_fastest">الأسرع · كل إطار متاح</string>

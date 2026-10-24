@@ -194,6 +194,8 @@
     <string name="resolution_fhd">FHD · 1080p</string>
     <string name="resolution_qhd">QHD · 1440p</string>
     <string name="scan_frequency">Scan frequency</string>
+    <string name="scan_crop">Crop scan area</string>
+    <string name="camera_hint_full_frame">Point the camera at the invoice QR code • Tap to focus</string>
     <string name="speed_normal">Normal · every 300 ms</string>
     <string name="speed_fast">Fast · every 100 ms</string>
     <string name="speed_fastest">Fastest · every available frame</string>

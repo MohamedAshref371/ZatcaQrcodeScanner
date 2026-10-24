@@ -35,7 +35,7 @@ The current ML Kit dependency is `com.google.android.gms:play-services-mlkit-bar
 
 The component can already be available through Google Play services, including from another app. Reinstalling this app does not guarantee that another download will be necessary. The radio buttons indicate the selected engine; component availability is separate from selection.
 
-Engine preferences are stored in DataStore and apply to both camera and gallery scanning. ZXing-specific options appear only when ZXing is selected. Resolution, torch, tap-to-focus, and zoom controls are shared. Both engines restrict camera analysis to the visible square; ML Kit receives a cropped NV21 image with the frame rotation and plane stride taken into account.
+Engine preferences are stored in DataStore and apply to both camera and gallery scanning. ZXing-specific options appear only when ZXing is selected. Resolution, torch, tap-to-focus, and zoom controls are shared. **Crop scan area**, below **Scan frequency**, is enabled by default and restricts both engines to the visible square. Turning it off hides the square and shading and scans the whole visible camera preview. The choice is saved across restarts and does not affect gallery images. ML Kit receives an NV21 image of the selected area with the frame rotation and plane stride taken into account.
 
 ## Results, history, and export
 

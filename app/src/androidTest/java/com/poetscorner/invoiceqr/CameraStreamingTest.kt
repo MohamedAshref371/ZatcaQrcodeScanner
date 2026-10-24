@@ -15,7 +15,9 @@ import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.data.SettingsRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
@@ -60,6 +62,36 @@ class CameraStreamingTest {
         waitForStreaming()
         compose.activityRule.scenario.recreate()
         waitForStreaming()
+    }
+
+    @Test fun cropSwitchPersistsAndControlsTheCameraGuide() = runBlocking<Unit> {
+        val repository = SettingsRepository(compose.activity.applicationContext)
+        fun text(id: Int) = compose.activity.getString(id)
+        waitForStreaming()
+        compose.onNodeWithTag("camera_crop_guide").assertIsDisplayed()
+
+        compose.onNodeWithText(text(R.string.nav_settings)).performClick()
+        compose.onNodeWithTag("settings_list").performScrollToNode(hasText(text(R.string.scan_crop)))
+        compose.onNodeWithText(text(R.string.scan_crop)).assertIsOn().performClick()
+        withTimeout(10000) { repository.settings.first { !it.cropEnabled } }
+        compose.onNodeWithText(text(R.string.nav_scanner)).performClick()
+        waitForStreaming()
+        compose.onNodeWithTag("camera_crop_guide").assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.camera_hint_full_frame)).assertIsDisplayed()
+
+        compose.activityRule.scenario.recreate()
+        waitForStreaming()
+        assertFalse(SettingsRepository(compose.activity.applicationContext).settings.first().cropEnabled)
+        compose.onNodeWithTag("camera_crop_guide").assertDoesNotExist()
+
+        compose.onNodeWithText(text(R.string.nav_settings)).performClick()
+        compose.onNodeWithTag("settings_list").performScrollToNode(hasText(text(R.string.scan_crop)))
+        compose.onNodeWithText(text(R.string.scan_crop)).assertIsOff().performClick()
+        withTimeout(10000) { repository.settings.first { it.cropEnabled } }
+        compose.onNodeWithText(text(R.string.nav_scanner)).performClick()
+        waitForStreaming()
+        compose.onNodeWithTag("camera_crop_guide").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.camera_hint)).assertIsDisplayed()
     }
 
     @Test fun zoomControlChangesCameraStateAndPreviewKeepsStreaming() {
