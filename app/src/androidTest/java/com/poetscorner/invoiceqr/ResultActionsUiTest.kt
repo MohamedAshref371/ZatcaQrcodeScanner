@@ -4,7 +4,7 @@ import android.content.ClipboardManager
 import android.os.ParcelFileDescriptor.AutoCloseInputStream
 import android.view.View
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope

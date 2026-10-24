@@ -2,6 +2,12 @@
 
 Date: 2026-10-24. App version: 1.0.4 (7).
 
+Follow-up: all 14 legacy Compose JUnit rule warnings have now been resolved by
+migrating to v2. Instrumentation compilation emits zero Kotlin warnings/errors,
+and all 37 selected API 37 tests pass. See
+[Compose test v2 validation](compose-test-v2-validation.md).
+The report below records the preceding Compose library update.
+
 ## Change and resolved versions
 
 Updated Compose BOM from 2024.09.00 to 2026.09.00. Removed the separate Foundation

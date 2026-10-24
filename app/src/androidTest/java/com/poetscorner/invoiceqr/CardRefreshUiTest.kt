@@ -3,7 +3,7 @@ package com.poetscorner.invoiceqr
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.poetscorner.invoiceqr.data.*
 import com.poetscorner.invoiceqr.ui.HistoryScreen

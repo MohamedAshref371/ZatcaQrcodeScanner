@@ -6,9 +6,11 @@ Current status after Compose BOM 2026.09.00: zero lint errors and three warnings
 (Gradle update, Kotlin Compose plugin update, retained plural heuristic).
 Foundation now follows the BOM. Unit tests: 72 passed. Final API 37 interface
 suite: 37 passed, no failures/skips. Optimized Release launch/navigation passed.
-Instrumentation compilation separately emits 14 legacy Compose JUnit rule API
-deprecation warnings; these are documented, not suppressed, for a v2 test-harness
-migration. See [Compose update validation](compose-update-validation.md).
+The 14 legacy Compose JUnit rule API deprecation warnings have since been fixed
+by migrating all rule imports to v2. Instrumentation compilation now emits zero
+Kotlin warnings/errors, and all 37 selected API 37 tests pass with v2.
+See [Compose test v2 validation](compose-test-v2-validation.md) and
+[Compose update validation](compose-update-validation.md).
 The entries below describe earlier stages.
 
 Android 17 follow-up: selected API 37 runtime suite passed all 42 tests, with no

@@ -1,7 +1,7 @@
 package com.poetscorner.invoiceqr
 
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.lifecycle.Lifecycle
 import android.os.ParcelFileDescriptor.AutoCloseInputStream
 import androidx.test.ext.junit.runners.AndroidJUnit4
