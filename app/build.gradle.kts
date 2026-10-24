@@ -124,6 +124,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.appcompat)
     implementation(libs.google.play.review)
     implementation(libs.google.play.billing)
     implementation(libs.zxing.android)

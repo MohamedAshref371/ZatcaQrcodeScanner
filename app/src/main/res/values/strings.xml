@@ -1,4 +1,8 @@
 <resources>
+    <string name="app_language">App language</string>
+    <string name="language_system">Follow system</string>
+    <string name="language_arabic" translatable="false">العربية</string>
+    <string name="language_english" translatable="false">English</string>
     <string name="privacy_policy">Privacy policy</string>
     <string name="privacy_open_message">The privacy policy will open in your browser. An internet connection is required.</string>
     <string name="privacy_open_link">Open link</string>

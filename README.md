@@ -63,7 +63,7 @@ Settings includes a **Privacy policy** link that opens the public bilingual poli
 
 English resources are in `app/src/main/res/values/strings.xml`; Arabic translations are in `values-ar/strings.xml`. `resources.properties` declares English as the default resource language. The interface, camera controls, messages, purchases, field labels, parser errors, and check results use Android string resources.
 
-The app follows the device language. On Android 13 and later, change the app language under **Android Settings → Apps → Invoice QR Reader → Language**. On Android 8–12, the device language is used. There is no in-app language picker. `generateLocaleConfig` and `localeFilters` declare English and Arabic support.
+The first option under **Settings → Appearance & app** is **App language**, with Device language (default), العربية and English. The choice is saved across restarts on Android 8 and later. On Android 13 and later, it also syncs with **Android Settings → Apps → Invoice QR Reader → Language**. Changing the language updates text and layout direction while keeping the current screen and saved invoices. `generateLocaleConfig` and `localeFilters` declare English and Arabic support.
 
 Layout direction follows the language, while Base64 and numeric values remain readable left to right. Invoice content is never translated. Messages and checks use `UiText` resource references resolved at display time, so retained state can be rendered in the current language.
 

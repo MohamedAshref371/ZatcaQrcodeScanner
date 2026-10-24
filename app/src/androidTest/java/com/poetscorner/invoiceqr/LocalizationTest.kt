@@ -50,7 +50,10 @@ class LocalizationTest {
         R.string::class.java.declaredFields.filter { it.type == Int::class.javaPrimitiveType }.forEach { field ->
             val text = en.getString(field.getInt(null))
             assertTrue(field.name, text.isNotBlank())
-            assertFalse(field.name, text.any { Character.UnicodeScript.of(it.code) == Character.UnicodeScript.ARABIC })
+            // Language names intentionally retain their native spelling in the picker.
+            if (field.name != "language_arabic") {
+                assertFalse(field.name, text.any { Character.UnicodeScript.of(it.code) == Character.UnicodeScript.ARABIC })
+            }
         }
     }
 }

@@ -12,9 +12,16 @@ def strings(folder):
     return result
 
 default, ar = (strings(folder) for folder in ("values", "values-ar"))
-assert default.keys() == ar.keys(), "Translation keys do not match"
+native_names = {"language_arabic", "language_english"}
+untranslated = {node.attrib["name"] for node in ET.parse(RES / "values/strings.xml")
+                .getroot().findall("string") if node.attrib.get("translatable") == "false"}
+assert default.keys() - untranslated == ar.keys(), "Translation keys do not match"
 format_args = re.compile(r"%(?:\d+\$)?[dsf]")
 for key, text in default.items():
+    if key in untranslated:
+        assert text.strip(), f"Empty resource: {key}"
+        assert key in native_names, f"Unexpected untranslated resource: {key}"
+        continue
     assert text.strip() and ar[key].strip(), f"Empty translation: {key}"
     assert sorted(format_args.findall(text)) == sorted(format_args.findall(ar[key])), f"Format mismatch: {key}"
     assert not re.search(r"[\u0600-\u06ff]", text), f"Arabic text in English resource: {key}"
@@ -29,4 +36,4 @@ for path in sources:
 assert references <= default.keys(), f"Missing resources: {references - default.keys()}"
 activity = (ROOT / "app/src/main/java/com/poetscorner/invoiceqr/MainActivity.kt").read_text(encoding="utf-8")
 assert "LayoutDirection.Rtl" not in activity, "Activity forces RTL"
-print(f"PASS: {len(default)} translated keys, matching format arguments, no hardcoded Arabic or direct Text literals, all resource references present.")
+print(f"PASS: {len(ar)} translated keys, {len(untranslated)} native language names, matching format arguments, no hardcoded Arabic or direct Text literals, all resource references present.")

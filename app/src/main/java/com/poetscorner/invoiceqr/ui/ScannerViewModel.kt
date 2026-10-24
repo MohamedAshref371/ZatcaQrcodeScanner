@@ -1,6 +1,7 @@
 package com.poetscorner.invoiceqr.ui
 
 import android.app.Application
+import androidx.core.content.ContextCompat
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.ui.text.UiText
 import android.net.Uri
@@ -129,7 +130,7 @@ class ScannerViewModel(
         val request = savedState.get<StatisticsRequest>("statistics_export_request") ?: return null
         val job = startTransfer(TransferKind.EXPORT) {
             val result = snapshot?.result ?: db.statistics(request)
-            val context = getApplication<Application>()
+            val context = ContextCompat.getContextForLanguage(getApplication())
             val headers = listOf(request.grouping.label(), R.string.stats_count_label,
                 if (result.summary.missingTotal > 0) R.string.stats_available_total else R.string.tag_total,
                 if (result.summary.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax,
@@ -353,7 +354,7 @@ class ScannerViewModel(
         val names = mapOf(1 to R.string.tag_seller, 2 to R.string.tag_vat,
             3 to R.string.export_invoice_date, 4 to R.string.tag_total,
             5 to R.string.tag_tax, 6 to R.string.tag_hash)
-            .mapValues { getApplication<Application>().getString(it.value) }
+            .mapValues { ContextCompat.getString(getApplication(), it.value) }
         outputDocument(uri) { writer ->
             db.withTransaction {
                 HistoryExporter.write(db.scans(), filter, writer, csv, names) { count, total ->

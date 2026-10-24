@@ -1,4 +1,6 @@
 <resources>
+    <string name="app_language">لغة التطبيق</string>
+    <string name="language_system">حسب النظام</string>
     <string name="privacy_policy">سياسة الخصوصية</string>
     <string name="privacy_open_message">سيتم فتح سياسة الخصوصية في المتصفح. يتطلب اتصالًا بالإنترنت.</string>
     <string name="privacy_open_link">فتح الرابط</string>

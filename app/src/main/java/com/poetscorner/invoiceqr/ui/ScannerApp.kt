@@ -69,9 +69,21 @@ import com.poetscorner.invoiceqr.ui.text.UiText
 import java.text.DateFormat
 import java.util.Date
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel = viewModel()) {
+    // Locale changes update resources in place; the host View can retain its old direction.
+    // Drive Compose from the current configuration so language and layout change together.
+    val direction = if (LocalConfiguration.current.layoutDirection == android.view.View.LAYOUT_DIRECTION_RTL) {
+        LayoutDirection.Rtl
+    } else LayoutDirection.Ltr
+    CompositionLocalProvider(LocalLayoutDirection provides direction) {
+        ScannerContent(vm, supporter)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) {
     val historyScreenState = rememberSaveableStateHolder()
     val previousTab by vm.previousTab.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -539,6 +551,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { BackupSection(transfersEnabled, onBackup, onImportBackup) }
         item { Text(stringResource(R.string.settings_app), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
+        item { AppLanguagePicker() }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark))) { v -> update { it.copy(theme = v) } } }
         item { SettingsAction(stringResource(R.string.rate_app), R.drawable.ic_star, onRate) }
         item { SettingsAction(stringResource(R.string.privacy_policy), R.drawable.ic_info) { showPrivacy = true } }
