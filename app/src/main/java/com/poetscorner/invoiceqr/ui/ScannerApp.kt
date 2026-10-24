@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -532,8 +534,8 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { SectionHeading(stringResource(R.string.settings_heading), stringResource(R.string.settings_subtitle)) }
         item { Text(stringResource(R.string.settings_camera), style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary) }
-        item { Choice(stringResource(R.string.resolution), s.resolution, listOf("HD" to stringResource(R.string.resolution_hd), "FHD" to stringResource(R.string.resolution_fhd), "QHD" to stringResource(R.string.resolution_qhd))) { v -> update { it.copy(resolution = v) } } }
-        item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest))) { v -> update { it.copy(speed = v) } } }
+        item { Choice(stringResource(R.string.resolution), s.resolution, listOf("HD" to stringResource(R.string.resolution_hd), "FHD" to stringResource(R.string.resolution_fhd), "QHD" to stringResource(R.string.resolution_qhd)), singleLine = true) { v -> update { it.copy(resolution = v) } } }
+        item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest)), singleLine = true) { v -> update { it.copy(speed = v) } } }
         item { Toggle(stringResource(R.string.torch_enable), s.torch) { v -> update { it.copy(torch = v) } } }
         item { Toggle(stringResource(R.string.tap_focus), s.tapFocus) { v -> update { it.copy(tapFocus = v) } } }
         item { Text(stringResource(R.string.settings_advanced), Modifier.padding(top = 12.dp),
@@ -552,7 +554,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { Text(stringResource(R.string.settings_app), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { AppLanguagePicker() }
-        item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark))) { v -> update { it.copy(theme = v) } } }
+        item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark)), singleLine = true) { v -> update { it.copy(theme = v) } } }
         item { SettingsAction(stringResource(R.string.rate_app), R.drawable.ic_star, onRate) }
         item { SettingsAction(stringResource(R.string.privacy_policy), R.drawable.ic_info) { showPrivacy = true } }
         item { SettingsAction(stringResource(R.string.about_app), R.drawable.ic_info) { showAbout = true } }
@@ -658,14 +660,22 @@ private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit)
     }
 }
 @Composable
-internal fun Choice(label: String, selected: String, values: List<Pair<String,String>>, onChange: (String) -> Unit) {
+internal fun Choice(label: String, selected: String, values: List<Pair<String,String>>,
+    singleLine: Boolean = false, onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Surface(onClick = { expanded = true }, color = MaterialTheme.colorScheme.surfaceContainerLowest,
             shape = MaterialTheme.shapes.medium) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (singleLine) {
+                    Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(values.firstOrNull { it.first == selected }?.second ?: selected,
+                        Modifier.weight(1.35f), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.End,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                } else Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(label, style = MaterialTheme.typography.bodyLarge)
                     Text(values.firstOrNull { it.first == selected }?.second ?: selected,
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)

@@ -27,7 +27,7 @@ internal fun AppLanguagePicker() {
         "" to stringResource(R.string.language_system),
         "ar" to stringResource(R.string.language_arabic),
         "en" to stringResource(R.string.language_english)
-    )) { language ->
+    ), singleLine = true) { language ->
         // Switching to the device language may keep the same resolved locale and skip recreation.
         selected = language
         AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(language))
