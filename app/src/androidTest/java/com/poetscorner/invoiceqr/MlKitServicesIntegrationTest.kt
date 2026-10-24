@@ -19,6 +19,21 @@ import org.junit.runner.RunWith
 /** Exercises the real Play services client, rather than the controller's fake installer. */
 @RunWith(AndroidJUnit4::class)
 class MlKitServicesIntegrationTest {
+    @Test(timeout = 45_000) fun zxingReadsKnownQrBitmap() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val bitmap = instrumentation.context.assets.open("play-services-qr.png").use {
+            requireNotNull(BitmapFactory.decodeStream(it))
+        }
+        try {
+            ScanEngine.ZXING.decoder().use { decoder ->
+                assertEquals("invoiceqr-play-services-integration",
+                    decoder.read(bitmap, ScannerSettings(scanEngine = ScanEngine.ZXING)))
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
     @Test fun realModuleAvailabilityQueryCompletes() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("This integration check requires working Google Play services",

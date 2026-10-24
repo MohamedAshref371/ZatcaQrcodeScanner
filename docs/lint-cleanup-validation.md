@@ -2,6 +2,11 @@
 
 Date: 2026-10-23. App version: 1.0.4 (7).
 
+Android 17 follow-up: selected API 37 runtime suite passed all 42 tests, with no
+failures/skips; optimized Release launch and five-tab checks passed. Old API 36.1
+AVDs/image were removed after verification, as requested. See
+[Android 17 runtime validation](android17-runtime-validation.md).
+
 Latest status after Core 1.19.1 and Lifecycle 2.11.0: zero lint errors and five
 warnings (four library/tooling notices and the retained plural warning). Fresh
 unit tests: 72 passed. Debug/Release builds passed. API 36.1 emulator checks:

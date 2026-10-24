@@ -2,6 +2,12 @@
 
 Date: 2026-10-24. App version: 1.0.4 (7).
 
+Follow-up: Android 17/API 37 runtime validation is now complete for the selected
+suite: 42 passed, zero failed/skipped, plus optimized Release launch/navigation
+checks. Android 36.1 AVDs/image were then removed at the user's request. See
+[Android 17 runtime validation](android17-runtime-validation.md).
+The remaining text records the original target-change validation stage.
+
 ## Change
 
 Raised `targetSdk` from 36 to 37 at the user's request. Compile SDK remains 37
