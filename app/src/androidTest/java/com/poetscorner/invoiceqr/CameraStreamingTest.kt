@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
@@ -56,6 +57,11 @@ class CameraStreamingTest {
             }
         }
         compose.onNodeWithTag("camera_preview").assertIsDisplayed()
+        val bounds = compose.onNodeWithTag("camera_preview").fetchSemanticsNode().boundsInRoot
+        val decor = compose.activity.window.decorView
+        assertEquals("Preview must reach the top edge", 0f, bounds.top, 1f)
+        assertEquals("Preview must fill the screen width", decor.width.toFloat(), bounds.width, 1f)
+        assertEquals("Preview must fill the screen height", decor.height.toFloat(), bounds.height, 1f)
     }
 
     @Test fun previewStreamsAgainAfterActivityRecreation() {

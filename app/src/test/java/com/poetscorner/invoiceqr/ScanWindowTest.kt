@@ -33,6 +33,15 @@ class ScanWindowTest {
         }
     }
 
+    @Test fun smallerGuideKeepsPreviewAndRotatedAnalysisAligned() {
+        val preview = scanWindow(1080, 1920, 0.55f)
+        val analysis = scanWindow(1280, 720, 0.55f)
+        assertEquals(594, preview.size)
+        assertEquals(preview.size / 1080f, analysis.size / 720f, 0.002f)
+        assertEquals(preview.left / 1080f, analysis.top / 720f, 0.002f)
+        assertEquals(preview.top / 1920f, analysis.left / 1280f, 0.002f)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsAnUnmeasuredPreview() { scanWindow(0, 1920) }
 }

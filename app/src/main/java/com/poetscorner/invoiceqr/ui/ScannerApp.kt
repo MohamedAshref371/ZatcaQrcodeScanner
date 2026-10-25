@@ -242,10 +242,10 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
             Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.app_tagline), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)) }, bottomBar = {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shadowElevation = 8.dp,
+        } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = if (screen == 0) 0.88f else 1f))) }, bottomBar = {
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = if (screen == 0) 0.88f else 1f), shadowElevation = 8.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest, tonalElevation = 0.dp) {
+            NavigationBar(containerColor = androidx.compose.ui.graphics.Color.Transparent, tonalElevation = 0.dp) {
             listOf(0 to R.string.nav_scanner, 1 to R.string.nav_result, 2 to R.string.nav_history,
                 4 to R.string.nav_statistics, 3 to R.string.nav_settings).forEach { (index, label) ->
                 NavigationBarItem(selected = screen == index, onClick = {
@@ -259,13 +259,13 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                         indicatorColor = MaterialTheme.colorScheme.primaryContainer))
             }
         } } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
-            Column(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()
+            Column(Modifier.then(if (screen == 0) Modifier else Modifier.padding(padding)).consumeWindowInsets(padding).imePadding().fillMaxSize()
                 .then(if (screen == 0) Modifier else Modifier.nestedScroll(titleScrollBehavior.nestedScrollConnection))) {
                 if (busy || restoringResult) LinearProgressIndicator(Modifier.fillMaxWidth())
                 transfer?.let { TransferProgress(it) }
                 when(screen) {
                     0 -> ScannerHome(settings, continuousScan, busy, { gallery.launch("image/*") },
-                        vm::setContinuousScanning, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
+                        vm::setContinuousScanning, vm::scanned, padding) { vm.update { it.copy(torch = !it.torch) } }
                     1 -> if (result != null) resultScreenState.SaveableStateProvider("result") {
                         ResultScreen(result!!.invoice, result!!.checkedAt, onShare = {
                             if (!shareInvoice(context, result!!.invoice)) vm.message.value = UiText(R.string.share_error)
