@@ -105,7 +105,7 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     val support by supporter.state.collectAsStateWithLifecycle()
     // Preview is presentation state only; it never writes a purchase entitlement.
     var supporterPreview by rememberSaveable { mutableStateOf(false) }
-    var previewGold by rememberSaveable { mutableStateOf(true) }
+    var previewTheme by rememberSaveable { mutableStateOf("GOLD") }
     val previewActive = supporterPreview && !support.owned
     LaunchedEffect(support.owned) { if (support.owned) supporterPreview = false }
     val context = LocalContext.current
@@ -220,7 +220,8 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     BackHandler(screen != 0 || (previousTab != null && previousTab != 0)) { vm.backFromResultOrHome() }
     val darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() }
     ZatcaQrcodeScannerTheme(darkTheme = darkTheme,
-        goldenTheme = if (previewActive) previewGold else support.owned && settings.goldenTheme) {
+        goldenTheme = if (previewActive) previewTheme == "GOLD" else support.owned && settings.supporterTheme == "GOLD",
+        purpleTheme = if (previewActive) previewTheme == "PURPLE" else support.owned && settings.supporterTheme == "PURPLE") {
         SideEffect {
             // Camera reveals the shared title before layout, and leaves it visible for other tabs.
             if (screen == 0) {
@@ -353,9 +354,9 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                     }
                     else -> SettingsScreen(settings, vm::update, support,
                         listState = settingsListState,
-                        preview = previewActive, previewGold = previewGold,
-                        onPreview = { active -> supporterPreview = active; if (active) previewGold = true },
-                        onPreviewGold = { previewGold = it },
+                        preview = previewActive, previewTheme = previewTheme,
+                        onPreview = { active -> supporterPreview = active; if (active) previewTheme = "GOLD" },
+                        onPreviewTheme = { previewTheme = it },
                         transfersEnabled = !transferLocked,
                         onBackup = {
                             pendingFileAction = "backup"
@@ -555,7 +556,7 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
 private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
     support: SupporterState, mlKitModule: MlKitModuleState,
     listState: LazyListState,
-    preview: Boolean, previewGold: Boolean, onPreview: (Boolean) -> Unit, onPreviewGold: (Boolean) -> Unit,
+    preview: Boolean, previewTheme: String, onPreview: (Boolean) -> Unit, onPreviewTheme: (String) -> Unit,
     transfersEnabled: Boolean, onBackup: () -> Unit, onImportBackup: () -> Unit,
     onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
     onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit, onShare: () -> Unit) {
@@ -613,9 +614,9 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         }
         item { SettingsAction(stringResource(R.string.privacy_policy), R.drawable.ic_info) { showPrivacy = true } }
         item { SettingsAction(stringResource(R.string.about_app), R.drawable.ic_info) { showAbout = true } }
-        item { SupporterCard(support, if (preview) previewGold else s.goldenTheme,
+        item { SupporterCard(support, if (preview) previewTheme else s.supporterTheme,
             preview, onPreview, onPurchase, onRestore) { value ->
-            if (preview) onPreviewGold(value) else update { it.copy(goldenTheme = value) }
+            if (preview) onPreviewTheme(value) else update { it.copy(supporterTheme = value, goldenTheme = value == "GOLD") }
         } }
     }
     if (showPrivacy) PrivacyPolicyDialog { showPrivacy = false }
@@ -632,9 +633,18 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
 }
 
 @Composable
-private fun SupporterCard(state: SupporterState, golden: Boolean, preview: Boolean,
+private fun SupporterThemePicker(selected: String, onChange: (String) -> Unit) {
+    Choice(stringResource(R.string.supporter_theme), selected, listOf(
+        "DEFAULT" to stringResource(R.string.default_theme),
+        "GOLD" to stringResource(R.string.gold_theme),
+        "PURPLE" to stringResource(R.string.purple_theme)
+    ), singleLine = true, onChange = onChange)
+}
+
+@Composable
+private fun SupporterCard(state: SupporterState, selectedTheme: String, preview: Boolean,
     onPreview: (Boolean) -> Unit, onPurchase: () -> Unit,
-    onRestore: () -> Unit, onGolden: (Boolean) -> Unit) {
+    onRestore: () -> Unit, onTheme: (String) -> Unit) {
     var showDetails by rememberSaveable { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -645,7 +655,7 @@ private fun SupporterCard(state: SupporterState, golden: Boolean, preview: Boole
             }
             if (state.owned) {
                 Text(stringResource(R.string.supporter_active), color = MaterialTheme.colorScheme.primary)
-                Toggle(stringResource(R.string.gold_theme), golden, onGolden)
+                SupporterThemePicker(selectedTheme, onTheme)
             } else {
                 Text(stringResource(R.string.supporter_compact_description), style = MaterialTheme.typography.bodyMedium)
                 Text(stringResource(R.string.supporter_free_note), style = MaterialTheme.typography.bodySmall,
@@ -670,7 +680,7 @@ private fun SupporterCard(state: SupporterState, golden: Boolean, preview: Boole
                         Text(stringResource(if (preview) R.string.supporter_preview_end else R.string.supporter_preview_start))
                     }
                 }
-                if (preview) Toggle(stringResource(R.string.gold_theme), golden, onGolden)
+                if (preview) SupporterThemePicker(selectedTheme, onTheme)
             }
             if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             state.message?.let { Text(it.localized(), style = MaterialTheme.typography.bodySmall) }

@@ -125,7 +125,8 @@ data class ScannerSettings(val harder: Boolean = true, val denoise: Boolean = fa
     val rotate: Boolean = true, val inverted: Boolean = false, val binarizer: String = "LOCAL_AVERAGE",
     val resolution: String = "HD", val speed: String = "NORMAL", val torch: Boolean = false,
     val tapFocus: Boolean = true, val theme: String = "SYSTEM", val goldenTheme: Boolean = false,
-    val scanEngine: ScanEngine = ScanEngine.ZXING, val cropEnabled: Boolean = true) {
+    val scanEngine: ScanEngine = ScanEngine.ZXING, val cropEnabled: Boolean = true,
+    val supporterTheme: String = if (goldenTheme) "GOLD" else "DEFAULT") {
     val intervalMs get() = when (speed) { "FAST" -> 100L; "FASTEST" -> 0L; else -> 300L }
 }
 private val Context.settingsStore by preferencesDataStore("scanner_settings")
@@ -138,7 +139,8 @@ class SettingsRepository(private val context: Context) {
             p[booleanPreferencesKey("tapFocus")] ?: true, p[stringPreferencesKey("theme")] ?: "SYSTEM",
             p[booleanPreferencesKey("goldenTheme")] ?: false,
             ScanEngine.fromPreference(p[stringPreferencesKey("scan_engine")]),
-            p[booleanPreferencesKey("crop_enabled")] ?: true)
+            p[booleanPreferencesKey("crop_enabled")] ?: true,
+            p[stringPreferencesKey("supporter_theme")] ?: if (p[booleanPreferencesKey("goldenTheme")] == true) "GOLD" else "DEFAULT")
     }
     suspend fun save(s: ScannerSettings) { context.settingsStore.edit { p ->
         mapOf("harder" to s.harder, "denoise" to s.denoise, "rotate" to s.rotate,
@@ -146,7 +148,7 @@ class SettingsRepository(private val context: Context) {
             "goldenTheme" to s.goldenTheme, "crop_enabled" to s.cropEnabled)
             .forEach { (k,v) -> p[booleanPreferencesKey(k)] = v }
         mapOf("binarizer" to s.binarizer, "resolution" to s.resolution, "speed" to s.speed, "theme" to s.theme,
-            "scan_engine" to s.scanEngine.name)
+            "scan_engine" to s.scanEngine.name, "supporter_theme" to s.supporterTheme)
             .forEach { (k,v) -> p[stringPreferencesKey(k)] = v }
     } }
 }

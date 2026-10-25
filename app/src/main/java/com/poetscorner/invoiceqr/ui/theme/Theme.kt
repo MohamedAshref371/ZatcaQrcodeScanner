@@ -46,10 +46,17 @@ fun ZatcaQrcodeScannerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     goldenTheme: Boolean = false,
+    purpleTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val base = if (darkTheme) DarkColorScheme else LightColorScheme
     val colorScheme = when {
+        purpleTheme && darkTheme -> base.copy(
+            primary = Color(0xFFD0BCFF), onPrimary = Color(0xFF381E72),
+            primaryContainer = Color(0xFF4F378B), onPrimaryContainer = Color(0xFFEADDFF))
+        purpleTheme -> base.copy(
+            primary = Color(0xFF6750A4), onPrimary = Color.White,
+            primaryContainer = Color(0xFFEADDFF), onPrimaryContainer = Color(0xFF21005D))
         goldenTheme && darkTheme -> base.copy(
             primary = Color(0xFFE8C46A), onPrimary = Color(0xFF3F2E00),
             primaryContainer = Color(0xFF594400), onPrimaryContainer = Color(0xFFFFE08F))

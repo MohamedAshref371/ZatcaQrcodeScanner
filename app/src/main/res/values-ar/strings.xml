@@ -210,14 +210,14 @@
     <string name="supporter_badge">داعم التطبيق · شكرًا لك</string>
     <string name="free_features">جميع وظائف المسح والتحليل والسجل والتصدير متاحة مجانًا.</string>
     <string name="supporter_pack">باقة داعم التطبيق</string>
-    <string name="supporter_compact_description">مظهر ذهبي وشارة داعم · شراء مرة واحدة</string>
+    <string name="supporter_compact_description">مظهر ذهبي وبنفسجي وشارة داعم · شراء مرة واحدة</string>
     <string name="supporter_free_note">كل وظائف التطبيق مجانية وبدون إعلانات.</string>
     <string name="supporter_details">تفاصيل الباقة</string>
-    <string name="supporter_description">ادعم استمرار التطوير واحصل على مظهر ذهبي اختياري وشارة داعم في صفحة حول التطبيق. شراء مرة واحدة، بدون اشتراك.</string>
+    <string name="supporter_description">ادعم استمرار التطوير واحصل على مظهر ذهبي أو بنفسجي اختياري وشارة داعم في صفحة حول التطبيق. شراء مرة واحدة، بدون اشتراك.</string>
     <string name="supporter_active">شكرًا لدعمك! الباقة مفعّلة.</string>
     <string name="supporter_preview_start">معاينة</string>
     <string name="supporter_preview_end">إنهاء المعاينة</string>
-    <string name="supporter_preview_description">جرّب المظهر الذهبي والشارة دون دفع. لا تتم أي عملية شراء، ويمكنك إنهاء المعاينة في أي وقت. الشارة ظاهرة في «حول التطبيق».</string>
+    <string name="supporter_preview_description">جرّب مظاهر الداعم والشارة دون دفع. لا تتم أي عملية شراء، ويمكنك إنهاء المعاينة في أي وقت. الشارة ظاهرة في «حول التطبيق».</string>
     <string name="supporter_preview_badge">معاينة الشارة · الباقة غير مشتراة</string>
     <string name="gold_theme">المظهر الذهبي</string>
     <string name="purchase_pending">الشراء قيد الانتظار</string>
@@ -254,7 +254,7 @@
     <string name="billing_launch_error">تعذّر فتح نافذة الشراء في Google Play. أعد المحاولة لاحقًا.</string>
     <string name="billing_verify_error">تعذّر التحقق من الشراء. جرّب استعادة المشتريات من حساب Google Play الذي اشترى الباقة.</string>
     <string name="billing_ack_error">تم تفعيل الباقة، لكن تأكيد الشراء يحتاج اتصالًا. اضغط استعادة المشتريات لإعادة المحاولة.</string>
-    <string name="billing_thanks">شكرًا لدعمك! المظهر الذهبي وشارة الداعم متاحان الآن.</string>
+    <string name="billing_thanks">شكرًا لدعمك! مظاهر الداعم والشارة متاحة الآن.</string>
     <string name="billing_pending_note">الشراء قيد الانتظار في Google Play. ستُفعّل الباقة بعد اكتمال الدفع.</string>
     <string name="billing_not_owned">لا توجد باقة داعم مفعّلة على حساب المتجر الحالي. يمكنك استخدام جميع وظائف التطبيق مجانًا.</string>
     <string name="tag_seller">اسم البائع</string>
@@ -313,4 +313,7 @@
     <string name="mlkit_retry">إعادة محاولة تجهيز ML Kit</string>
     <string name="mlkit_download">تنزيل مكوّن المسح ML Kit</string>
     <string name="mlkit_download_note">التنزيل يحتاج إنترنت. المسح يتم على جهازك، وZXing متاح دائمًا.</string>
+    <string name="supporter_theme">مظهر الداعم</string>
+    <string name="default_theme">المظهر العادي</string>
+    <string name="purple_theme">المظهر البنفسجي</string>
 </resources>
