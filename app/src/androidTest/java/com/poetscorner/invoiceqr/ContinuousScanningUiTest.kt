@@ -20,6 +20,11 @@ class ContinuousScanningUiTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
     @Test fun floatingResultDoesNotMoveCameraAndOnlyClosingTheActivityResetsBatchMode() = runBlocking<Unit> {
+        val scannerTab = compose.activity.getString(R.string.nav_scanner)
+        compose.waitUntil(10000) {
+            compose.onAllNodesWithText(scannerTab).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText(scannerTab).performClick()
         compose.waitUntil(10000) {
             runCatching { compose.onAllNodesWithTag("continuous_scan_toggle").fetchSemanticsNodes().isNotEmpty() }
                 .getOrDefault(false)
@@ -34,10 +39,15 @@ class ContinuousScanningUiTest {
             compose.runOnIdle { assertTrue(vm.continuousScan.value.enabled) }
             assertEquals(toggleBounds, compose.onNodeWithTag("continuous_scan_toggle").fetchSemanticsNode().boundsInRoot)
             assertEquals(cameraBounds, compose.onNodeWithTag("camera_preview").fetchSemanticsNode().boundsInRoot)
+            compose.onNodeWithTag("continuous_scan_toggle").performClick()
+            compose.onNodeWithTag("continuous_scan_count", useUnmergedTree = true).assertDoesNotExist()
+            assertEquals(toggleBounds, compose.onNodeWithTag("continuous_scan_toggle").fetchSemanticsNode().boundsInRoot)
+            compose.onNodeWithTag("continuous_scan_toggle").performClick()
             withContext(Dispatchers.Main) { assertTrue(vm.scanned(invoice.raw)) }
             compose.onNodeWithTag("continuous_scan_notice").assertDoesNotExist()
             compose.onNodeWithTag("continuous_scan_count", useUnmergedTree = true).assertIsDisplayed()
             compose.onNodeWithTag("continuous_scan_toggle").assertIsDisplayed()
+            assertEquals(toggleBounds, compose.onNodeWithTag("continuous_scan_toggle").fetchSemanticsNode().boundsInRoot)
             compose.runOnIdle { assertNull(vm.result.value) }
             val viewResult = compose.activity.getString(R.string.continuous_scan_view_result)
             compose.onNodeWithText(viewResult).assertIsDisplayed()
