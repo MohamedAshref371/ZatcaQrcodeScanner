@@ -199,7 +199,6 @@
     <string name="speed_normal">عادي · كل 300ms</string>
     <string name="speed_fast">سريع · كل 100ms</string>
     <string name="speed_fastest">الأسرع · كل إطار متاح</string>
-    <string name="torch_enable">تشغيل الكشاف</string>
     <string name="appearance">المظهر</string>
     <string name="theme_system">حسب النظام</string>
     <string name="theme_light">فاتح</string>

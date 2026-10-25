@@ -201,7 +201,6 @@
     <string name="speed_normal">Normal · every 300 ms</string>
     <string name="speed_fast">Fast · every 100 ms</string>
     <string name="speed_fastest">Fastest · every available frame</string>
-    <string name="torch_enable">Enable torch</string>
     <string name="appearance">Appearance</string>
     <string name="theme_system">Follow system</string>
     <string name="theme_light">Light</string>
