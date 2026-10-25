@@ -52,11 +52,11 @@ class DataStoreUpgradeTest {
     private companion object {
         val legacySettings = ScannerSettings(harder = false, denoise = true, rotate = false,
             inverted = true, binarizer = "GLOBAL_HISTOGRAM", resolution = "FHD", speed = "FAST",
-            torch = false, tapFocus = false, theme = "DARK", goldenTheme = false,
+            torch = false, theme = "DARK", goldenTheme = false,
             scanEngine = ScanEngine.ML_KIT)
         val updatedSettings = ScannerSettings(harder = true, denoise = false, rotate = true,
             inverted = false, binarizer = "LOCAL_AVERAGE", resolution = "HD", speed = "NORMAL",
-            torch = false, tapFocus = true, theme = "LIGHT", goldenTheme = false,
+            torch = false, theme = "LIGHT", goldenTheme = false,
             scanEngine = ScanEngine.ZXING)
     }
 }

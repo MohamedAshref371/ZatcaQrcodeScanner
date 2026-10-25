@@ -579,7 +579,6 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest)), singleLine = true) { v -> update { it.copy(speed = v) } } }
         item { Toggle(stringResource(R.string.scan_crop), s.cropEnabled) { v -> update { it.copy(cropEnabled = v) } } }
         item { Toggle(stringResource(R.string.torch_enable), s.torch) { v -> update { it.copy(torch = v) } } }
-        item { Toggle(stringResource(R.string.tap_focus), s.tapFocus) { v -> update { it.copy(tapFocus = v) } } }
         item { Text(stringResource(R.string.settings_advanced), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { ScanEnginePicker(s.scanEngine, mlKitModule, onEngine, onDownloadMlKit) }

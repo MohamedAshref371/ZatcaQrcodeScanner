@@ -56,6 +56,7 @@ import com.poetscorner.invoiceqr.scanner.QrDeliveryGate
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspend (String) -> Boolean, onTorch: () -> Unit,
@@ -96,6 +97,12 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
     var scanFraction by remember { mutableFloatStateOf(0.8f) }
     val currentScanFraction by rememberUpdatedState(scanFraction)
     var camera by remember { mutableStateOf<Camera?>(null) }
+    var focusIndicator by remember(camera, previewSize) { mutableStateOf<Offset?>(null) }
+    var focusTapId by remember { mutableIntStateOf(0) }
+    LaunchedEffect(focusTapId, camera, previewSize) {
+        delay(1000)
+        focusIndicator = null
+    }
     var error by remember { mutableStateOf<UiText?>(null) }
     var zoom by remember { mutableFloatStateOf(0f) }
     val currentSettings by rememberUpdatedState(settings)
@@ -202,9 +209,12 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
             AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize(), update = { view ->
                 view.setOnTouchListener { _, event ->
                     if (event.action == MotionEvent.ACTION_UP) {
-                        if (currentSettings.tapFocus) {
+                        camera?.let { activeCamera ->
                             val point = view.meteringPointFactory.createPoint(event.x, event.y)
-                            camera?.cameraControl?.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
+                            // Keep CameraX's default auto-cancel so continuous focus resumes after 5s.
+                            activeCamera.cameraControl.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
+                            focusIndicator = Offset(event.x, event.y)
+                            focusTapId++
                         }
                         view.performClick()
                     }
@@ -237,6 +247,14 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                     quadraticTo(left, top + side, left, top + side - 14.dp.toPx()); lineTo(left, top + side - corner)
                 }
                 drawPath(guide, Color(0xFF8AE6CC), style = Stroke(4.dp.toPx()))
+            }
+            focusIndicator?.let { center ->
+                Canvas(Modifier.fillMaxSize().testTag("camera_focus_indicator")) {
+                    drawCircle(Color.Black.copy(alpha = 0.5f), 28.dp.toPx(), center,
+                        style = Stroke(4.dp.toPx()))
+                    drawCircle(Color.White, 28.dp.toPx(), center,
+                        style = Stroke(2.dp.toPx()))
+                }
             }
         }
         // Only the overlays respect app bars; the preview and its ViewPort use the whole screen.
