@@ -388,13 +388,20 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
         }
         if (clearDialog) AlertDialog(onDismissRequest = { clearDialog = false }, title = { Text(stringResource(R.string.clear_title)) }, text = { Text(stringResource(R.string.clear_body)) },
             confirmButton = {
-                Column(horizontalAlignment = Alignment.End) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     TextButton(onClick = { vm.keepLatestDay(); clearDialog = false }) { Text(stringResource(R.string.keep_latest_day)) }
-                    TextButton(onClick = { vm.clear(); clearDialog = false }) {
-                        Text(stringResource(R.string.delete_all), color = MaterialTheme.colorScheme.error)
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        TextButton(onClick = { clearDialog = false }) { Text(stringResource(R.string.cancel)) }
+                        TextButton(onClick = { vm.clear(); clearDialog = false }) {
+                            Text(stringResource(R.string.delete_all), color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
-            }, dismissButton = { TextButton(onClick = { clearDialog = false }) { Text(stringResource(R.string.cancel)) } })
+            })
     }
 }
 
