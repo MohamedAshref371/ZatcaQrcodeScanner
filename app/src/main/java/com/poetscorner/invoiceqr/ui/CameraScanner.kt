@@ -54,6 +54,7 @@ import com.poetscorner.invoiceqr.scanner.decoder
 import com.poetscorner.invoiceqr.scanner.scanWindow
 import com.poetscorner.invoiceqr.scanner.QrDeliveryGate
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -211,8 +212,10 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                     if (event.action == MotionEvent.ACTION_UP) {
                         camera?.let { activeCamera ->
                             val point = view.meteringPointFactory.createPoint(event.x, event.y)
-                            // Keep CameraX's default auto-cancel so continuous focus resumes after 5s.
-                            activeCamera.cameraControl.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
+                            activeCamera.cameraControl.startFocusAndMetering(
+                                FocusMeteringAction.Builder(point)
+                                    .setAutoCancelDuration(2, TimeUnit.SECONDS)
+                                    .build())
                             focusIndicator = Offset(event.x, event.y)
                             focusTapId++
                         }
