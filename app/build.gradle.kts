@@ -78,8 +78,8 @@ android {
         applicationId = "com.poetscorner.invoiceqr"
         minSdk = 26
         targetSdk = 37
-        versionCode = 8
-        versionName = "1.0.5"
+        versionCode = 9
+        versionName = "1.0.6"
         val billingPublicKey = providers.gradleProperty("playBillingPublicKey").orElse("").get().trim()
         require(billingPublicKey.matches(Regex("[A-Za-z0-9+/=]*"))) { "playBillingPublicKey must be a Base64 public key" }
         buildConfigField("String", "PLAY_BILLING_PUBLIC_KEY", "\"$billingPublicKey\"")

@@ -368,7 +368,8 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                         mlKitModule = mlKitModule, onDownloadMlKit = vm::downloadMlKit,
                         onEngine = vm::selectScanEngine,
                         onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh,
-                        onRate = { if (!openAppStore(context)) vm.message.value = UiText(R.string.store_open_error) })
+                        onRate = { if (!openAppStore(context)) vm.message.value = UiText(R.string.store_open_error) },
+                        onShare = { if (!shareApp(context)) vm.message.value = UiText(R.string.share_error) })
                 }
             }
         }
@@ -550,7 +551,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     preview: Boolean, previewGold: Boolean, onPreview: (Boolean) -> Unit, onPreviewGold: (Boolean) -> Unit,
     transfersEnabled: Boolean, onBackup: () -> Unit, onImportBackup: () -> Unit,
     onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
-    onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit) {
+    onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit, onShare: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
     var showPrivacy by rememberSaveable { mutableStateOf(false) }
     LazyColumn(Modifier.testTag("settings_list"), state = listState,
@@ -588,7 +589,21 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { AppLanguagePicker() }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark)), singleLine = true) { v -> update { it.copy(theme = v) } } }
-        item { SettingsAction(stringResource(R.string.rate_app), R.drawable.ic_star, onRate) }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    SettingsAction(stringResource(R.string.rate_app), R.drawable.ic_star, onRate)
+                }
+                Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    shape = MaterialTheme.shapes.medium) {
+                    IconButton(onClick = onShare, modifier = Modifier.size(56.dp)) {
+                        AppIcon(R.drawable.ic_share, description = stringResource(R.string.share_app),
+                            tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
         item { SettingsAction(stringResource(R.string.privacy_policy), R.drawable.ic_info) { showPrivacy = true } }
         item { SettingsAction(stringResource(R.string.about_app), R.drawable.ic_info) { showAbout = true } }
         item { SupporterCard(support, if (preview) previewGold else s.goldenTheme,

@@ -291,6 +291,7 @@
     <string name="error_tag_bounds">طول Tag %1$d يتجاوز البيانات المتاحة</string>
     <string name="error_utf8">UTF-8 غير صالح في Tag %1$d</string>
     <string name="rate_app">قيّم التطبيق</string>
+    <string name="share_app">مشاركة التطبيق</string>
     <string name="store_open_error">تعذّر فتح Google Play أو المتصفح.</string>
     <string name="app_tagline">قراءة دقيقة، وتفاصيل واضحة</string>
     <string name="scanner_heading">قراءة رمز الفاتورة</string>
