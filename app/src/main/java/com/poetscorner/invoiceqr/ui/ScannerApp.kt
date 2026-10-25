@@ -11,7 +11,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -20,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
@@ -87,6 +90,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
 @Composable
 private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) {
     val historyScreenState = rememberSaveableStateHolder()
+    val settingsListState = rememberLazyListState()
     val previousTab by vm.previousTab.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val mlKitModule by vm.mlKitModule.collectAsStateWithLifecycle()
@@ -120,6 +124,14 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
         vm.refreshStatisticsPeriod()
     }
     val screen by vm.screen.collectAsStateWithLifecycle()
+    // Keep result content across tab changes, but start a new invoice at the top.
+    val resultScreenState = key(result?.scanId, result?.checkedAt, result?.invoice?.raw) {
+        rememberSaveableStateHolder()
+    }
+    val titleBarState = rememberTopAppBarState()
+    val titleCanScroll by rememberUpdatedState(screen != 0)
+    val titleScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(titleBarState,
+        canScroll = { titleCanScroll })
     val restoringResult by vm.restoringResult.collectAsStateWithLifecycle()
     LaunchedEffect(screen) { if (screen == 3) vm.refreshMlKit() }
     var reviewOpportunity by remember { mutableIntStateOf(0) }
@@ -210,6 +222,11 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     ZatcaQrcodeScannerTheme(darkTheme = darkTheme,
         goldenTheme = if (previewActive) previewGold else support.owned && settings.goldenTheme) {
         SideEffect {
+            // Camera reveals the shared title before layout, and leaves it visible for other tabs.
+            if (screen == 0) {
+                titleBarState.heightOffset = 0f
+                titleBarState.contentOffset = 0f
+            }
             context.activity()?.window?.let { window ->
                 WindowCompat.getInsetsController(window, window.decorView).apply {
                     isAppearanceLightStatusBars = !darkTheme
@@ -217,7 +234,8 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                 }
             }
         }
-        Scaffold(topBar = { TopAppBar(navigationIcon = {
+        Scaffold(topBar = { TopAppBar(modifier = Modifier.testTag("app_title_bar"),
+            scrollBehavior = if (screen == 0) null else titleScrollBehavior, navigationIcon = {
             IconTile(R.drawable.ic_scan, Modifier.padding(start = 16.dp, end = 8.dp))
         }, title = { Column {
             Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
@@ -240,16 +258,19 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                         indicatorColor = MaterialTheme.colorScheme.primaryContainer))
             }
         } } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
-            Column(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
+            Column(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()
+                .then(if (screen == 0) Modifier else Modifier.nestedScroll(titleScrollBehavior.nestedScrollConnection))) {
                 if (busy || restoringResult) LinearProgressIndicator(Modifier.fillMaxWidth())
                 transfer?.let { TransferProgress(it) }
                 when(screen) {
                     0 -> ScannerHome(settings, continuousScan, busy, { gallery.launch("image/*") },
                         vm::setContinuousScanning, vm::scanned) { vm.update { it.copy(torch = !it.torch) } }
-                    1 -> if (result != null) ResultScreen(result!!.invoice, result!!.checkedAt, onShare = {
-                        if (!shareInvoice(context, result!!.invoice)) vm.message.value = UiText(R.string.share_error)
-                    }) {
-                        vm.navigate(0)
+                    1 -> if (result != null) resultScreenState.SaveableStateProvider("result") {
+                        ResultScreen(result!!.invoice, result!!.checkedAt, onShare = {
+                            if (!shareInvoice(context, result!!.invoice)) vm.message.value = UiText(R.string.share_error)
+                        }) {
+                            vm.navigate(0)
+                        }
                     } else if (!restoringResult) ManualInvoiceEntry(busy, vm::inspectBase64)
                     2 -> {
                         historyScreenState.SaveableStateProvider("history") {
@@ -331,6 +352,7 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                         }
                     }
                     else -> SettingsScreen(settings, vm::update, support,
+                        listState = settingsListState,
                         preview = previewActive, previewGold = previewGold,
                         onPreview = { active -> supporterPreview = active; if (active) previewGold = true },
                         onPreviewGold = { previewGold = it },
@@ -524,13 +546,15 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
 @Composable
 private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
     support: SupporterState, mlKitModule: MlKitModuleState,
+    listState: LazyListState,
     preview: Boolean, previewGold: Boolean, onPreview: (Boolean) -> Unit, onPreviewGold: (Boolean) -> Unit,
     transfersEnabled: Boolean, onBackup: () -> Unit, onImportBackup: () -> Unit,
     onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
     onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
     var showPrivacy by rememberSaveable { mutableStateOf(false) }
-    LazyColumn(Modifier.testTag("settings_list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(Modifier.testTag("settings_list"), state = listState,
+        contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SectionHeading(stringResource(R.string.settings_heading), stringResource(R.string.settings_subtitle)) }
         item { Text(stringResource(R.string.settings_camera), style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary) }
