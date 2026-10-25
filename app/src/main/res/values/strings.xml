@@ -190,9 +190,11 @@
     <string name="bin_fixed">Fixed threshold</string>
     <string name="bin_bool">Bool cast</string>
     <string name="resolution">Scan resolution</string>
+    <string name="resolution_sd">SD · 480p</string>
     <string name="resolution_hd">HD · 720p</string>
     <string name="resolution_fhd">FHD · 1080p</string>
     <string name="resolution_qhd">QHD · 1440p</string>
+    <string name="resolution_uhd">UHD · 2160p</string>
     <string name="scan_frequency">Scan frequency</string>
     <string name="scan_crop">Crop scan area</string>
     <string name="camera_hint_full_frame">Point the camera at the invoice QR code • Tap to focus</string>
@@ -293,7 +295,7 @@
     <string name="rate_app">Rate the app</string>
     <string name="store_open_error">Unable to open Google Play or a browser.</string>
     <string name="app_tagline">Accurate scanning, clear details</string>
-    <string name="scanner_heading">Scan an invoice</string>
+    <string name="scanner_heading">Scan invoice QR code</string>
     <string name="history_heading">Your invoice archive</string>
     <string name="history_subtitle">Find, review and export your saved invoices.</string>
     <string name="settings_heading">Make it yours</string>

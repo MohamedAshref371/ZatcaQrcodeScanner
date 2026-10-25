@@ -558,7 +558,15 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { SectionHeading(stringResource(R.string.settings_heading), stringResource(R.string.settings_subtitle)) }
         item { Text(stringResource(R.string.settings_camera), style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary) }
-        item { Choice(stringResource(R.string.resolution), s.resolution, listOf("HD" to stringResource(R.string.resolution_hd), "FHD" to stringResource(R.string.resolution_fhd), "QHD" to stringResource(R.string.resolution_qhd)), singleLine = true) { v -> update { it.copy(resolution = v) } } }
+        item {
+            Choice(stringResource(R.string.resolution), s.resolution, listOf(
+                "SD" to stringResource(R.string.resolution_sd),
+                "HD" to stringResource(R.string.resolution_hd),
+                "FHD" to stringResource(R.string.resolution_fhd),
+                "QHD" to stringResource(R.string.resolution_qhd),
+                "UHD" to stringResource(R.string.resolution_uhd)
+            ), singleLine = true) { v -> update { it.copy(resolution = v) } }
+        }
         item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest)), singleLine = true) { v -> update { it.copy(speed = v) } } }
         item { Toggle(stringResource(R.string.scan_crop), s.cropEnabled) { v -> update { it.copy(cropEnabled = v) } } }
         item { Toggle(stringResource(R.string.torch_enable), s.torch) { v -> update { it.copy(torch = v) } } }

@@ -110,7 +110,13 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
         providerFuture.addListener({
             if (!disposed) try {
                 val p = providerFuture.get(); provider = p
-                val size = when(settings.resolution) { "FHD" -> Size(1920,1080); "QHD" -> Size(2560,1440); else -> Size(1280,720) }
+                val size = when (settings.resolution) {
+                    "SD" -> Size(854, 480)
+                    "FHD" -> Size(1920, 1080)
+                    "QHD" -> Size(2560, 1440)
+                    "UHD" -> Size(3840, 2160)
+                    else -> Size(1280, 720)
+                }
                 val selector = ResolutionSelector.Builder().setResolutionStrategy(ResolutionStrategy(size, ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER)).build()
                 val pv = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }; preview = pv
                 val a = ImageAnalysis.Builder().setResolutionSelector(selector)

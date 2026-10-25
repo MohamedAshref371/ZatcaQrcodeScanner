@@ -188,9 +188,11 @@
     <string name="bin_fixed">عتبة ثابتة</string>
     <string name="bin_bool">تحويل منطقي</string>
     <string name="resolution">دقة المسح</string>
+    <string name="resolution_sd">SD · 480p</string>
     <string name="resolution_hd">HD · 720p</string>
     <string name="resolution_fhd">FHD · 1080p</string>
     <string name="resolution_qhd">QHD · 1440p</string>
+    <string name="resolution_uhd">UHD · 2160p</string>
     <string name="scan_frequency">تردد المسح</string>
     <string name="scan_crop">قص منطقة المسح</string>
     <string name="camera_hint_full_frame">وجّه الكاميرا إلى رمز QR الفاتورة • اضغط للتركيز</string>
@@ -291,7 +293,7 @@
     <string name="rate_app">قيّم التطبيق</string>
     <string name="store_open_error">تعذّر فتح Google Play أو المتصفح.</string>
     <string name="app_tagline">قراءة دقيقة، وتفاصيل واضحة</string>
-    <string name="scanner_heading">امسح فاتورتك</string>
+    <string name="scanner_heading">قراءة رمز الفاتورة</string>
     <string name="history_heading">أرشيف فواتيرك</string>
     <string name="history_subtitle">ابحث في فواتيرك المحفوظة وراجعها وصدّرها.</string>
     <string name="settings_heading">اضبطه على راحتك</string>
