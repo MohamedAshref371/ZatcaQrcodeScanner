@@ -2,6 +2,24 @@
 
 Date: 2026-10-23. App version: 1.0.4 (7).
 
+Latest follow-up, 2026-10-25 (app 1.0.5 / 8): Kotlin compiler and Compose compiler
+are now aligned at 2.4.21, with KSP 2.3.12 retained. Fresh unit tests (72),
+Debug/Release/AAB builds and schema comparison passed. Lint is zero errors and
+one warning: the retained plural heuristic. The final API 37 non-language suite
+passed 46 cases after investigating initial SQLite-related failures; the two
+previously baselined language assertions remain failing separately. Optimized
+Release launch and five-tab checks passed. See
+[Kotlin 2.4.21 validation](kotlin-2.4.21-validation.md).
+The following entries record earlier stages.
+
+Latest follow-up, 2026-10-25 (app 1.0.5 / 8): Gradle Wrapper updated to 9.8.2.
+Fresh build/unit tests passed; lint is now zero errors and two warnings (Kotlin
+Compose plugin update and retained plural heuristic). AGP emits a separate
+Gradle 11 deprecation diagnostic. Two language instrumentation failures reproduce
+on both 9.6.0 and 9.8.2 with identical APK payloads; they are recorded separately
+from this update's build results. See [Gradle 9.8.2 assessment](gradle-9.8.2-validation.md).
+The entries below describe earlier stages.
+
 Current status after Compose BOM 2026.09.00: zero lint errors and three warnings
 (Gradle update, Kotlin Compose plugin update, retained plural heuristic).
 Foundation now follows the BOM. Unit tests: 72 passed. Final API 37 interface

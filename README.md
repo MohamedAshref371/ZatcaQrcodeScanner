@@ -69,7 +69,7 @@ Layout direction follows the language, while Base64 and numeric values remain re
 
 ## Open and run the project
 
-1. Open the repository in **Android Studio Panda 4 (2025.3.4) or newer**, with support for **Android Gradle Plugin 9.2.1** and **Gradle 9.4.1**. Use JDK 17 or later; validation uses JBR 21. Android Studio Otter 3 (2025.2.3) supports AGP only through 9.0 and needs an IDE update for Gradle Sync.
+1. Open the repository in **Android Studio Rabbit 1 (2026.2.1) or newer**, with support for **Android Gradle Plugin 9.4.1** and the project's **Gradle 9.8.2 Wrapper**. Use the bundled JBR 25, matching the project's Gradle daemon criteria.
 2. Install Android SDK Platform **37** and the required Build Tools. Set `sdk.dir` in your local `local.properties` file. The app targets API **37** with minimum API **26**.
 3. Sync Gradle. Downloading build dependencies initially requires internet access.
 4. Run the `app` module on a device and grant camera permission. Gallery input remains available without camera access.
