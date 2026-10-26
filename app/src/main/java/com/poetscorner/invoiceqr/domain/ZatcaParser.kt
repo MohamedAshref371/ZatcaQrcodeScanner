@@ -64,7 +64,7 @@ object ZatcaParser {
             (e as? InvalidPayload)?.text ?: UiText(R.string.error_payload))
     }
 
-    private val timestampPattern = Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(Z|[+-]\\d{2}:?\\d{2})?")
+    private val timestampPattern = Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(Z|[+-]\\d{2}:?\\d{2}|\\+03)?")
 
     /** Preserve Tag 3 text for display; interpret zone-less timestamps at Saudi UTC+03:00. */
     fun parseTimestamp(value: String): OffsetDateTime {
@@ -73,9 +73,11 @@ object ZatcaParser {
             LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atOffset(ZoneOffset.ofHours(3))
         } else {
             val offset = match.groupValues[1]
-            val normalized = if (offset.length == 5) {
-                value.dropLast(5) + offset.take(3) + ":" + offset.takeLast(2)
-            } else value
+            val normalized = when (offset.length) {
+                3 -> value + ":00"
+                5 -> value.dropLast(5) + offset.take(3) + ":" + offset.takeLast(2)
+                else -> value
+            }
             OffsetDateTime.parse(normalized, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
         }
     }

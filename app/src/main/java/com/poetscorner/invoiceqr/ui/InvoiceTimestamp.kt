@@ -12,12 +12,12 @@ internal fun formatInvoiceTimestamp(value: String, locale: Locale): InvoiceTimes
     val timestamp = runCatching { ZatcaParser.parseTimestamp(value) }.getOrNull() ?: return null
     // Format the invoice's own clock time; never convert to the device's time zone.
     val label = when {
-        value.endsWith("Z") || value.endsWith("+00:00") -> R.string.invoice_date_gmt
-        value.endsWith("+03:00") || value.endsWith("+0300") -> R.string.invoice_date_makkah
+        value.endsWith("Z") || value.endsWith("+00:00") || value.endsWith("+0000") -> R.string.invoice_date_gmt
+        value.endsWith("+03:00") || value.endsWith("+0300") || value.endsWith("+03") -> R.string.invoice_date_makkah
         else -> R.string.invoice_date_time
     }
     return InvoiceTimestampDisplay(
-        timestamp.format(DateTimeFormatter.ofPattern("d MMMM uuuu", locale)),
+        timestamp.format(DateTimeFormatter.ofPattern("EEEE d MMMM uuuu", locale)),
         timestamp.format(DateTimeFormatter.ofPattern("h:mm:ss a", locale)),
         label
     )
