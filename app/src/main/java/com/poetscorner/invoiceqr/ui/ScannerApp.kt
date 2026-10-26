@@ -636,7 +636,7 @@ private fun SupporterThemePicker(selected: String, onChange: (String) -> Unit) {
         "DEFAULT" to stringResource(R.string.default_theme),
         "GOLD" to stringResource(R.string.gold_theme),
         "PURPLE" to stringResource(R.string.purple_theme)
-    ), singleLine = true, onChange = onChange)
+    ), singleLine = true, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), onChange = onChange)
 }
 
 @Composable
@@ -724,11 +724,11 @@ private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit)
 }
 @Composable
 internal fun Choice(label: String, selected: String, values: List<Pair<String,String>>,
-    singleLine: Boolean = false, onChange: (String) -> Unit) {
+    singleLine: Boolean = false, border: BorderStroke? = null, onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Surface(onClick = { expanded = true }, color = MaterialTheme.colorScheme.surfaceContainerLowest,
-            shape = MaterialTheme.shapes.medium) {
+            shape = MaterialTheme.shapes.medium, border = border) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (singleLine) {
