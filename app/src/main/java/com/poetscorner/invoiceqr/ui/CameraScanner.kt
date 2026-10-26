@@ -238,18 +238,6 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                 }
                 drawPath(shade, Color.Black.copy(alpha = 0.5f))
                 drawRoundRect(Color.White.copy(alpha = 0.35f), Offset(left, top), ComposeSize(side, side), radius, style = Stroke(1.dp.toPx()))
-                val corner = 30.dp.toPx().coerceAtMost(side / 4)
-                val guide = Path().apply {
-                    moveTo(left, top + corner); lineTo(left, top + 14.dp.toPx())
-                    quadraticTo(left, top, left + 14.dp.toPx(), top); lineTo(left + corner, top)
-                    moveTo(left + side - corner, top); lineTo(left + side - 14.dp.toPx(), top)
-                    quadraticTo(left + side, top, left + side, top + 14.dp.toPx()); lineTo(left + side, top + corner)
-                    moveTo(left + side, top + side - corner); lineTo(left + side, top + side - 14.dp.toPx())
-                    quadraticTo(left + side, top + side, left + side - 14.dp.toPx(), top + side); lineTo(left + side - corner, top + side)
-                    moveTo(left + corner, top + side); lineTo(left + 14.dp.toPx(), top + side)
-                    quadraticTo(left, top + side, left, top + side - 14.dp.toPx()); lineTo(left, top + side - corner)
-                }
-                drawPath(guide, Color(0xFF8AE6CC), style = Stroke(4.dp.toPx()))
             }
             focusIndicator?.let { center ->
                 Canvas(Modifier.fillMaxSize().testTag("camera_focus_indicator")) {
