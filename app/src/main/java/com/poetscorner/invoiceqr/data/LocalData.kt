@@ -127,7 +127,7 @@ data class ScannerSettings(val harder: Boolean = true, val denoise: Boolean = fa
     val theme: String = "SYSTEM", val goldenTheme: Boolean = false,
     val scanEngine: ScanEngine = ScanEngine.ZXING, val cropEnabled: Boolean = true,
     val supporterTheme: String = if (goldenTheme) "GOLD" else "DEFAULT") {
-    val intervalMs get() = when (speed) { "FAST" -> 100L; "FASTEST" -> 0L; else -> 300L }
+    val intervalMs get() = when (speed) { "FAST" -> 100L; "FASTEST" -> 50L; else -> 300L }
 }
 private val Context.settingsStore by preferencesDataStore("scanner_settings")
 class SettingsRepository(private val context: Context) {

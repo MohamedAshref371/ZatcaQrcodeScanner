@@ -200,7 +200,7 @@
     <string name="camera_hint_full_frame">Point the camera at the invoice QR code • Tap to focus</string>
     <string name="speed_normal">Normal · every 300 ms</string>
     <string name="speed_fast">Fast · every 100 ms</string>
-    <string name="speed_fastest">Fastest · every available frame</string>
+    <string name="speed_fastest">Very fast · every 50ms</string>
     <string name="appearance">Appearance</string>
     <string name="theme_system">Follow system</string>
     <string name="theme_light">Light</string>

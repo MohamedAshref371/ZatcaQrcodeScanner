@@ -198,7 +198,7 @@
     <string name="camera_hint_full_frame">وجّه الكاميرا إلى رمز QR الفاتورة • اضغط للتركيز</string>
     <string name="speed_normal">عادي · كل 300ms</string>
     <string name="speed_fast">سريع · كل 100ms</string>
-    <string name="speed_fastest">الأسرع · كل إطار متاح</string>
+    <string name="speed_fastest">سريع جدا · كل 50ms</string>
     <string name="appearance">المظهر</string>
     <string name="theme_system">حسب النظام</string>
     <string name="theme_light">فاتح</string>
