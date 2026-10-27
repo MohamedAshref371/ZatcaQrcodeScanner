@@ -183,10 +183,10 @@
     <string name="try_rotate">Try rotate · دوران ±90°</string>
     <string name="try_inverted">Try inverted · ألوان معكوسة</string>
     <string name="binarizer">Binarizer · التحويل الثنائي</string>
-    <string name="bin_local">المتوسط المحلي</string>
-    <string name="bin_global">المدرج التكراري العام</string>
-    <string name="bin_fixed">عتبة ثابتة</string>
-    <string name="bin_bool">تحويل منطقي</string>
+    <string name="bin_local">المتوسط المحلي (Local average)</string>
+    <string name="bin_global">توزيع الإضاءة العام (Global histogram)</string>
+    <string name="bin_fixed">حد فصل ثابت (Fixed threshold)</string>
+    <string name="bin_bool">فصل عند الصفر (Bool cast)</string>
     <string name="resolution">دقة المسح</string>
     <string name="resolution_sd">SD · 480p</string>
     <string name="resolution_hd">HD · 720p</string>
