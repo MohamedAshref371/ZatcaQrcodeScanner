@@ -1,0 +1,19 @@
+import groovy.json.JsonOutput
+allprojects {
+    afterEvaluate { p ->
+        if (p.path == ':app') {
+            tasks.register('exportLicenseInputs') {
+                doLast {
+                    def runtime = configurations.releaseRuntimeClasspath.resolvedConfiguration
+                    def artifacts = runtime.resolvedArtifacts.collect {
+                        [id: it.moduleVersion.id.toString(), file: it.file.absolutePath]
+                    }.sort { it.id }
+                    def output = rootProject.file('app/build/license-inputs.json')
+                    output.parentFile.mkdirs()
+                    output.text = JsonOutput.prettyPrint(JsonOutput.toJson([
+                        cache: gradle.gradleUserHomeDir.absolutePath, artifacts: artifacts]))
+                }
+            }
+        }
+    }
+}
