@@ -132,7 +132,7 @@ class ScannerViewModel(
             val result = snapshot?.result ?: db.statistics(request)
             val context = ContextCompat.getContextForLanguage(getApplication())
             val headers = listOf(request.grouping.label(), R.string.stats_count_label,
-                if (result.summary.missingTotal > 0) R.string.stats_available_total else R.string.tag_total,
+                if (result.summary.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax,
                 if (result.summary.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax,
                 R.string.stats_missing_total_count, R.string.stats_missing_tax_count).map(context::getString)
             outputDocument(uri) { writer ->

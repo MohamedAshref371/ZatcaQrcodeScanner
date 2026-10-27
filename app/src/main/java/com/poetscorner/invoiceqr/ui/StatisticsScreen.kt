@@ -237,7 +237,7 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Mo
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(if (totals.missingTotal > 0) R.string.stats_available_total else R.string.tag_total),
+                    Text(stringResource(if (totals.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax),
                         style = MaterialTheme.typography.labelMedium)
                     Text(total, style = MaterialTheme.typography.headlineSmall,
                         color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
