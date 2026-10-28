@@ -183,8 +183,6 @@
     <string name="scan_again">فحص فاتورة أخرى</string>
     <string name="raw_qr">محتوى QR الأصلي</string>
     <string name="scan_engine">محرك البحث (بدون إنترنت)</string>
-    <string name="engine_zxing">ZXing</string>
-    <string name="engine_ml_kit">Google ML Kit</string>
     <string name="try_harder">Try harder · بحث مكثّف</string>
     <string name="try_denoise">Try denoise · تقليل التشويش</string>
     <string name="try_rotate">Try rotate · دوران ±90°</string>
@@ -195,11 +193,6 @@
     <string name="bin_fixed">حد فصل ثابت (Fixed threshold)</string>
     <string name="bin_bool">فصل عند الصفر (Bool cast)</string>
     <string name="resolution">دقة المسح</string>
-    <string name="resolution_sd">SD · 480p</string>
-    <string name="resolution_hd">HD · 720p</string>
-    <string name="resolution_fhd">FHD · 1080p</string>
-    <string name="resolution_qhd">QHD · 1440p</string>
-    <string name="resolution_uhd">UHD · 2160p</string>
     <string name="scan_frequency">تردد المسح</string>
     <string name="scan_crop">قص منطقة المسح</string>
     <string name="camera_hint_full_frame">وجّه الكاميرا إلى رمز QR الفاتورة • اضغط للتركيز</string>

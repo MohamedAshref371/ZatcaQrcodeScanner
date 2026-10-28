@@ -185,8 +185,8 @@
     <string name="scan_again">Scan another invoice</string>
     <string name="raw_qr">Original QR content</string>
     <string name="scan_engine">Scan engine (offline)</string>
-    <string name="engine_zxing">ZXing</string>
-    <string name="engine_ml_kit">Google ML Kit</string>
+    <string name="engine_zxing" translatable="false">ZXing C++</string>
+    <string name="engine_ml_kit" translatable="false">Google ML Kit</string>
     <string name="try_harder">Try harder</string>
     <string name="try_denoise">Try denoise</string>
     <string name="try_rotate">Try rotate · ±90°</string>
@@ -197,11 +197,11 @@
     <string name="bin_fixed">Fixed threshold</string>
     <string name="bin_bool">Bool cast</string>
     <string name="resolution">Scan resolution</string>
-    <string name="resolution_sd">SD · 480p</string>
-    <string name="resolution_hd">HD · 720p</string>
-    <string name="resolution_fhd">FHD · 1080p</string>
-    <string name="resolution_qhd">QHD · 1440p</string>
-    <string name="resolution_uhd">UHD · 2160p</string>
+    <string name="resolution_sd" translatable="false">SD · 480p</string>
+    <string name="resolution_hd" translatable="false">HD · 720p</string>
+    <string name="resolution_fhd" translatable="false">FHD · 1080p</string>
+    <string name="resolution_qhd" translatable="false">QHD · 1440p</string>
+    <string name="resolution_uhd" translatable="false">UHD · 2160p</string>
     <string name="scan_frequency">Scan frequency</string>
     <string name="scan_crop">Crop scan area</string>
     <string name="camera_hint_full_frame">Point the camera at the invoice QR code • Tap to focus</string>

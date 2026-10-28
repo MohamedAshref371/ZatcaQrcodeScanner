@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.ScanEngine
@@ -25,7 +26,8 @@ internal fun ScanEnginePicker(selected: ScanEngine, module: MlKitModuleState,
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(selected == ScanEngine.ZXING,
                 role = Role.RadioButton, onClick = { onSelect(ScanEngine.ZXING) }), verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(selected == ScanEngine.ZXING, onClick = null)
-                Text(stringResource(R.string.engine_zxing), Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.engine_zxing), Modifier.padding(start = 8.dp),
+                    style = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr))
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
