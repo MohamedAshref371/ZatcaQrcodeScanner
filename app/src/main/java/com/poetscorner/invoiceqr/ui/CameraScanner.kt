@@ -5,11 +5,13 @@ import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.ui.text.UiText
 import com.poetscorner.invoiceqr.ui.text.localized
 import android.Manifest
-import android.graphics.Rect
+import android.graphics.Matrix
+import android.graphics.RectF
+import android.hardware.display.DisplayManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.util.Size
-import android.util.Rational
 import android.view.MotionEvent
 import android.view.Surface
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -39,9 +41,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -51,13 +55,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.scanner.decoder
-import com.poetscorner.invoiceqr.scanner.scanWindow
+import com.poetscorner.invoiceqr.scanner.ScanWindow
+import com.poetscorner.invoiceqr.scanner.scanGuideWindow
+import com.poetscorner.invoiceqr.scanner.previewCropInBuffer
 import com.poetscorner.invoiceqr.scanner.QrDeliveryGate
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 
 @Composable
 fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspend (String) -> Boolean, onTorch: () -> Unit,
@@ -95,8 +103,28 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
         }
     }
     var previewSize by remember { mutableStateOf(IntSize.Zero) }
-    var scanFraction by remember { mutableFloatStateOf(0.8f) }
-    val currentScanFraction by rememberUpdatedState(scanFraction)
+    var guideWindow by remember { mutableStateOf<ScanWindow?>(null) }
+    val currentGuideWindow by rememberUpdatedState(guideWindow)
+    var displayRotation by remember { mutableIntStateOf(Surface.ROTATION_0) }
+    var boundAnalysis by remember { mutableStateOf<ImageAnalysis?>(null) }
+    var boundPreview by remember { mutableStateOf<Preview?>(null) }
+    // 180-degree rotations need an explicit update even when the view size is unchanged.
+    DisposableEffect(previewView) {
+        val displays = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        fun updateRotation() { previewView.display?.let { displayRotation = it.rotation } }
+        val listener = object : DisplayManager.DisplayListener {
+            override fun onDisplayChanged(displayId: Int) { updateRotation() }
+            override fun onDisplayAdded(displayId: Int) { updateRotation() }
+            override fun onDisplayRemoved(displayId: Int) = Unit
+        }
+        displays.registerDisplayListener(listener, android.os.Handler(android.os.Looper.getMainLooper()))
+        previewView.post { updateRotation() }
+        onDispose { displays.unregisterDisplayListener(listener) }
+    }
+    LaunchedEffect(boundAnalysis, boundPreview, displayRotation) {
+        boundAnalysis?.targetRotation = displayRotation
+        boundPreview?.targetRotation = displayRotation
+    }
     var camera by remember { mutableStateOf<Camera?>(null) }
     var focusIndicator by remember(camera, previewSize) { mutableStateOf<Offset?>(null) }
     var focusTapId by remember { mutableIntStateOf(0) }
@@ -112,8 +140,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
     val scope = rememberCoroutineScope()
     val deliveryGate by rememberUpdatedState(remember(continuous) { QrDeliveryGate(continuous) })
     // Switching scan mode updates delivery rules without rebinding the camera.
-    DisposableEffect(owner, settings.resolution, settings.scanEngine, previewSize) {
-        if (previewSize.width == 0 || previewSize.height == 0) return@DisposableEffect onDispose { }
+    DisposableEffect(owner, settings.resolution, settings.scanEngine) {
         val executor = Executors.newSingleThreadExecutor()
         val decoder = settings.scanEngine.decoder()
         val providerFuture = ProcessCameraProvider.getInstance(context)
@@ -133,8 +160,11 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                     else -> Size(1280, 720)
                 }
                 val selector = ResolutionSelector.Builder().setResolutionStrategy(ResolutionStrategy(size, ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER)).build()
-                val pv = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }; preview = pv
+                val rotation = previewView.display?.rotation ?: displayRotation
+                val pv = Preview.Builder().setTargetRotation(rotation).build()
+                    .also { it.surfaceProvider = previewView.surfaceProvider }; preview = pv
                 val a = ImageAnalysis.Builder().setResolutionSelector(selector)
+                    .setTargetRotation(rotation)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build(); analysis = a
                 var last = 0L
                 a.setAnalyzer(executor) { image ->
@@ -142,14 +172,23 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                         val now = SystemClock.elapsedRealtime()
                         if (!delivered.get() && now - last >= currentSettings.intervalMs) {
                             last = now
-                            // Without the guide, retain the whole visible ViewPort for both engines.
-                            if (currentSettings.cropEnabled) {
-                                val visible = image.cropRect
-                                val window = scanWindow(visible.width(), visible.height(), currentScanFraction)
-                                val left = visible.left + window.left
-                                val top = visible.top + window.top
-                                image.setCropRect(Rect(left, top, left + window.size, top + window.size))
-                            }
+                            // Map the live view through sensor coordinates. This keeps the crop
+                            // aligned after resizing/rotation without rebinding a fixed ViewPort.
+                            val cropEnabled = currentSettings.cropEnabled
+                            val crop = runBlocking(Dispatchers.Main) {
+                                val sensorToView = previewView.sensorToViewTransform ?: return@runBlocking null
+                                val viewToSensor = Matrix()
+                                if (!sensorToView.invert(viewToSensor)) return@runBlocking null
+                                val window = currentGuideWindow
+                                val rect = if (cropEnabled) {
+                                    if (window == null) return@runBlocking null
+                                    RectF(window.left.toFloat(), window.top.toFloat(),
+                                        (window.left + window.size).toFloat(), (window.top + window.size).toFloat())
+                                } else RectF(0f, 0f, previewView.width.toFloat(), previewView.height.toFloat())
+                                previewCropInBuffer(viewToSensor, image.imageInfo.sensorToBufferTransformMatrix,
+                                    rect, image.cropRect)
+                            } ?: return@setAnalyzer
+                            image.setCropRect(crop)
                             val result = decoder.read(image, currentSettings)
                             val shouldDeliver = deliveryGate.shouldDeliver(result, now)
                             if (result != null && shouldDeliver
@@ -172,10 +211,8 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                         ContextCompat.getMainExecutor(context).execute { if (!disposed) error = UiText(R.string.camera_frame_error) }
                     } finally { image.close() }
                 }
-                val viewPort = ViewPort.Builder(Rational(previewSize.width, previewSize.height),
-                    previewView.display?.rotation ?: Surface.ROTATION_0).setScaleType(ViewPort.FILL_CENTER).build()
-                val group = UseCaseGroup.Builder().setViewPort(viewPort).addUseCase(pv).addUseCase(a).build()
-                camera = p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, group)
+                camera = p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, pv, a)
+                boundPreview = pv; boundAnalysis = a
                 zoom = 0f; error = null
             } catch (_: Exception) { error = UiText(R.string.camera_start_error) }
         }, ContextCompat.getMainExecutor(context))
@@ -185,7 +222,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
             if (uses.isNotEmpty()) provider?.unbind(*uses)
             // Close after the in-flight frame finishes, including any asynchronous ML Kit task.
             executor.execute { decoder.close() }
-            executor.shutdown(); camera = null
+            executor.shutdown(); camera = null; boundPreview = null; boundAnalysis = null
         }
     }
     LaunchedEffect(camera, settings.torch) {
@@ -194,18 +231,19 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight
         val density = LocalDensity.current
+        val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
         var headerHeight by remember { mutableIntStateOf(0) }
         var footerHeight by remember { mutableIntStateOf(0) }
-        val topInset = with(density) { (contentPadding.calculateTopPadding() + 24.dp).toPx() }
-        val bottomInset = with(density) { (contentPadding.calculateBottomPadding() + 24.dp).toPx() }
-        val width = constraints.maxWidth.toFloat()
-        val height = constraints.maxHeight.toFloat()
-        val verticalClearance = 2f * minOf(
-            height / 2f - topInset - (if (landscape) 0 else headerHeight),
-            height / 2f - bottomInset - (if (landscape) 0 else footerHeight))
-        val horizontalClearance = if (landscape) width * 0.36f - with(density) { 48.dp.toPx() } else width
-        val guideFraction = (minOf(verticalClearance, horizontalClearance) / minOf(width, height)).coerceIn(0.01f, 0.8f)
-        SideEffect { scanFraction = guideFraction }
+        val margin = with(density) { 12.dp.roundToPx() }
+        val leftInset = with(density) { contentPadding.calculateLeftPadding(LocalLayoutDirection.current).roundToPx() }
+        val rightInset = with(density) { contentPadding.calculateRightPadding(LocalLayoutDirection.current).roundToPx() }
+        val sideControls = if (landscape) ((constraints.maxWidth - leftInset - rightInset - margin * 2) * 0.32f).toInt() + margin else 0
+        val window = scanGuideWindow(constraints.maxWidth.coerceAtLeast(1), constraints.maxHeight.coerceAtLeast(1),
+            leftInset + margin + if (!rtl) sideControls else 0,
+            with(density) { contentPadding.calculateTopPadding().roundToPx() } + margin + if (landscape) 0 else headerHeight + margin,
+            rightInset + margin + if (rtl) sideControls else 0,
+            with(density) { contentPadding.calculateBottomPadding().roundToPx() } + margin + if (landscape) 0 else footerHeight + margin)
+        SideEffect { guideWindow = window }
         Box(Modifier.fillMaxSize().testTag("camera_preview").clipToBounds().onSizeChanged { previewSize = it }) {
             AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize(), update = { view ->
                 view.setOnTouchListener { _, event ->
@@ -226,7 +264,6 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
             })
             if (settings.cropEnabled) Canvas(Modifier.fillMaxSize().testTag("camera_crop_guide")) {
                 if (size.width < 1 || size.height < 1) return@Canvas
-                val window = scanWindow(size.width.toInt(), size.height.toInt(), guideFraction)
                 val left = window.left.toFloat()
                 val top = window.top.toFloat()
                 val side = window.size.toFloat()
@@ -248,7 +285,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                 }
             }
         }
-        // Only the overlays respect app bars; the preview and its ViewPort use the whole screen.
+        // Only the overlays respect app bars; the preview fills the whole screen.
         Box(Modifier.fillMaxSize().padding(contentPadding).padding(12.dp)) {
             Column(Modifier.align(Alignment.TopStart).fillMaxHeight()
                 .then(if (landscape) Modifier.fillMaxWidth(0.32f).verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth()),

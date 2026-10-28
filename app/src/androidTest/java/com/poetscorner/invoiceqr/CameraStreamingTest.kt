@@ -2,6 +2,8 @@ package com.poetscorner.invoiceqr
 
 import android.view.View
 import android.view.ViewGroup
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -19,6 +21,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
@@ -35,7 +38,7 @@ class CameraStreamingTest {
     @Before fun prepareCameraSettings() = runBlocking {
         val repository = SettingsRepository(compose.activity.applicationContext)
         original = repository.settings.first()
-        repository.save(ScannerSettings(scanEngine = ScanEngine.ZXING))
+        repository.save(ScannerSettings(scanEngine = ScanEngine.ZXING, lockPortrait = false))
     }
 
     @After fun restoreSettings() = runBlocking {
@@ -68,6 +71,44 @@ class CameraStreamingTest {
         waitForStreaming()
         compose.activityRule.scenario.recreate()
         waitForStreaming()
+    }
+
+    @Test fun rotationKeepsTheActivityPreviewAndZoomAcrossBothLandscapeDirections() {
+        waitForStreaming()
+        val activity = compose.activity
+        val originalOrientation = activity.requestedOrientation
+        val preview = compose.runOnIdle { requireNotNull(activity.window.decorView.findPreview()) }
+        val provider = ProcessCameraProvider.getInstance(activity).get(10, TimeUnit.SECONDS)
+        val info = CameraSelector.DEFAULT_BACK_CAMERA.filter(provider.availableCameraInfos).first()
+        val zoomState = compose.runOnIdle { requireNotNull(info.zoomState.value) }
+        assumeTrue("Camera must support zoom", zoomState.maxZoomRatio > zoomState.minZoomRatio)
+        try {
+            compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)).performTouchInput {
+                click(Offset(center.x * 1.5f, center.y))
+            }
+            compose.waitUntil(10_000) { compose.runOnIdle { (info.zoomState.value?.linearZoom ?: 0f) > 0.1f } }
+            val expectedZoom = compose.runOnIdle { requireNotNull(info.zoomState.value).zoomRatio }
+            for (orientation in listOf(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+                ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE, ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)) {
+                val previousRotation = compose.runOnIdle { preview.display.rotation }
+                compose.runOnIdle { activity.requestedOrientation = orientation }
+                compose.waitUntil(15_000) {
+                    compose.runOnIdle {
+                        val expected = if (orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+                            Configuration.ORIENTATION_PORTRAIT else Configuration.ORIENTATION_LANDSCAPE
+                        activity.resources.configuration.orientation == expected && preview.display.rotation != previousRotation
+                    }
+                }
+                waitForStreaming()
+                compose.runOnIdle {
+                    assertSame("Rotation must not recreate the Activity", activity, compose.activity)
+                    assertSame("Rotation must retain the PreviewView", preview, activity.window.decorView.findPreview())
+                    assertEquals("Rotation must preserve camera zoom", expectedZoom, requireNotNull(info.zoomState.value).zoomRatio, 0.01f)
+                }
+            }
+        } finally {
+            compose.runOnIdle { activity.requestedOrientation = originalOrientation }
+        }
     }
 
     @Test fun cropSwitchPersistsAndControlsTheCameraGuide() = runBlocking<Unit> {

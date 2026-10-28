@@ -209,6 +209,7 @@
     <string name="speed_fast">Fast · every 100 ms</string>
     <string name="speed_fastest">Very fast · every 50ms</string>
     <string name="appearance">Appearance</string>
+    <string name="lock_portrait">Lock app to portrait</string>
     <string name="theme_system">Follow system</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>

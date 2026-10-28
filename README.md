@@ -144,6 +144,8 @@ CameraX uses one analysis executor with `STRATEGY_KEEP_ONLY_LATEST` and closes `
 
 Gallery decoding, parsing, and export run off the UI thread. Gallery images are corrected for EXIF orientation and downsampled when either dimension exceeds 4096 pixels to bound memory use.
 
+**Lock app to portrait**, under Appearance & app in Settings, is enabled by default (including for existing installations without a saved choice). Disabling it follows the phone's rotation preference. The choice is saved in DataStore. When rotation is allowed, screen rotation updates the existing camera use cases instead of recreating the Activity or rebinding on preview size changes, preserving zoom and the continuous-scan delivery gate. Display rotation updates include 180-degree turns. The crop guide uses the unobstructed space between the app bars and, in landscape, beside the controls (mirrored for RTL). Its rectangle is mapped through CameraX sensor transforms into each analysis buffer, so the visible guide and decoded region stay aligned without a fixed ViewPort. With cropping disabled, the same mapping scans the full visible preview.
+
 ## Parsing rules and limitations
 
 - Tags 1–5 represent seller, VAT number, timestamp, total including VAT, and VAT amount. Tag 6 is the invoice hash, tag 7 the ECDSA signature, tag 8 the **public key**, and tag 9 the technical certification authority's public-key signature/stamp. Tag 8 is not a complete X.509 certificate.

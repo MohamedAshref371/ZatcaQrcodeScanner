@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.core.view.WindowCompat
@@ -109,6 +110,13 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     val previewActive = supporterPreview && !support.owned
     LaunchedEffect(support.owned) { if (support.owned) supporterPreview = false }
     val context = LocalContext.current
+    LaunchedEffect(context, settings.lockPortrait) {
+        context.activity()?.let { activity ->
+            val orientation = if (settings.lockPortrait) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                else ActivityInfo.SCREEN_ORIENTATION_USER
+            if (activity.requestedOrientation != orientation) activity.requestedOrientation = orientation
+        }
+    }
     val resources = LocalResources.current
     val configuration = LocalConfiguration.current
     val haptic = LocalHapticFeedback.current
@@ -595,6 +603,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { AppLanguagePicker() }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark)), singleLine = true) { v -> update { it.copy(theme = v) } } }
+        item { Toggle(stringResource(R.string.lock_portrait), s.lockPortrait) { v -> update { it.copy(lockPortrait = v) } } }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically) {

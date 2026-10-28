@@ -22,7 +22,8 @@
         </service>
         <activity
             android:name=".MainActivity"
-            android:configChanges="locale|layoutDirection"
+            android:configChanges="locale|layoutDirection|orientation|screenSize|smallestScreenSize"
+            android:screenOrientation="portrait"
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.ZatcaQrcodeScanner">
