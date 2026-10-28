@@ -42,7 +42,7 @@
     <string name="app_description">Scan Saudi e-invoice QR codes, view their details and keep a local history.</string>
     <string name="about_app">About this app</string>
     <string name="about_version">Version %1$s</string>
-    <string name="about_details">Scan invoice QR codes with your camera or from an image, review their details and keep a local history with search, statistics, export and backups.\n\nScanning and analysis work offline.\nThe app supports Arabic and English. All invoice features are free and ad-free.\n\nThis is an independent app, not affiliated with or approved by ZATCA. Its local, structural checks do not establish signature authenticity or official invoice acceptance.</string>
+    <string name="about_details">Scan invoice QR codes with your camera or from an image, review their details and keep a local history with search, statistics, export and backups.\n\nScanning and analysis work offline.\nThe app supports Arabic and English.\n\nThis is an independent app, not affiliated with or approved by ZATCA. Its local, structural checks do not establish signature authenticity or official invoice acceptance.</string>
     <string name="nav_scanner">Scanner</string>
     <string name="nav_result">Result</string>
     <string name="nav_history">History</string>
@@ -208,7 +208,6 @@
     <string name="camera_settings_note">Actual resolution depends on your camera. Intensive options and higher resolutions may increase battery use and scan time. Zoom is available below the camera preview.</string>
     <string name="close">Close</string>
     <string name="supporter_badge">App supporter · thank you</string>
-    <string name="free_features">All scanning, analysis, history and export features are free.</string>
     <string name="supporter_pack">Support the app</string>
     <string name="supporter_compact_description">Gold and purple themes · One-time purchase</string>
     <string name="supporter_free_note">All app features are free and ad-free.</string>
@@ -217,7 +216,7 @@
     <string name="supporter_active">Thank you for your support! Your supporter benefits are active.</string>
     <string name="supporter_preview_start">Preview</string>
     <string name="supporter_preview_end">End preview</string>
-    <string name="supporter_preview_description">Try the supporter themes and badge without payment. No purchase is made, and you can end the preview at any time. See the badge in About.</string>
+    <string name="supporter_preview_description">Try the supporter themes and badge without payment, and you can end the preview at any time. See the badge in About.</string>
     <string name="supporter_preview_badge">Badge preview · no purchase made</string>
     <string name="gold_theme">Gold theme</string>
     <string name="purchase_pending">Purchase pending</string>
@@ -244,9 +243,9 @@
     <string name="export_success">History exported</string>
     <string name="export_error">Unable to export file</string>
     <string name="history_delete_error">Unable to delete history</string>
-    <string name="billing_cancelled">Purchase cancelled. You can continue using the app for free.</string>
-    <string name="billing_failed">Unable to complete the purchase. All free features remain available.</string>
-    <string name="billing_unconfigured">The option to support the app is currently unavailable. All app features are free and ad-free.</string>
+    <string name="billing_cancelled">Purchase cancelled.</string>
+    <string name="billing_failed">Unable to complete the purchase.</string>
+    <string name="billing_unconfigured">The option to support the app is currently unavailable.</string>
     <string name="billing_connect_error">Unable to connect to Google Play. Retry later; the app works offline.</string>
     <string name="billing_disconnected">Disconnected from Google Play. Retry when connected.</string>
     <string name="billing_restore_error">Unable to restore purchases. Your existing local appearance is unchanged; retry later.</string>
@@ -256,7 +255,7 @@
     <string name="billing_ack_error">Your supporter benefits are active, but purchase confirmation needs a connection. Tap Restore purchases to retry.</string>
     <string name="billing_thanks">Thank you for your support! The supporter themes and badge are now available.</string>
     <string name="billing_pending_note">Purchase pending in Google Play. Your supporter benefits will activate after payment completes.</string>
-    <string name="billing_not_owned">No purchase to support the app was found on this store account. All app features remain free.</string>
+    <string name="billing_not_owned">No purchase to support the app was found on this store account.</string>
     <string name="tag_seller">Seller name</string>
     <string name="tag_vat">VAT registration number</string>
     <string name="tag_date">Date</string>

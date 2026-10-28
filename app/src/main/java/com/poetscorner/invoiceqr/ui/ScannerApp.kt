@@ -636,7 +636,8 @@ private fun SupporterThemePicker(selected: String, onChange: (String) -> Unit) {
         "DEFAULT" to stringResource(R.string.default_theme),
         "GOLD" to stringResource(R.string.gold_theme),
         "PURPLE" to stringResource(R.string.purple_theme)
-    ), singleLine = true, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), onChange = onChange)
+    ), singleLine = true, equalWidth = true,
+        border = ButtonDefaults.outlinedButtonBorder(enabled = true), onChange = onChange)
 }
 
 @Composable
@@ -698,7 +699,6 @@ private fun SupporterCard(state: SupporterState, selectedTheme: String, preview:
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.supporter_description))
-                Text(stringResource(R.string.free_features))
                 Text(stringResource(R.string.supporter_preview_description))
                 Text(stringResource(R.string.billing_connection_note))
             }
@@ -724,14 +724,26 @@ private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit)
 }
 @Composable
 internal fun Choice(label: String, selected: String, values: List<Pair<String,String>>,
-    singleLine: Boolean = false, border: BorderStroke? = null, onChange: (String) -> Unit) {
+    singleLine: Boolean = false, border: BorderStroke? = null, equalWidth: Boolean = false,
+    onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Surface(onClick = { expanded = true }, color = MaterialTheme.colorScheme.surfaceContainerLowest,
             shape = MaterialTheme.shapes.medium, border = border) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (singleLine) {
+                if (equalWidth) {
+                    Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(values.firstOrNull { it.first == selected }?.second ?: selected,
+                            Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.End,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        AppIcon(R.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else if (singleLine) {
                     Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(values.firstOrNull { it.first == selected }?.second ?: selected,
@@ -743,7 +755,7 @@ internal fun Choice(label: String, selected: String, values: List<Pair<String,St
                     Text(values.firstOrNull { it.first == selected }?.second ?: selected,
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                 }
-                AppIcon(R.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!equalWidth) AppIcon(R.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
