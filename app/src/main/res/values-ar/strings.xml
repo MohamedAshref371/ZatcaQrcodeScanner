@@ -200,7 +200,7 @@
     <string name="speed_fast">سريع · كل 100ms</string>
     <string name="speed_fastest">سريع جدا · كل 50ms</string>
     <string name="appearance">المظهر</string>
-    <string name="lock_portrait">قفل التطبيق على الوضع الرأسي</string>
+    <string name="lock_portrait">تثبيت التطبيق على الوضع الرأسي</string>
     <string name="theme_system">حسب النظام</string>
     <string name="theme_light">فاتح</string>
     <string name="theme_dark">داكن</string>
