@@ -120,7 +120,14 @@
     <string name="history_invoice_date">تاريخ الفاتورة</string>
     <string name="history_filter_search">بحث</string>
     <string name="history_filter_title">فلترة السجل</string>
-    <string name="history_filter_hint">اختر تاريخ الفاتورة أو تاريخ الفحص، ثم حدد الفترة. يُطبَّق اختيار واحد فقط عند الضغط على موافق.</string>
+    <string name="history_filter_hint">اختر نوع التاريخ والفترة.</string>
+    <string name="history_invoice_date_help">التاريخ داخل رمز QR</string>
+    <string name="history_scan_date_help">أول حفظ في التطبيق</string>
+    <string name="history_today">اليوم</string>
+    <string name="history_yesterday">أمس</string>
+    <string name="history_last_seven_days">آخر ٧ أيام</string>
+    <string name="history_last_month">الشهر الماضي</string>
+    <string name="history_custom_range">فترة التاريخ</string>
     <string name="history_confirm_filters">موافق</string>
     <string name="history_clear_dates">مسح فترة التاريخ</string>
     <string name="history_clear_search">مسح</string>

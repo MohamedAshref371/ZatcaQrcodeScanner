@@ -189,43 +189,80 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
     val dateFormat = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
     val selectedFrom = if (source == HistoryDateSource.INVOICE) invoiceFrom else scanFrom
     val selectedTo = if (source == HistoryDateSource.INVOICE) invoiceTo else scanTo
+    val today = LocalDate.now()
+    val presets = listOf(
+        Triple(R.string.history_today, today, today),
+        Triple(R.string.history_yesterday, today.minusDays(1), today.minusDays(1)),
+        Triple(R.string.history_last_seven_days, today.minusDays(6), today),
+        Triple(R.string.stats_this_month, today.withDayOfMonth(1), today),
+        Triple(R.string.history_last_month, today.minusMonths(1).withDayOfMonth(1), today.withDayOfMonth(1).minusDays(1))
+    )
+    fun setRange(from: Long?, to: Long?) {
+        if (source == HistoryDateSource.INVOICE) {
+            invoiceFrom = from; invoiceTo = to
+        } else {
+            scanFrom = from; scanTo = to
+        }
+    }
     AlertDialog(onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.history_filter_title)) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()).selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(stringResource(R.string.history_filter_hint), style = MaterialTheme.typography.bodySmall)
-                HistoryDateSource.entries.forEach { option ->
+                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                  HistoryDateSource.entries.forEach { option ->
                     val selected = source == option
-                    Row(Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton,
-                        onClick = { source = option }), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = MaterialTheme.shapes.medium,
+                        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)) {
+                      Row(Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton,
+                        onClick = { source = option }).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(selected = selected, onClick = null)
-                        Text(stringResource(if (option == HistoryDateSource.INVOICE) R.string.history_invoice_date else R.string.history_scan_date),
-                            Modifier.padding(start = 8.dp))
+                        Column(Modifier.padding(start = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(if (option == HistoryDateSource.INVOICE) R.string.history_invoice_date else R.string.history_scan_date),
+                                style = MaterialTheme.typography.titleSmall)
+                            Text(stringResource(if (option == HistoryDateSource.INVOICE) R.string.history_invoice_date_help else R.string.history_scan_date_help),
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                      }
                     }
-                    val from = if (option == HistoryDateSource.INVOICE) invoiceFrom else scanFrom
-                    val to = if (option == HistoryDateSource.INVOICE) invoiceTo else scanTo
+                  }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        presets.forEach { (label, from, to) ->
+                            FilterChip(selected = selectedFrom == from.toEpochDay() && selectedTo == to.toEpochDay(),
+                                onClick = { setRange(from.toEpochDay(), to.toEpochDay()) },
+                                label = { Text(stringResource(label)) })
+                        }
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.history_custom_range), style = MaterialTheme.typography.titleSmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(enabled = selected, onClick = { pickingFrom = true }, modifier = Modifier.weight(1f)) {
+                        OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.medium) {
                             Column {
                                 Text(stringResource(R.string.history_from))
-                                Text(from?.let { dateFormat.format(LocalDate.ofEpochDay(it)) } ?: stringResource(R.string.history_any_date))
+                                Text(selectedFrom?.let { dateFormat.format(LocalDate.ofEpochDay(it)) } ?: stringResource(R.string.history_any_date))
                             }
                         }
-                        OutlinedButton(enabled = selected, onClick = { pickingFrom = false }, modifier = Modifier.weight(1f)) {
+                        OutlinedButton(onClick = { pickingFrom = false }, modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.medium) {
                             Column {
                                 Text(stringResource(R.string.history_to))
-                                Text(to?.let { dateFormat.format(LocalDate.ofEpochDay(it)) } ?: stringResource(R.string.history_any_date))
+                                Text(selectedTo?.let { dateFormat.format(LocalDate.ofEpochDay(it)) } ?: stringResource(R.string.history_any_date))
                             }
                         }
                     }
                 }
-                TextButton(onClick = { invoiceFrom = null; invoiceTo = null; scanFrom = null; scanTo = null }) {
+                TextButton(onClick = { setRange(null, null) }, enabled = selectedFrom != null || selectedTo != null) {
                     Text(stringResource(R.string.history_clear_dates))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onApply(source, selectedFrom, selectedTo) }) {
+            Button(onClick = { onApply(source, selectedFrom, selectedTo) }) {
                 Text(stringResource(R.string.history_confirm_filters))
             }
         },

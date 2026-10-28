@@ -122,7 +122,14 @@
     <string name="history_invoice_date">Invoice date</string>
     <string name="history_filter_search">Search</string>
     <string name="history_filter_title">Filter history</string>
-    <string name="history_filter_hint">Choose invoice date or check date, then select a range. Only one date filter is applied when you tap OK.</string>
+    <string name="history_filter_hint">Choose a date type and period.</string>
+    <string name="history_invoice_date_help">Date in the QR code</string>
+    <string name="history_scan_date_help">First saved in the app</string>
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
+    <string name="history_last_seven_days">Last 7 days</string>
+    <string name="history_last_month">Last month</string>
+    <string name="history_custom_range">Date range</string>
     <string name="history_confirm_filters">OK</string>
     <string name="history_clear_dates">Clear date range</string>
     <string name="history_clear_search">Clear</string>
