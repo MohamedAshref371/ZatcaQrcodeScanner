@@ -683,12 +683,12 @@ private fun SupporterCard(state: SupporterState, selectedTheme: String, preview:
             }
             if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             state.message?.let { Text(it.localized(), style = MaterialTheme.typography.bodySmall) }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+            if (!state.owned) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onRestore, enabled = !state.loading && !state.purchasing) {
                     Text(stringResource(R.string.restore_retry))
                 }
-                if (!state.owned) TextButton(onClick = { showDetails = true }) {
+                TextButton(onClick = { showDetails = true }) {
                     Text(stringResource(R.string.supporter_details))
                 }
             }
