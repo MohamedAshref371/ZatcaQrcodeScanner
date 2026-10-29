@@ -47,9 +47,20 @@ class ScannerViewModel(
     suspend fun claimReviewAttempt(): Boolean = try {
         reviewRepository.claimAttempt()
     } catch (_: java.io.IOException) { false }
-    val settings = combine(repository.settings, mlKitModule) { saved, module ->
-        saved.copy(scanEngine = module.effectiveEngine(saved.scanEngine))
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, ScannerSettings())
+    private val mutableSettings = MutableStateFlow(ScannerSettings())
+    val settings = mutableSettings.asStateFlow()
+    private val mutableSettingsLoaded = MutableStateFlow(false)
+    val settingsLoaded = mutableSettingsLoaded.asStateFlow()
+    init {
+        viewModelScope.launch {
+            combine(repository.settings, mlKitModule) { saved, module ->
+                saved.copy(scanEngine = module.effectiveEngine(saved.scanEngine))
+            }.collect { loaded ->
+                mutableSettings.value = loaded
+                mutableSettingsLoaded.value = true
+            }
+        }
+    }
     private val historyPager = HistoryPager(db.scans(), viewModelScope)
     val historyState = historyPager.state
     fun filterHistory(filter: HistoryFilter) = historyPager.setFilter(filter)
