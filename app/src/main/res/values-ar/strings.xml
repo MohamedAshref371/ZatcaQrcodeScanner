@@ -221,7 +221,7 @@
     <string name="purchase_pending">الشراء قيد الانتظار</string>
     <string name="purchase_processing">جارٍ إتمام الشراء</string>
     <string name="store_connecting">جارٍ الاتصال بالمتجر</string>
-    <string name="support_price">دعم التطبيق · %1$s</string>
+    <string name="support_price">%1$s</string>
     <string name="purchase_unavailable">الشراء غير متاح حاليًا</string>
     <string name="restore_retry">استعادة المشتريات</string>
     <string name="billing_connection_note">الشراء والاستعادة يتطلبان Google Play واتصالًا بالإنترنت. استخدام الفواتير يظل متاحًا دون إنترنت.</string>

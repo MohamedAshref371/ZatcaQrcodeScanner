@@ -230,7 +230,7 @@
     <string name="purchase_pending">Purchase pending</string>
     <string name="purchase_processing">Completing purchase</string>
     <string name="store_connecting">Connecting to store</string>
-    <string name="support_price">Support the app · %1$s</string>
+    <string name="support_price">%1$s</string>
     <string name="purchase_unavailable">Purchase unavailable</string>
     <string name="restore_retry">Restore purchases</string>
     <string name="billing_connection_note">Purchasing and restoring require Google Play and an internet connection. Invoice features remain available offline.</string>
