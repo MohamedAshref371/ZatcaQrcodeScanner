@@ -110,15 +110,18 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     val previewActive = supporterPreview && !support.owned
     LaunchedEffect(support.owned) { if (support.owned) supporterPreview = false }
     val context = LocalContext.current
-    LaunchedEffect(context, settings.lockPortrait) {
-        context.activity()?.let { activity ->
-            val orientation = if (settings.lockPortrait) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                else ActivityInfo.SCREEN_ORIENTATION_USER
-            if (activity.requestedOrientation != orientation) activity.requestedOrientation = orientation
-        }
-    }
     val resources = LocalResources.current
     val configuration = LocalConfiguration.current
+    val activity = context.activity()
+    val lockPortrait = portraitLockApplies(settings.lockPortrait,
+        configuration.smallestScreenWidthDp, activity?.isInMultiWindowMode == true)
+    LaunchedEffect(activity, lockPortrait) {
+        activity?.let {
+            val orientation = if (lockPortrait) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            if (it.requestedOrientation != orientation) it.requestedOrientation = orientation
+        }
+    }
     val haptic = LocalHapticFeedback.current
     val snackbar = remember { SnackbarHostState() }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -568,6 +571,8 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     transfersEnabled: Boolean, onBackup: () -> Unit, onImportBackup: () -> Unit,
     onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
     onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit, onShare: () -> Unit) {
+    val portraitLockSupported = portraitLockApplies(true,
+        LocalConfiguration.current.smallestScreenWidthDp, LocalContext.current.activity()?.isInMultiWindowMode == true)
     var showAbout by remember { mutableStateOf(false) }
     var showPrivacy by rememberSaveable { mutableStateOf(false) }
     LazyColumn(Modifier.testTag("settings_list"), state = listState,
@@ -603,7 +608,9 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { AppLanguagePicker() }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark)), singleLine = true) { v -> update { it.copy(theme = v) } } }
-        item { Toggle(stringResource(R.string.lock_portrait), s.lockPortrait) { v -> update { it.copy(lockPortrait = v) } } }
+        if (portraitLockSupported) {
+            item { Toggle(stringResource(R.string.lock_portrait), s.lockPortrait) { v -> update { it.copy(lockPortrait = v) } } }
+        }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically) {

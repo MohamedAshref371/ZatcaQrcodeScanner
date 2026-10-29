@@ -127,7 +127,7 @@ data class ScannerSettings(val harder: Boolean = true, val denoise: Boolean = fa
     val theme: String = "SYSTEM", val goldenTheme: Boolean = false,
     val scanEngine: ScanEngine = ScanEngine.ZXING, val cropEnabled: Boolean = true,
     val supporterTheme: String = if (goldenTheme) "GOLD" else "DEFAULT",
-    val lockPortrait: Boolean = true) {
+    val lockPortrait: Boolean = false) {
     val intervalMs get() = when (speed) { "FAST" -> 100L; "FASTEST" -> 50L; else -> 300L }
 }
 private val Context.settingsStore by preferencesDataStore("scanner_settings")
@@ -142,7 +142,7 @@ class SettingsRepository(private val context: Context) {
             ScanEngine.fromPreference(p[stringPreferencesKey("scan_engine")]),
             p[booleanPreferencesKey("crop_enabled")] ?: true,
             p[stringPreferencesKey("supporter_theme")] ?: if (p[booleanPreferencesKey("goldenTheme")] == true) "GOLD" else "DEFAULT",
-            p[booleanPreferencesKey("lock_portrait")] ?: true)
+            p[booleanPreferencesKey("lock_portrait")] ?: false)
     }
     suspend fun save(s: ScannerSettings) { context.settingsStore.edit { p ->
         mapOf("harder" to s.harder, "denoise" to s.denoise, "rotate" to s.rotate,
