@@ -252,7 +252,6 @@
     <string name="billing_launch_error">تعذّر فتح نافذة الشراء في Google Play. أعد المحاولة لاحقًا.</string>
     <string name="billing_verify_error">تعذّر التحقق من الشراء. جرّب استعادة المشتريات من حساب Google Play الذي استخدمته لدعم التطبيق.</string>
     <string name="billing_ack_error">تم تفعيل مزايا الداعم، لكن تأكيد الشراء يحتاج اتصالًا. اضغط استعادة المشتريات لإعادة المحاولة.</string>
-    <string name="billing_thanks">شكرًا لدعمك! مظاهر الداعم متاحة الآن.</string>
     <string name="billing_pending_note">الشراء قيد الانتظار في Google Play. ستُفعّل مزايا الداعم بعد اكتمال الدفع.</string>
     <string name="billing_not_owned">لم يتم العثور على عملية شراء لدعم التطبيق على حساب المتجر الحالي.</string>
     <string name="tag_seller">اسم البائع</string>

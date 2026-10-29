@@ -149,7 +149,7 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
             message = when {
                 invalid -> UiText(R.string.billing_verify_error)
                 acknowledgementFailed -> UiText(R.string.billing_ack_error)
-                verifiedOwner -> UiText(R.string.billing_thanks)
+                verifiedOwner -> null
                 relevant.any { it.purchaseState == Purchase.PurchaseState.PENDING } -> UiText(R.string.billing_pending_note)
                 authoritative -> UiText(R.string.billing_not_owned)
                 else -> state.value.message

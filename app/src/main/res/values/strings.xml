@@ -261,7 +261,6 @@
     <string name="billing_launch_error">Unable to open Google Play checkout. Retry later.</string>
     <string name="billing_verify_error">Unable to verify the purchase. Restore purchases with the Google Play account you used to support the app.</string>
     <string name="billing_ack_error">Your supporter benefits are active, but purchase confirmation needs a connection. Tap Restore purchases to retry.</string>
-    <string name="billing_thanks">Thank you for your support! The supporter themes are now available.</string>
     <string name="billing_pending_note">Purchase pending in Google Play. Your supporter benefits will activate after payment completes.</string>
     <string name="billing_not_owned">No purchase to support the app was found on this store account.</string>
     <string name="tag_seller">Seller name</string>
