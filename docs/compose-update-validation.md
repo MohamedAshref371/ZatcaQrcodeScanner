@@ -93,8 +93,8 @@ recorded landscape cutout overlap.
 
 ## Evidence
 
-- `build-compose-update.log`, `build-compose-final.log`,
-  `build-compose-share-test.log`.
+- `logs/build-compose-update.log`, `logs/build-compose-final.log`,
+  `logs/build-compose-share-test.log`.
 - `build/compose-update/dependencies.txt`.
 - `build/compose-update/device-tests-verified.txt` (final passing suite).
 - Earlier failed runs, share synchronization retry, System UI event log and

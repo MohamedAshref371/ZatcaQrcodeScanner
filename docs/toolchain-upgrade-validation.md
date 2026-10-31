@@ -77,8 +77,8 @@ those published binaries by changing AGP. Matching publisher symbol packages or
 unstripped builds are required for native symbol coverage; an upload warning may
 remain. The older bundle's symbol files should not be reused for new binaries.
 
-Logs: `build-toolchain-version.log`, `build-toolchain-wrapper.log`,
-`build-toolchain-validation.log`, and `build/toolchain-upgrade/` (local generated
+Logs: `logs/build-toolchain-version.log`, `logs/build-toolchain-wrapper.log`,
+`logs/build-toolchain-validation.log`, and `build/toolchain-upgrade/` (local generated
 files).
 
 ## Scope and limits

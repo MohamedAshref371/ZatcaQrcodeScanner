@@ -57,8 +57,8 @@ new choices. The restart stage recovered the new choices from disk.
 
 ## Logs and references
 
-- `build-datastore-baseline.log`
-- `build-datastore-update.log`
+- `logs/build-datastore-baseline.log`
+- `logs/build-datastore-update.log`
 - `build/datastore-upgrade/` (generated local logs and settings backup)
 - https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0
 

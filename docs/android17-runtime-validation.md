@@ -56,11 +56,11 @@ AVDs and their registrations, after checking their configs and absolute paths:
 Verified all removed paths are absent. Pixel_10a and the Android 37.0 system image
 remain. SDK platforms, Build Tools, NDK and Emulator tools were preserved.
 After cleanup, `assembleRelease lintRelease` passed in 56 seconds: zero lint
-errors and five warnings remain. Log: `build-after-android36-removal.log`.
+errors and five warnings remain. Log: `logs/build-after-android36-removal.log`.
 Historical API 36.1 test reports remain valid as records; rerunning them now
 requires reinstalling that system image and recreating an AVD.
 
-Local evidence: `build-android17-validation.log`,
-`build-android17-native-test.log`, `build/android17-validation/device-tests.txt`,
+Local evidence: `logs/build-android17-validation.log`,
+`logs/build-android17-native-test.log`, `build/android17-validation/device-tests.txt`,
 `release-results.json`, `release-logcat.txt`, `release-*.png` and
 `deleted-android36-paths.txt` in that same directory.

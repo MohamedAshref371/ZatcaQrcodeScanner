@@ -36,7 +36,7 @@ validation. The existing landscape cutout issue remains separately recorded.
   Only an API 36.1 system image is installed locally; API 37 runtime validation
   remains necessary before publishing. No device installation or upload occurred.
 
-Logs: `build-target37-validation.log`, `build-target37-unit-tests.log`.
+Logs: `logs/build-target37-validation.log`, `logs/build-target37-unit-tests.log`.
 
 References:
 

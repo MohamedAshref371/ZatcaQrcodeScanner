@@ -30,7 +30,7 @@ The change is in `ScannerApp.kt`; `MainActivity.kt` is unchanged.
 - Device tests used only the `.validation` package on the emulator. No physical
   phone installation or production app data clearing. Emulator closed afterward.
 
-Evidence: `build-title-scroll-validation.log` and
+Evidence: `logs/build-title-scroll-validation.log` and
 `build/title-scroll/{device-tests.txt,navigation-tests.txt}`. The normal package
 debug build is recorded in `build/title-scroll/normal-debug-build.log`.
 

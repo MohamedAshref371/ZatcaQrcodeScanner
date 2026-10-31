@@ -44,7 +44,7 @@ Validation was focused on the changed instrumentation tests. Production Release
 builds, unit tests and device checks from the preceding Compose update remain
 recorded in that report; they were not unnecessarily rerun for import-only edits.
 
-Logs: `build-compose-test-v2.log`, `build-compose-test-v2-isolated.log`,
+Logs: `logs/build-compose-test-v2.log`, `logs/build-compose-test-v2-isolated.log`,
 `build/compose-test-v2/device-tests.txt`.
 
 Reference: https://developer.android.com/develop/ui/compose/testing/migrate-v2

@@ -33,7 +33,7 @@ gradlew.bat testDebugUnitTest lintRelease assembleDebug assembleRelease -Pkotlin
 - Native-library stripping emitted the same five-library warning recorded in
   the previous toolchain build. Libraries were packaged as supplied.
 
-Local log: `build-studio-update-check.log`. Lint reports are under
+Local log: `logs/build-studio-update-check.log`. Lint reports are under
 `app/build/reports/lint-results-release.*`.
 
 This check did not run emulator/device tests, build a bundle, or validate native
@@ -71,7 +71,7 @@ A fresh ELF section check confirmed all 20 merged native binaries lack both
 `.symtab` and `.debug_info`. Installing an NDK cannot recover that information;
 matching symbols or unstripped libraries must come from the publishers.
 
-Evidence log: `build-native-warning-investigation.log`.
+Evidence log: `logs/build-native-warning-investigation.log`.
 
 ### NDK installation follow-up
 
@@ -84,7 +84,7 @@ no `Unable to strip` or `missing strip tool` messages. No project configuration
 change was needed. This resolves the missing-tool warning, not the separate
 publisher symbol availability or DataStore Java warning.
 
-Evidence log: `build-ndk-install-check.log`.
+Evidence log: `logs/build-ndk-install-check.log`.
 
 References:
 

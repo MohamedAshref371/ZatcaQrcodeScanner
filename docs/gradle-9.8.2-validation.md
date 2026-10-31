@@ -102,10 +102,10 @@ outside this tooling check.
 
 ## Evidence
 
-- `build-gradle-9.8.2-version.log`, Wrapper stage logs and
-  `build-gradle-9.8.2-validation.log`.
-- `build-gradle-9.8.2-runtime-build.log` includes the deprecation stack trace.
-- `build-gradle-9.6.0-language-baseline.log`.
+- `logs/build-gradle-9.8.2-version.log`, Wrapper stage logs and
+  `logs/build-gradle-9.8.2-validation.log`.
+- `logs/build-gradle-9.8.2-runtime-build.log` includes the deprecation stack trace.
+- `logs/build-gradle-9.6.0-language-baseline.log`.
 - `build/gradle-9.8.2/device-tests.txt` and `language-tests-9.6.0.txt`.
 - `runtime-entry-comparison.json` and `all-entry-comparison.json` in that folder.
 - Release smoke logs, results, UI XML and screenshots in that folder.

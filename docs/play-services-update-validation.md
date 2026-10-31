@@ -40,7 +40,7 @@ change.
 - `assembleRelease`: passed with R8 minification and resource shrinking.
   The generated release APK is unsigned; no Play Console upload was performed.
 
-Logs: `build-play-services-update.log`, `build-play-services-release.log`, and
+Logs: `logs/build-play-services-update.log`, `logs/build-play-services-release.log`, and
 `build/edge-review/play-services-device-tests.txt` and
 `build/edge-review/play-services-final-device-tests.txt` (local generated files).
 

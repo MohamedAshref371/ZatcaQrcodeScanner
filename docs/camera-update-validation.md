@@ -14,7 +14,7 @@ The official 1.19.1 source archive's `WindowCompat.enableEdgeToEdge` still calls
 does not establish removal of the Play Console deprecated API warning. This is
 a source inspection finding, not a new inspection of the uploaded release DEX.
 
-Evidence: `build-core-update.log` and
+Evidence: `logs/build-core-update.log` and
 `build/core-update/WindowCompat-enableEdgeToEdge.java.txt` (generated files).
 
 ## Selected update
@@ -54,8 +54,8 @@ Tests run only on the separate `.validation` application on an API 36.1 emulator
   generated APK is unsigned; no release upload or normal-app installation was
   performed. The emulator display was restored to portrait after testing.
 
-Logs: `build-camera-checks.log`, `build-camera-update.log`,
-`build-camera-release.log`, and `build/camera-update/` (generated local files).
+Logs: `logs/build-camera-checks.log`, `logs/build-camera-update.log`,
+`logs/build-camera-release.log`, and `build/camera-update/` (generated local files).
 
 ## Limits
 

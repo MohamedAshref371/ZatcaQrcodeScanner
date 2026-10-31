@@ -97,7 +97,7 @@ language-test failures and separately recorded landscape cutout finding remain.
 
 ## Evidence
 
-- `build-kotlin-2.4.21-validation.log` and `build-kotlin-2.4.21-runtime-build.log`.
+- `logs/build-kotlin-2.4.21-validation.log` and `logs/build-kotlin-2.4.21-runtime-build.log`.
 - `build/kotlin-2.4.21/schema-before.json` and `schema-comparison.json`.
 - `build/kotlin-2.4.21/device-tests-confirmation.txt` (final 46-case pass).
 - Initial run and focused retries/baseline are retained in that directory.
