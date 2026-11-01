@@ -8,7 +8,7 @@
 
 # سياسة خصوصية قارئ فاتورة
 
-آخر تحديث: 22 أكتوبر 2026
+آخر تحديث: 1 نوفمبر 2026
 
 المطوّر: محمد أشرف (Mohamed Ashraf)
 
@@ -20,7 +20,7 @@
 
 ## البيانات التي يستخدمها التطبيق
 
-يستخدم التطبيق الكاميرا لقراءة QR عند منح الصلاحية، أو يعالج صورة يختارها المستخدم من منتقي النظام. تتم المعالجة على الجهاز؛ لا يسجل التطبيق فيديو ولا يحفظ إطارات الكاميرا أو نسخة من الصورة المختارة.
+يستخدم التطبيق الكاميرا لقراءة QR عند منح الصلاحية، أو يعالج صورة يختارها المستخدم من منتقي النظام، أو صورة واحدة أو عدة صور يشاركها المستخدم مع التطبيق من تطبيق آخر عبر قائمة المشاركة في Android. تتم معالجة الصور على الجهاز. عند مشاركة عدة صور، يفحصها التطبيق تباعًا ويحفظ بيانات الفواتير التي يمكن استخراجها منها في السجل المحلي، بما فيها الفواتير التي تحتاج إلى مراجعة نتيجة الفحص المحلي. لا يسجل التطبيق فيديو ولا يحفظ إطارات الكاميرا أو نسخًا من الصور المختارة أو المشتركة.
 
 يحفظ التطبيق محليًا محتوى QR وبيانات الفاتورة المستخرجة ووقت الفحص ونتيجته ونوع الفاتورة، إضافة إلى تفضيلات المسح والمظهر. قد تتضمن بيانات الفاتورة أسماء وأرقامًا ضريبية ومبالغ وتوقيعات. لا يرفع التطبيق محتوى الفواتير إلى خادم للمطوّر أو الناشر، ولا تتطلب وظائف الفواتير حسابًا داخل التطبيق. يعمل محرك ZXing الافتراضي دون إنترنت فورًا. لا توجد إعلانات ولا يشغّل المطوّر خادمًا لتحليلات الاستخدام؛ ولخدمات Google الموضحة أدناه ممارساتها الخاصة المتعلقة بالبيانات التقنية.
 
@@ -80,7 +80,7 @@
 
 # Invoice QR Reader Privacy Policy
 
-Last updated: 22 October 2026
+Last updated: 1 November 2026
 
 Developer: Mohamed Ashraf (محمد أشرف)
 
@@ -92,7 +92,7 @@ This policy describes how Invoice QR Reader (قارئ فاتورة), package `co
 
 ## Data handled on your device
 
-With permission, the app uses the camera to read QR codes. Alternatively, it processes an image you select through the system picker. Processing takes place on your device. The app does not record video, save camera frames or retain a copy of the selected image.
+With permission, the app uses the camera to read QR codes. Alternatively, it processes an image you select through the system picker, or one or more images you share with the app from another app through Android's share menu. Image processing takes place on your device. When you share multiple images, the app scans them in turn and saves invoice details it can extract to local history, including invoices flagged for review by the local check. The app does not record video, save camera frames or retain copies of selected or shared images.
 
 The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. The app does not upload invoice content to a developer or publisher server. Invoice features do not require an app account. The default ZXing scanner works offline immediately. The app contains no advertising and the developer does not operate an analytics backend; the Google services described below have their own technical data practices.
 
