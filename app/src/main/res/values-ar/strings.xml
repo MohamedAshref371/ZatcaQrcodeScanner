@@ -228,10 +228,10 @@
     <string name="close">إغلاق</string>
     <string name="supporter_badge">داعم التطبيق · شكرًا لك</string>
     <string name="supporter_pack">دعم التطبيق</string>
-    <string name="supporter_compact_description">مظهر ذهبي وبنفسجي · شراء مرة واحدة</string>
+    <string name="supporter_compact_description">مظاهر ذهبي وبنفسجي وأزرق · شراء مرة واحدة</string>
     <string name="supporter_free_note">كل وظائف التطبيق مجانية وبدون إعلانات.</string>
     <string name="supporter_details">تفاصيل دعم التطبيق</string>
-    <string name="supporter_description">ادعم استمرار التطوير واحصل على مظهر ذهبي أو بنفسجي اختياري وشارة داعم في صفحة حول التطبيق. شراء مرة واحدة، بدون اشتراك.</string>
+    <string name="supporter_description">ادعم استمرار التطوير واحصل على مظاهر اختيارية بالذهبي والبنفسجي والأزرق وشارة داعم في صفحة حول التطبيق. شراء مرة واحدة، بدون اشتراك.</string>
     <string name="supporter_active">شكرًا لدعمك! مزايا الداعم مفعّلة.</string>
     <string name="supporter_preview_start">معاينة</string>
     <string name="supporter_preview_end">إنهاء المعاينة</string>
@@ -333,4 +333,5 @@
     <string name="supporter_theme">مظهر الداعم</string>
     <string name="default_theme">المظهر العادي</string>
     <string name="purple_theme">المظهر البنفسجي</string>
+    <string name="blue_theme">المظهر الأزرق</string>
 </resources>

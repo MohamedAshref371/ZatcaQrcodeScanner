@@ -237,10 +237,10 @@
     <string name="close">Close</string>
     <string name="supporter_badge">App supporter · thank you</string>
     <string name="supporter_pack">Support the app</string>
-    <string name="supporter_compact_description">Gold and purple themes · One-time purchase</string>
+    <string name="supporter_compact_description">Gold, purple and blue themes · One-time purchase</string>
     <string name="supporter_free_note">All app features are free and ad-free.</string>
     <string name="supporter_details">App support details</string>
-    <string name="supporter_description">Support ongoing development and receive optional gold and purple themes and a supporter badge in About. A one-time purchase, with no subscription.</string>
+    <string name="supporter_description">Support ongoing development and receive optional gold, purple and blue themes and a supporter badge in About. A one-time purchase, with no subscription.</string>
     <string name="supporter_active">Thank you for your support! Your supporter benefits are active.</string>
     <string name="supporter_preview_start">Preview</string>
     <string name="supporter_preview_end">End preview</string>
@@ -342,4 +342,5 @@
     <string name="supporter_theme">Supporter theme</string>
     <string name="default_theme">Default theme</string>
     <string name="purple_theme">Purple theme</string>
+    <string name="blue_theme">Blue theme</string>
 </resources>

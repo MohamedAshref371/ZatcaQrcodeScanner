@@ -237,7 +237,8 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     val darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() }
     ZatcaQrcodeScannerTheme(darkTheme = darkTheme,
         goldenTheme = if (previewActive) previewTheme == "GOLD" else support.owned && settings.supporterTheme == "GOLD",
-        purpleTheme = if (previewActive) previewTheme == "PURPLE" else support.owned && settings.supporterTheme == "PURPLE") {
+        purpleTheme = if (previewActive) previewTheme == "PURPLE" else support.owned && settings.supporterTheme == "PURPLE",
+        blueTheme = if (previewActive) previewTheme == "BLUE" else support.owned && settings.supporterTheme == "BLUE") {
         SideEffect {
             // Camera reveals the shared title before layout, and leaves it visible for other tabs.
             if (screen == 0) {
@@ -712,7 +713,8 @@ private fun SupporterThemePicker(selected: String, onChange: (String) -> Unit) {
     Choice(stringResource(R.string.supporter_theme), selected, listOf(
         "DEFAULT" to stringResource(R.string.default_theme),
         "GOLD" to stringResource(R.string.gold_theme),
-        "PURPLE" to stringResource(R.string.purple_theme)
+        "PURPLE" to stringResource(R.string.purple_theme),
+        "BLUE" to stringResource(R.string.blue_theme)
     ), singleLine = true, equalWidth = true,
         border = ButtonDefaults.outlinedButtonBorder(enabled = true), onChange = onChange)
 }

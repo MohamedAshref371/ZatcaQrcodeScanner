@@ -118,16 +118,57 @@ private val PurpleDarkColorScheme = DarkColorScheme.copy(
     inversePrimary = Color(0xFF6750A4), surfaceTint = Color(0xFFD0BCFF)
 )
 
+private val BlueLightColorScheme = LightColorScheme.copy(
+    primary = Color(0xFF0B57B7), onPrimary = Color.White,
+    primaryContainer = Color(0xFFD8E7FF), onPrimaryContainer = Color(0xFF00326B),
+    secondary = Color(0xFF526580), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFDCE7F6), onSecondaryContainer = Color(0xFF24374F),
+    tertiary = Color(0xFF755784), onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFF1DBF8), onTertiaryContainer = Color(0xFF442452),
+    background = Color(0xFFF5F8FD), onBackground = Color(0xFF1B2B42),
+    surface = Color(0xFFF5F8FD), onSurface = Color(0xFF1B2B42),
+    surfaceVariant = Color(0xFFE5ECF5), onSurfaceVariant = Color(0xFF536275),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFFAFBFF),
+    surfaceContainer = Color(0xFFEDF2F9), surfaceContainerHigh = Color(0xFFE5ECF5),
+    surfaceContainerHighest = Color(0xFFDDE6F1),
+    surfaceDim = Color(0xFFD7E0EC), surfaceBright = Color(0xFFF5F8FD),
+    outline = Color(0xFF748397), outlineVariant = Color(0xFFD5DFEB),
+    inverseSurface = Color(0xFF293950), inverseOnSurface = Color(0xFFF0F4FC),
+    inversePrimary = Color(0xFFA9C8FF), surfaceTint = Color(0xFF0B57B7)
+)
+
+private val BlueDarkColorScheme = DarkColorScheme.copy(
+    primary = Color(0xFFA9C8FF), onPrimary = Color(0xFF003B80),
+    primaryContainer = Color(0xFF174F99), onPrimaryContainer = Color(0xFFD8E7FF),
+    secondary = Color(0xFFB9CBE4), onSecondary = Color(0xFF263850),
+    secondaryContainer = Color(0xFF3A4C65), onSecondaryContainer = Color(0xFFDCE7F6),
+    tertiary = Color(0xFFDCBDE9), onTertiary = Color(0xFF4D305B),
+    tertiaryContainer = Color(0xFF654773), onTertiaryContainer = Color(0xFFF1DBF8),
+    background = Color(0xFF111C2C), onBackground = Color(0xFFDFE9F6),
+    surface = Color(0xFF111C2C), onSurface = Color(0xFFDFE9F6),
+    surfaceVariant = Color(0xFF2B3A4F), onSurfaceVariant = Color(0xFFAFBED2),
+    surfaceContainerLowest = Color(0xFF172337), surfaceContainerLow = Color(0xFF1C2940),
+    surfaceContainer = Color(0xFF223049), surfaceContainerHigh = Color(0xFF2B3A4F),
+    surfaceContainerHighest = Color(0xFF35465B),
+    surfaceDim = Color(0xFF111C2C), surfaceBright = Color(0xFF3D4E64),
+    outline = Color(0xFF8C9DB4), outlineVariant = Color(0xFF3D4F65),
+    inverseSurface = Color(0xFFDFE9F6), inverseOnSurface = Color(0xFF293950),
+    inversePrimary = Color(0xFF0B57B7), surfaceTint = Color(0xFFA9C8FF)
+)
+
 @Composable
 fun ZatcaQrcodeScannerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     goldenTheme: Boolean = false,
     purpleTheme: Boolean = false,
+    blueTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val base = if (darkTheme) DarkColorScheme else LightColorScheme
     val colorScheme = when {
+        blueTheme && darkTheme -> BlueDarkColorScheme
+        blueTheme -> BlueLightColorScheme
         purpleTheme && darkTheme -> PurpleDarkColorScheme
         purpleTheme -> PurpleLightColorScheme
         goldenTheme && darkTheme -> GoldenDarkColorScheme
