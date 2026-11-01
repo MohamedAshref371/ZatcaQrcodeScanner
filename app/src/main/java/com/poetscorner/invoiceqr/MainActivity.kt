@@ -4,10 +4,10 @@ import android.os.Bundle
 import android.content.Intent
 import android.view.ViewTreeObserver
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poetscorner.invoiceqr.ui.ScannerApp
@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.enableEdgeToEdge(window)
+        enableEdgeToEdge()
         val vm = ViewModelProvider(this)[ScannerViewModel::class.java]
         scannerViewModel = vm
         if (savedInstanceState == null) vm.galleryImages(intent.sharedImageUris())
