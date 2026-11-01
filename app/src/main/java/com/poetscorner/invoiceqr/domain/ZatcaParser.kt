@@ -49,7 +49,7 @@ object ZatcaParser {
             val presenceLabel = if (tag == 9) R.string.check_stamp else R.string.check_present
             checks += Check(UiText(presenceLabel, UiText(names.getValue(tag))), value(tag).isNotBlank(), if (tag > 5) 2 else 1)
             when (tag) {
-                2 -> checks += Check(UiText(R.string.check_vat), value(2).matches(Regex("3[0-9]{14}")))
+                2 -> checks += Check(UiText(R.string.check_vat), value(2).matches(Regex("3[0-9]{13}3")))
                 3 -> checks += Check(UiText(R.string.check_date), runCatching { parseTimestamp(value(3)) }.isSuccess)
                 4 -> checks += Check(UiText(R.string.check_total), amount(4) != null)
                 5 -> {

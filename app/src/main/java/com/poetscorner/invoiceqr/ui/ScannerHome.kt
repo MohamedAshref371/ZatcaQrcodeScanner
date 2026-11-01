@@ -24,7 +24,7 @@ internal fun ScannerHome(settings: ScannerSettings, state: ContinuousScanState, 
                         SectionHeading(stringResource(R.string.scanner_heading), stringResource(R.string.scan_local))
                     }
                     FilledTonalIconButton(onClick = onGallery, enabled = !busy) {
-                        AppIcon(R.drawable.ic_image, description = stringResource(R.string.gallery_pick))
+                        AppIcon(R.drawable.ic_image, description = stringResource(R.string.gallery_pick_multiple))
                     }
                 }
                 ContinuousScanControls(state, onContinuous)

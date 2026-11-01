@@ -62,9 +62,9 @@ class StatisticsStorageTest {
         assertEquals(0, calculate(StatisticsRequest(seller = "' OR 1=1 --")).summary.count)
         assertEquals(3, calculate(StatisticsRequest(seller = "%_")).summary.count)
         assertEquals(3, calculate(StatisticsRequest(toDay = historyBaseDay + 1)).summary.count)
-        val excluded = "300000000000002"
+        val excluded = "300000000000023"
         assertEquals(3, calculate(StatisticsRequest(excludedVat = excluded)).summary.count)
-        assertEquals(3, calculate(StatisticsRequest(excludedVat = "٣٠٠٠٠٠٠٠٠٠٠٠٠٠٢")).summary.count)
+        assertEquals(3, calculate(StatisticsRequest(excludedVat = "٣٠٠٠٠٠٠٠٠٠٠٠٠٢٣")).summary.count)
         assertEquals(0, calculate(StatisticsRequest(vat = excluded, excludedVat = excluded)).summary.count)
         assertEquals(3, calculate(StatisticsRequest(excludedVat = "0002")).summary.count)
         assertEquals(0, calculate(StatisticsRequest(excludedVat = "300")).summary.count)
@@ -93,7 +93,7 @@ class StatisticsStorageTest {
             historyFixture(5, seller = "Market", date = "2027-04-01T00:00:00Z")))
         val stored = db.scans().all().map { HistoryEntry.from(it) }
         for (grouping in StatisticsGrouping.entries) {
-            for (sellerFilter in listOf("", "Market")) for (excluded in listOf("", "300000000000002", "0002")) {
+            for (sellerFilter in listOf("", "Market")) for (excluded in listOf("", "300000000000023", "0002")) {
                 val request = StatisticsRequest(grouping = grouping, seller = sellerFilter, excludedVat = excluded)
                 for (group in calculate(request).groups) {
                     val filter = HistoryFilter(statisticsSelection = StatisticsSelection(request, group.key))

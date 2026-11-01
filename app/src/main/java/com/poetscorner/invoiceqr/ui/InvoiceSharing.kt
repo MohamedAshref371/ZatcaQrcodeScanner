@@ -31,7 +31,10 @@ internal fun invoiceSummary(context: Context, invoice: Invoice): String = buildS
         invoice.phase2 -> R.string.share_phase_two_passed
         else -> R.string.share_phase_one_passed
     }
-    append(context.getString(R.string.share_check_result, context.getString(status)))
+    appendLine(context.getString(R.string.share_check_result, context.getString(status)))
+    appendLine(context.getString(R.string.verification_signature) + ": " +
+        context.getString(if (invoice.phase2) R.string.verification_not_checked else R.string.verification_not_present))
+    append(context.getString(R.string.verification_official) + ": " + context.getString(R.string.verification_not_checked))
 }
 
 internal fun invoiceShareIntent(context: Context, invoice: Invoice): Intent = Intent(Intent.ACTION_SEND).apply {

@@ -78,8 +78,8 @@ android {
         applicationId = "com.poetscorner.invoiceqr"
         minSdk = 26
         targetSdk = 37
-        versionCode = 15
-        versionName = "1.1.5"
+        versionCode = 16
+        versionName = "1.1.6"
         val billingPublicKey = providers.gradleProperty("playBillingPublicKey").orElse("").get().trim()
         require(billingPublicKey.matches(Regex("[A-Za-z0-9+/=]*"))) { "playBillingPublicKey must be a Base64 public key" }
         buildConfigField("String", "PLAY_BILLING_PUBLIC_KEY", "\"$billingPublicKey\"")
@@ -95,7 +95,7 @@ android {
         debug {
             // Run device validation in a separate sandbox before updating the user's app.
             if (providers.gradleProperty("isolatedValidation").orNull == "true") {
-                applicationIdSuffix = ".validation"
+                applicationIdSuffix = providers.gradleProperty("isolatedValidationSuffix").orElse(".validation").get()
             }
         }
         release {

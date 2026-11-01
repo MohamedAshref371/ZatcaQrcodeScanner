@@ -37,6 +37,10 @@ class InvoiceSharingTest {
             assertFalse(summary.contains(invoiceTimestampTitle(ctx, invoice.value(3))))
             assertFalse(summary.contains(invoice.value(3)))
             assertTrue(summary.contains(ctx.getString(R.string.share_phase_two_passed)))
+            assertTrue(summary.contains(ctx.getString(R.string.verification_signature) + ": " +
+                ctx.getString(R.string.verification_not_checked)))
+            assertTrue(summary.contains(ctx.getString(R.string.verification_official) + ": " +
+                ctx.getString(R.string.verification_not_checked)))
             assertFalse(summary.contains(invoice.raw))
             for (tag in 7..9) assertFalse(summary.contains(invoice.value(tag)))
             val intent = invoiceShareIntent(ctx, invoice)
@@ -53,6 +57,8 @@ class InvoiceSharingTest {
         assertTrue(first.passed)
         val summary = invoiceSummary(ctx, first)
         assertTrue(summary.contains(ctx.getString(R.string.share_phase_one_passed)))
+        assertTrue(summary.contains(ctx.getString(R.string.verification_signature) + ": " +
+            ctx.getString(R.string.verification_not_present)))
         assertFalse(summary.contains(ctx.getString(R.string.tag_hash)))
         for (phaseTwo in listOf(false, true)) {
             val failed = ZatcaParser.parse(historyFixture(101003, seller = "", hash = phaseTwo).raw)

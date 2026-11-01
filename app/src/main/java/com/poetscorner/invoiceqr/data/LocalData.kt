@@ -110,8 +110,7 @@ interface ScanDao {
 }
 data class SavedScan(val scan: ScanEntity, val alreadyExists: Boolean)
 
-// Version 3 is the first preserved schema. Future changes must include a tested migration.
-@Database(entities = [ScanEntity::class], version = 3, exportSchema = true)
+@Database(entities = [ScanEntity::class], version = 1, exportSchema = true)
 abstract class ScanDatabase : RoomDatabase() {
     abstract fun scans(): ScanDao
 

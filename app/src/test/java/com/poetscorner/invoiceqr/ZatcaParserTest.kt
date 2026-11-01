@@ -26,6 +26,14 @@ class ZatcaParserTest {
         val result = parse(valid())
         assertTrue(result.passed); assertFalse(result.phase2); assertEquals("متجر الاختبار", result.value(1))
     }
+    @Test fun vatNumberMustAlsoEndWithThree() {
+        val invoice = parse(tlv(1, "Seller") + tlv(2, "310123456789014") +
+            tlv(3, "2026-10-19T12:30:00Z") + tlv(4, "115.00") + tlv(5, "15.00"))
+        assertNull(invoice.error)
+        assertFalse(invoice.checks.first { it.label.id == R.string.check_vat }.passed)
+        assertFalse(invoice.passed)
+        assertTrue(parse(valid()).checks.first { it.label.id == R.string.check_vat }.passed)
+    }
     @Test fun phaseTwoRequiresTagsSixThroughEight() {
         assertFalse(parse(valid() + tlv(6, "hash")).passed)
         assertTrue(parse(valid() + (6..9).fold(byteArrayOf()) { b, t -> b + tlv(t, "binary") }).passed)

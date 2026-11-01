@@ -22,8 +22,7 @@ import org.junit.runner.RunWith
 class ScanRejectionTest {
     @Test fun malformedQrNeverPublishesAResultOrChangesHistory() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application
-        val db = Room.databaseBuilder(app, ScanDatabase::class.java, "invoices.db")
-            .fallbackToDestructiveMigration(dropAllTables = true).build()
+        val db = Room.databaseBuilder(app, ScanDatabase::class.java, "invoices.db").build()
         val store = ViewModelStore()
         try {
             val before = db.scans().all()

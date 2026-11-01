@@ -186,7 +186,11 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     }
     LaunchedEffect(activeHistoryFilter) { vm.filterHistory(activeHistoryFilter) }
     val visibleHistory = history.forDisplay(activeHistoryFilter)
-    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let(vm::gallery) }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) {
+        if (it.isNotEmpty()) vm.galleryImages(it)
+    }
+    val imageImport by vm.imageImport.collectAsStateWithLifecycle()
+    val imageImportSummary by vm.imageImportSummary.collectAsStateWithLifecycle()
     val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
         pendingFileAction = null
         it?.let { uri -> vm.export(uri, false, exportFilter) }
@@ -274,6 +278,9 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
             Column(Modifier.then(if (screen == 0) Modifier else Modifier.padding(padding)).consumeWindowInsets(padding).imePadding().fillMaxSize()
                 .then(if (screen == 0) Modifier else Modifier.nestedScroll(titleScrollBehavior.nestedScrollConnection))) {
                 if (busy || restoringResult) LinearProgressIndicator(Modifier.fillMaxWidth())
+                imageImport?.let { Text(stringResource(R.string.image_import_progress, it.current, it.total),
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.bodySmall) }
                 transfer?.let { TransferProgress(it) }
                 when(screen) {
                     0 -> ScannerHome(settings, continuousScan, busy, { gallery.launch("image/*") },
@@ -390,6 +397,17 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
             onDismiss = { historyFilterDialog = false }, onApply = { source, from, to ->
                 historyDateSource = source; historyFrom = from; historyTo = to; historyFilterDialog = false
             })
+        imageImportSummary?.let { summary ->
+            AlertDialog(onDismissRequest = vm::dismissImageImportSummary,
+                title = { Text(stringResource(if (summary.interrupted) R.string.image_import_interrupted
+                    else R.string.image_import_title)) },
+                text = { Text(stringResource(R.string.image_import_summary, summary.added,
+                    summary.duplicates, summary.needsReview, summary.invalidQr,
+                    summary.unreadable, summary.saveFailed)) },
+                confirmButton = { TextButton(onClick = vm::dismissImageImportSummary) {
+                    Text(stringResource(R.string.image_import_done))
+                } })
+        }
         invoiceToDelete?.let { invoice ->
             key(invoice.id) {
                 InvoiceDeleteDialog(invoice.seller.ifBlank { stringResource(R.string.unknown_seller) },
@@ -493,6 +511,7 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, onShare: () -> Unit,
             }
             if (advanced) items((7..9).toList()) { tag -> InvoiceField(invoice, tag) }
         }
+        item { VerificationLevels(invoice) }
         item {
             TextButton(onClick = { checks = !checks }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(if (checks) R.string.result_hide_checks else R.string.check_details))
@@ -516,6 +535,43 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, onShare: () -> Unit,
             }
         }
         item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.scan_again)) } }
+    }
+}
+
+@Composable
+internal fun VerificationLevels(invoice: Invoice) {
+    var expanded by rememberSaveable(invoice.raw) { mutableStateOf(false) }
+    TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(if (expanded) R.string.verification_hide_levels else R.string.verification_levels))
+    }
+    if (!expanded) return
+    val corePassed = invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }
+    val phaseTwoPassed = invoice.error == null && invoice.checks.filter { it.phase == 2 }.all { it.passed }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            VerificationLevelRow(R.string.verification_qr_structure,
+                if (invoice.error == null) R.string.verification_local_passed else R.string.verification_local_failed)
+            VerificationLevelRow(R.string.verification_core_fields,
+                if (corePassed) R.string.verification_local_passed else R.string.verification_local_failed)
+            VerificationLevelRow(R.string.verification_phase_two_fields, when {
+                !invoice.phase2 -> R.string.verification_not_present
+                phaseTwoPassed -> R.string.verification_local_passed
+                else -> R.string.verification_local_failed
+            })
+            VerificationLevelRow(R.string.verification_signature,
+                if (invoice.phase2) R.string.verification_not_checked else R.string.verification_not_present)
+            VerificationLevelRow(R.string.verification_official, R.string.verification_not_checked)
+        }
+    }
+}
+
+@Composable
+private fun VerificationLevelRow(label: Int, status: Int) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(stringResource(label), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(status), style = MaterialTheme.typography.bodySmall,
+            color = if (status == R.string.verification_local_failed) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

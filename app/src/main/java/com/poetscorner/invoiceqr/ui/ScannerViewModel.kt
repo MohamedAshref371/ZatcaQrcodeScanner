@@ -14,6 +14,7 @@ import com.poetscorner.invoiceqr.domain.*
 import com.poetscorner.invoiceqr.scanner.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -24,6 +25,10 @@ import java.io.File
 import java.io.Writer
 
 data class ScanResult(val invoice: Invoice, val checkedAt: Long, val scanId: Long? = null)
+data class ImageImportProgress(val current: Int, val total: Int)
+data class ImageImportSummary(val added: Int = 0, val duplicates: Int = 0, val needsReview: Int = 0,
+    val invalidQr: Int = 0, val unreadable: Int = 0, val saveFailed: Int = 0,
+    val interrupted: Boolean = false)
 
 class ScannerViewModel(
     app: Application,
@@ -166,6 +171,11 @@ class ScannerViewModel(
     private var resultVersion = 0L
     val message = MutableStateFlow<UiText?>(null)
     val busy = MutableStateFlow(false)
+    private val mutableImageImport = MutableStateFlow<ImageImportProgress?>(null)
+    val imageImport = mutableImageImport.asStateFlow()
+    private val mutableImageImportSummary = MutableStateFlow<ImageImportSummary?>(null)
+    val imageImportSummary = mutableImageImportSummary.asStateFlow()
+    fun dismissImageImportSummary() { mutableImageImportSummary.value = null }
     private val mutableTransfer = MutableStateFlow<DataTransferState?>(null)
     val transfer = mutableTransfer.asStateFlow()
     init {
@@ -347,20 +357,90 @@ class ScannerViewModel(
             navigate(previousTab.value ?: 0)
         }
     }
-    fun gallery(uri: Uri) { viewModelScope.launch {
+    fun gallery(uri: Uri) {
+        if (busy.value) return
         busy.value = true
-        try {
-            val raw = withContext(Dispatchers.IO) {
+        viewModelScope.launch {
+            try {
+                settingsLoaded.first { it }
+                val raw = withContext(Dispatchers.IO) {
+                    val scanSettings = settings.value
+                    val bitmap = decodeGallery(getApplication(), uri)
+                    try { scanSettings.scanEngine.decoder().use { it.read(bitmap, scanSettings) } }
+                    finally { bitmap.recycle() }
+                }
+                if (raw == null) message.value = UiText(R.string.gallery_no_qr) else process(raw)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { message.value = UiText(R.string.gallery_error) }
+            finally { busy.value = false }
+        }
+    }
+    fun galleryImages(uris: List<Uri>) {
+        val images = uris.distinct()
+        if (images.isEmpty()) return
+        if (busy.value) { message.value = UiText(R.string.image_import_busy); return }
+        if (images.size == 1) { gallery(images.single()); return }
+        busy.value = true
+        mutableImageImportSummary.value = null
+        viewModelScope.launch {
+            var summary = ImageImportSummary()
+            try {
+                settingsLoaded.first { it }
                 val scanSettings = settings.value
-                val bitmap = decodeGallery(getApplication(), uri)
-                try { scanSettings.scanEngine.decoder().use { it.read(bitmap, scanSettings) } }
-                finally { bitmap.recycle() }
+                withContext(Dispatchers.IO) {
+                    scanSettings.scanEngine.decoder().use { decoder ->
+                        images.forEachIndexed { index, uri ->
+                            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                            mutableImageImport.value = ImageImportProgress(index + 1, images.size)
+                            val raw = try {
+                                val bitmap = decodeGallery(getApplication(), uri)
+                                try { decoder.read(bitmap, scanSettings) } finally { bitmap.recycle() }
+                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                summary = summary.copy(unreadable = summary.unreadable + 1)
+                                return@forEachIndexed
+                            }
+                            if (raw == null) {
+                                summary = summary.copy(invalidQr = summary.invalidQr + 1)
+                                return@forEachIndexed
+                            }
+                            val invoice = ZatcaParser.parse(raw)
+                            if (invoice.error != null) {
+                                summary = summary.copy(invalidQr = summary.invalidQr + 1)
+                                return@forEachIndexed
+                            }
+                            try {
+                                val saved = db.scans().saveIfNew(ScanEntity.from(invoice, System.currentTimeMillis()))
+                                summary = if (saved.alreadyExists) summary.copy(duplicates = summary.duplicates + 1)
+                                else summary.copy(added = summary.added + 1,
+                                    needsReview = summary.needsReview + if (invoice.passed) 0 else 1)
+                                if (!saved.alreadyExists) try {
+                                    reviewRepository.recordSavedInvoice(saved.scan.payloadKey)
+                                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) { /* Optional review tracking. */ }
+                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                summary = summary.copy(saveFailed = summary.saveFailed + 1)
+                            }
+                        }
+                    }
+                }
+                mutableImageImportSummary.value = summary
+                navigate(2)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                mutableImageImportSummary.value = summary.copy(interrupted = true)
+                navigate(2)
+            } finally {
+                mutableImageImport.value = null
+                busy.value = false
             }
-            if (raw == null) message.value = UiText(R.string.gallery_no_qr) else process(raw)
-        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-        catch (_: Exception) { message.value = UiText(R.string.gallery_error) }
-        finally { busy.value = false }
-    } }
+        }
+    }
     fun export(uri: Uri, csv: Boolean, filter: HistoryFilter): Job? = startTransfer(TransferKind.EXPORT) {
         val names = mapOf(1 to R.string.tag_seller, 2 to R.string.tag_vat,
             3 to R.string.export_invoice_date, 4 to R.string.tag_total,

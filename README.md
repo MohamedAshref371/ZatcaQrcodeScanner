@@ -10,11 +10,11 @@ Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL)
 
 ## Features
 
-- Read invoice QR codes with the camera, choose an image from the gallery, or paste Base64 manually.
+- Read invoice QR codes with the camera, choose one or several images from the gallery, receive images shared by other apps, or paste Base64 manually. A single image opens its result; multiple images are saved automatically with an import summary.
 - Use ZXing by default, or download the optional Google ML Kit scanning component.
 - Scan individual invoices or enable continuous scanning with a session counter and result notifications.
 - View seller, VAT number, timestamp, total including VAT, tax, and phase-two fields when present.
-- Expand advanced fields, check details, and the original QR content when needed.
+- See separate result levels for QR structure, core fields, phase-two fields, cryptographic authenticity and official acceptance. Expand advanced fields, check details, and the original QR content when needed.
 - Share a single invoice summary from the result header, including the optional hash and local phase-one/phase-two check result, or copy its VAT number using the adjacent icon. Shared field labels follow the app language and original values are preserved.
 - Search saved invoices by seller or VAT number and filter by invoice date or check date.
 - Export matching invoices as JSON or CSV through the system file picker.
@@ -144,7 +144,7 @@ CameraX uses one analysis executor with `STRATEGY_KEEP_ONLY_LATEST` and closes `
 
 Gallery decoding, parsing, and export run off the UI thread. Gallery images are corrected for EXIF orientation and downsampled when either dimension exceeds 4096 pixels to bound memory use.
 
-**Lock app to portrait**, under Appearance & app in Settings, is enabled by default (including for existing installations without a saved choice). Disabling it follows the phone's rotation preference. The choice is saved in DataStore. When rotation is allowed, screen rotation updates the existing camera use cases instead of recreating the Activity or rebinding on preview size changes, preserving zoom and the continuous-scan delivery gate. Display rotation updates include 180-degree turns. The crop guide uses the unobstructed space between the app bars and, in landscape, beside the controls (mirrored for RTL). Its rectangle is mapped through CameraX sensor transforms into each analysis buffer, so the visible guide and decoded region stay aligned without a fixed ViewPort. With cropping disabled, the same mapping scans the full visible preview.
+**Lock app to portrait**, under Appearance & app in Settings, is disabled by default (including for existing installations without a saved choice). Enabling it locks supported compact fullscreen devices to portrait; otherwise the app follows the phone's rotation preference. The choice is saved in DataStore. When rotation is allowed, screen rotation updates the existing camera use cases instead of recreating the Activity or rebinding on preview size changes, preserving zoom and the continuous-scan delivery gate. Display rotation updates include 180-degree turns. The crop guide uses the unobstructed space between the app bars and, in landscape, beside the controls (mirrored for RTL). Its rectangle is mapped through CameraX sensor transforms into each analysis buffer, so the visible guide and decoded region stay aligned without a fixed ViewPort. With cropping disabled, the same mapping scans the full visible preview.
 
 ## Parsing rules and limitations
 
@@ -152,7 +152,7 @@ Gallery decoding, parsing, and export run off the UI thread. Gallery images are 
 - Tags 6 and 7 preserve their existing Base64 text; they are not encoded a second time. Binary values in tags 8 and 9 are converted to Base64 for display.
 - The app classifies an invoice as simplified when tag 9 exists and standard otherwise. This is a stamp-based heuristic, not an XML document-type lookup. An incomplete code can therefore be classified as standard. An empty tag 9 still counts as present but fails its content check.
 - Any tag from 6–9 makes the code a phase-two candidate and requires tags 6, 7, and 8. Without these tags, it is treated as phase one; an entirely missing phase-two section cannot reveal the intended phase. Only checks relevant to the inferred phase are displayed.
-- Checks include required values, a nonblank seller, a 15-digit ASCII VAT number beginning with `3`, and a valid ISO 8601 timestamp. A tag 3 timestamp without a timezone is interpreted as Saudi time (`UTC+03:00`); `Z` and explicit offsets are accepted. Up to nine fractional-second digits are supported. Original timestamp text is retained. For example, `2024-11-29T14:25:00` and `2024-11-29T11:25:00Z` describe the same instant.
+- Checks include required values, a nonblank seller, a 15-digit ASCII VAT number beginning and ending with `3`, and a valid ISO 8601 timestamp. A tag 3 timestamp without a timezone is interpreted as Saudi time (`UTC+03:00`); `Z` and explicit offsets are accepted. Up to nine fractional-second digits are supported. Original timestamp text is retained. For example, `2024-11-29T14:25:00` and `2024-11-29T11:25:00Z` describe the same instant.
 - Amounts must be nonnegative decimals with at most two fractional digits, and tax must not exceed the total. No fixed VAT rate is assumed.
 - The parser tries original one-byte TLV lengths first, then extended BER `0x81`/`0x82` lengths if complete parsing fails. Original lengths take precedence in ambiguous cases. Truncated/out-of-bounds values, duplicate or unsupported tags outside 1–9, and invalid UTF-8 in textual tags 1–7 are rejected. Input is limited to 100,000 characters.
 - Checks on tags 6–9 confirm data presence and structure, not signature authenticity, hash correctness, or certificate trust.
@@ -162,7 +162,7 @@ Gallery decoding, parsing, and export run off the UI thread. Gallery images are 
 
 Room stores invoice history in the app's private storage. Database-level encryption is not implemented. Backup is disabled, export is manual through the system picker, and broad storage permission is not required. Uninstalling the app removes its local history.
 
-Database version **3** is the baseline for preserving history. Its schema is exported to `app/schemas/` and must be committed. Destructive migration fallback is disabled: every future schema version must register an explicit or automatic migration and test that invoice payloads, IDs, timestamps and duplicate detection survive it. A missing migration fails to open the database instead of deleting history. No migrations from earlier experimental schemas are provided; clear app data if testing an incompatible pre-baseline installation. Settings and review usage are stored independently from history.
+The current experimental database schema is version **1**. It has no migration code. To test an older internal build against this schema, clear the app's data first. Settings and review usage are stored independently from history.
 
 The current result's database row ID and selected tab are saved through `SavedStateHandle`. When Android recreates a background-killed process, the invoice is loaded from Room with its original check time, without inserting another row or switching away from the restored tab. Returning to the scanner clears the result reference. Deleted invoices are not recreated; results that failed to save cannot be restored. This is task restoration, not persistence across force-stop or dismissal from Recents.
 
@@ -184,6 +184,8 @@ To run device tests in a separate `.validation` app without replacing the normal
 ```powershell
 ./gradlew.bat -PisolatedValidation=true :app:connectedDebugAndroidTest
 ```
+
+If that package name is already in use with another signature, choose a separate suffix with `-PisolatedValidationSuffix=.validation.codex`.
 
 To run only localization tests, add:
 
