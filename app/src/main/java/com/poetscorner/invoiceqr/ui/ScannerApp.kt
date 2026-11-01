@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
@@ -587,7 +588,11 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
                 "FHD" to stringResource(R.string.resolution_fhd),
                 "QHD" to stringResource(R.string.resolution_qhd),
                 "UHD" to stringResource(R.string.resolution_uhd)
-            ), singleLine = true) { v -> update { it.copy(resolution = v) } }
+            ), singleLine = true, warningDescription = when (s.resolution) {
+                "SD" -> stringResource(R.string.resolution_sd_warning)
+                "UHD" -> stringResource(R.string.resolution_uhd_warning)
+                else -> null
+            }) { v -> update { it.copy(resolution = v) } }
         }
         item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest)), singleLine = true) { v -> update { it.copy(speed = v) } } }
         item { Toggle(stringResource(R.string.scan_crop), s.cropEnabled) { v -> update { it.copy(cropEnabled = v) } } }
@@ -744,6 +749,7 @@ private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit)
 @Composable
 internal fun Choice(label: String, selected: String, values: List<Pair<String,String>>,
     singleLine: Boolean = false, border: BorderStroke? = null, equalWidth: Boolean = false,
+    warningDescription: String? = null,
     onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
@@ -763,8 +769,15 @@ internal fun Choice(label: String, selected: String, values: List<Pair<String,St
                         AppIcon(R.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else if (singleLine) {
-                    Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(label, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (warningDescription != null) {
+                            AppIcon(R.drawable.ic_warning, modifier = Modifier.size(20.dp),
+                                description = warningDescription, tint = Color(0xFFF9A825))
+                        }
+                    }
                     Text(values.firstOrNull { it.first == selected }?.second ?: selected,
                         Modifier.weight(1.35f), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.End,

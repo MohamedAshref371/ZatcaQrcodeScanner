@@ -193,6 +193,8 @@
     <string name="bin_fixed">حد فصل ثابت (Fixed threshold)</string>
     <string name="bin_bool">فصل عند الصفر (Bool cast)</string>
     <string name="resolution">دقة المسح</string>
+    <string name="resolution_sd_warning">قد تصعّب دقة 480p قراءة رموز QR الصغيرة</string>
+    <string name="resolution_uhd_warning">قد تبطئ دقة 2160p المسح وتستهلك بطارية أكثر</string>
     <string name="scan_frequency">تردد المسح</string>
     <string name="scan_crop">قص منطقة المسح</string>
     <string name="camera_hint_full_frame">وجّه الكاميرا إلى رمز QR الفاتورة • اضغط للتركيز</string>

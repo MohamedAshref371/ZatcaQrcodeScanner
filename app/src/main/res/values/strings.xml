@@ -202,6 +202,8 @@
     <string name="resolution_fhd" translatable="false">FHD · 1080p</string>
     <string name="resolution_qhd" translatable="false">QHD · 1440p</string>
     <string name="resolution_uhd" translatable="false">UHD · 2160p</string>
+    <string name="resolution_sd_warning">480p may make small QR codes harder to read</string>
+    <string name="resolution_uhd_warning">2160p may slow scanning and use more battery</string>
     <string name="scan_frequency">Scan frequency</string>
     <string name="scan_crop">Crop scan area</string>
     <string name="camera_hint_full_frame">Point the camera at the invoice QR code • Tap to focus</string>
