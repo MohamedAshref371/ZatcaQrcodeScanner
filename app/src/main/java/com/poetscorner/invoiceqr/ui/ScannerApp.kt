@@ -739,11 +739,11 @@ private fun SupporterCard(state: SupporterState, selectedTheme: String, preview:
                 Text(stringResource(R.string.supporter_free_note), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.weight(0.05f))
                     Button(onClick = onPurchase,
                         enabled = state.available && !state.loading && !state.purchasing && !state.pending,
-                        modifier = Modifier.weight(0.4f).heightIn(min = 48.dp),
+                        modifier = Modifier.weight(1.2f).heightIn(min = 48.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
                         Text(when {
                             state.pending -> stringResource(R.string.purchase_pending)
@@ -753,13 +753,11 @@ private fun SupporterCard(state: SupporterState, selectedTheme: String, preview:
                             else -> stringResource(R.string.purchase_unavailable)
                         })
                     }
-                    Spacer(Modifier.weight(0.1f))
                     OutlinedButton(onClick = { onPreview(!preview) },
-                        modifier = Modifier.weight(0.4f).heightIn(min = 48.dp).testTag("supporter_preview_toggle"),
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("supporter_preview_toggle"),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
                         Text(stringResource(if (preview) R.string.supporter_preview_end else R.string.supporter_preview_start))
                     }
-                    Spacer(Modifier.weight(0.05f))
                 }
                 if (preview) SupporterThemePicker(selectedTheme, onTheme)
             }

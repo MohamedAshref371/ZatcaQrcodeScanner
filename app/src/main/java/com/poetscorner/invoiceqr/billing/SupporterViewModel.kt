@@ -84,7 +84,7 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                     process(purchases, generation == purchaseGeneration)
                     mutableState.value = state.value.copy(loading = false)
-                } else failed(UiText(R.string.billing_restore_error))
+                } else failed(UiText(if (state.value.owned) R.string.billing_restore_error else R.string.billing_connect_error))
             }
         }
         client.queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(listOf(
@@ -95,7 +95,16 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
                     products.productDetailsList.firstOrNull { it.productId == PRODUCT_ID } else null
                 val offer = details?.oneTimePurchaseOfferDetailsList?.firstOrNull()
                 mutableState.value = state.value.copy(price = offer?.formattedPrice, available = offer != null)
-                if (offer == null && !state.value.owned) mutableState.value = state.value.copy(message = UiText(R.string.billing_region_unavailable))
+                val currentMessage = state.value.message?.id
+                if (offer == null && !state.value.owned &&
+                    (currentMessage == null || currentMessage == R.string.billing_not_owned ||
+                        (result.responseCode != BillingClient.BillingResponseCode.OK &&
+                            currentMessage == R.string.billing_product_unavailable))) {
+                    // Missing details do not identify a country restriction.
+                    val message = if (result.responseCode == BillingClient.BillingResponseCode.OK)
+                        R.string.billing_product_unavailable else R.string.billing_connect_error
+                    mutableState.value = state.value.copy(message = UiText(message))
+                }
             }
         }
     }
@@ -151,7 +160,9 @@ class SupporterViewModel(app: Application) : AndroidViewModel(app) {
                 acknowledgementFailed -> UiText(R.string.billing_ack_error)
                 verifiedOwner -> null
                 relevant.any { it.purchaseState == Purchase.PurchaseState.PENDING } -> UiText(R.string.billing_pending_note)
-                authoritative -> UiText(R.string.billing_not_owned)
+                authoritative -> state.value.message?.takeIf {
+                    it.id == R.string.billing_connect_error || it.id == R.string.billing_product_unavailable
+                } ?: UiText(R.string.billing_not_owned)
                 else -> state.value.message
             })
     }

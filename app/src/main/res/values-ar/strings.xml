@@ -268,7 +268,7 @@
     <string name="billing_connect_error">تعذّر الاتصال بـ Google Play. يمكنك المحاولة مجددًا، واستخدام التطبيق دون إنترنت.</string>
     <string name="billing_disconnected">انقطع الاتصال بـ Google Play. أعد المحاولة عند توفر الاتصال.</string>
     <string name="billing_restore_error">تعذّرت استعادة المشتريات. احتفظنا بالمظهر المتاح على هذا الجهاز؛ أعد المحاولة لاحقًا.</string>
-    <string name="billing_region_unavailable">خيار دعم التطبيق غير متاح حاليًا لهذا الحساب أو البلد. يمكنك إعادة المحاولة لاحقًا.</string>
+    <string name="billing_product_unavailable">تعذّر تحميل خيار دعم التطبيق من Google Play. تحقق من الاتصال وحساب المتجر ثم حاول مجددًا.</string>
     <string name="billing_launch_error">تعذّر فتح نافذة الشراء في Google Play. أعد المحاولة لاحقًا.</string>
     <string name="billing_verify_error">تعذّر التحقق من الشراء. جرّب استعادة المشتريات من حساب Google Play الذي استخدمته لدعم التطبيق.</string>
     <string name="billing_ack_error">تم تفعيل مزايا الداعم، لكن تأكيد الشراء يحتاج اتصالًا. اضغط استعادة المشتريات لإعادة المحاولة.</string>

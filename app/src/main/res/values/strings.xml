@@ -277,7 +277,7 @@
     <string name="billing_connect_error">Unable to connect to Google Play. Retry later; the app works offline.</string>
     <string name="billing_disconnected">Disconnected from Google Play. Retry when connected.</string>
     <string name="billing_restore_error">Unable to restore purchases. Your existing local appearance is unchanged; retry later.</string>
-    <string name="billing_region_unavailable">The option to support the app is currently unavailable for this account or country. Retry later.</string>
+    <string name="billing_product_unavailable">Unable to load the option to support the app from Google Play. Check your connection and store account, then retry.</string>
     <string name="billing_launch_error">Unable to open Google Play checkout. Retry later.</string>
     <string name="billing_verify_error">Unable to verify the purchase. Restore purchases with the Google Play account you used to support the app.</string>
     <string name="billing_ack_error">Your supporter benefits are active, but purchase confirmation needs a connection. Tap Restore purchases to retry.</string>
