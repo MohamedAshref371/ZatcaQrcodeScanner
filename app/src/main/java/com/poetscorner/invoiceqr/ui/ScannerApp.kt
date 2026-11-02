@@ -835,7 +835,8 @@ internal fun Choice(label: String, selected: String, values: List<Pair<String,St
                         }
                     }
                     Text(values.firstOrNull { it.first == selected }?.second ?: selected,
-                        Modifier.weight(1.35f), style = MaterialTheme.typography.bodyMedium,
+                        if (warningDescription != null) Modifier else Modifier.weight(1.35f),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.End,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 } else Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
