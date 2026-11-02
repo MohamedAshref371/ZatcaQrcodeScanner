@@ -16,9 +16,13 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 internal class GoogleMlKitModuleInstaller(private val context: Context) : MlKitModuleInstaller {
-    private val client = ModuleInstall.getClient(context)
-    private val scanner = BarcodeScanning.getClient(BarcodeScannerOptions.Builder()
-        .setBarcodeFormats(Barcode.FORMAT_QR_CODE).build())
+    private val clientDelegate = lazy { ModuleInstall.getClient(context) }
+    private val client by clientDelegate
+    private val scannerDelegate = lazy {
+        BarcodeScanning.getClient(BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_QR_CODE).build())
+    }
+    private val scanner by scannerDelegate
     private val listeners = mutableSetOf<InstallStatusListener>()
 
     override suspend fun available(): Boolean {
@@ -73,9 +77,9 @@ internal class GoogleMlKitModuleInstaller(private val context: Context) : MlKitM
     }
 
     override fun close() {
-        listeners.toList().forEach { client.unregisterListener(it) }
+        if (clientDelegate.isInitialized()) listeners.toList().forEach { client.unregisterListener(it) }
         listeners.clear()
-        scanner.close()
+        if (scannerDelegate.isInitialized()) scanner.close()
     }
 }
 

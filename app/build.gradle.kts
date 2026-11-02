@@ -108,6 +108,14 @@ android {
                 "proguard-rules.pro"
             )
         }
+        if (providers.gradleProperty("isolatedReleaseValidation").orNull == "true") {
+            create("validationRelease") {
+                initWith(getByName("release"))
+                applicationIdSuffix = ".validation.release"
+                signingConfig = signingConfigs.getByName("debug")
+                matchingFallbacks += "release"
+            }
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

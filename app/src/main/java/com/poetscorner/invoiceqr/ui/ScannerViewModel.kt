@@ -44,7 +44,6 @@ class ScannerViewModel(
         if (engine == ScanEngine.ML_KIT && !mlKitModule.value.ready) return
         update { it.copy(scanEngine = engine) }
     }
-    init { refreshMlKit() }
     private val reviewRepository = ReviewRepository(app)
     fun recordReviewUse() { viewModelScope.launch {
         try { reviewRepository.recordUse() } catch (_: java.io.IOException) { /* Optional tracking. */ }

@@ -2,16 +2,19 @@ package com.poetscorner.invoiceqr
 
 import android.os.Bundle
 import android.content.Intent
-import android.view.ViewTreeObserver
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.poetscorner.invoiceqr.ui.ScannerApp
 import com.poetscorner.invoiceqr.ui.ScannerViewModel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var scannerViewModel: ScannerViewModel
@@ -21,23 +24,15 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         val vm = ViewModelProvider(this)[ScannerViewModel::class.java]
         scannerViewModel = vm
-        if (savedInstanceState == null) vm.galleryImages(intent.sharedImageUris())
-        var contentReady = false
-        val content = findViewById<android.view.View>(android.R.id.content)
-        // Keep the starting window until Compose has applied the saved appearance.
-        content.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
-            override fun onPreDraw(): Boolean {
-                if (!contentReady) return false
-                content.viewTreeObserver.removeOnPreDrawListener(this)
-                return true
-            }
-        })
-        setContent {
-            val settingsLoaded by vm.settingsLoaded.collectAsStateWithLifecycle()
-            if (settingsLoaded) {
-                ScannerApp(vm = vm)
-                SideEffect { contentReady = true }
-            }
+        val images = if (savedInstanceState == null) intent.sharedImageUris() else emptyList()
+        if (images.isNotEmpty()) vm.galleryImages(images)
+        if (vm.screen.value == 0 && images.isEmpty() &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            runCatching { ProcessCameraProvider.getInstance(applicationContext) }
+        }
+        lifecycleScope.launch {
+            vm.settingsLoaded.first { it }
+            setContent { ScannerApp(vm = vm) }
         }
     }
 

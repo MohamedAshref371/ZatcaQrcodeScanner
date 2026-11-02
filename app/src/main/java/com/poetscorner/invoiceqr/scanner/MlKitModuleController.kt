@@ -35,7 +35,7 @@ internal class MlKitModuleController(private val installer: MlKitModuleInstaller
         if (!state.value.ready) mutableState.value = MlKitModuleState(MlKitModuleStatus.CHECKING)
         operation = scope.launch {
             try {
-                val available = installer.available()
+                val available = withContext(Dispatchers.IO) { installer.available() }
                 // Keep an actionable failed-download message when the model is still missing.
                 if (available) mutableState.value = MlKitModuleState(MlKitModuleStatus.READY)
                 else mutableState.value = MlKitModuleState(
@@ -52,11 +52,11 @@ internal class MlKitModuleController(private val installer: MlKitModuleInstaller
         mutableState.value = MlKitModuleState(MlKitModuleStatus.DOWNLOADING)
         operation = scope.launch {
             try {
-                if (!installer.available()) {
+                if (!withContext(Dispatchers.IO) { installer.available() }) {
                     installer.install { mutableState.value = it }
                 }
                 // Check again, including after an "already installed" response.
-                check(installer.available()) { "ML Kit module is not ready" }
+                check(withContext(Dispatchers.IO) { installer.available() }) { "ML Kit module is not ready" }
                 mutableState.value = MlKitModuleState(MlKitModuleStatus.READY)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: MlKitServicesUnavailable) { mutableState.value = MlKitModuleState(MlKitModuleStatus.UNAVAILABLE) }
