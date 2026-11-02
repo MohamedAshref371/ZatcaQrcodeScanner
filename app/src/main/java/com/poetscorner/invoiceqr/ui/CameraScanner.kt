@@ -175,6 +175,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                             // Map the live view through sensor coordinates. This keeps the crop
                             // aligned after resizing/rotation without rebinding a fixed ViewPort.
                             val cropEnabled = currentSettings.cropEnabled
+                            val cropStarted = if (CameraFrameTiming.enabled) SystemClock.elapsedRealtimeNanos() else 0L
                             val crop = runBlocking(Dispatchers.Main) {
                                 val sensorToView = previewView.sensorToViewTransform ?: return@runBlocking null
                                 val viewToSensor = Matrix()
@@ -188,8 +189,14 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                                 previewCropInBuffer(viewToSensor, image.imageInfo.sensorToBufferTransformMatrix,
                                     rect, image.cropRect)
                             } ?: return@setAnalyzer
+                            val cropFinished = if (cropStarted != 0L) SystemClock.elapsedRealtimeNanos() else 0L
                             image.setCropRect(crop)
                             val result = decoder.read(image, currentSettings)
+                            if (cropStarted != 0L) CameraFrameTiming.record(CameraFrameTiming.Sample(
+                                cropEnabled, image.width, image.height,
+                                cropFinished - cropStarted,
+                                SystemClock.elapsedRealtimeNanos() - cropFinished,
+                                result != null))
                             val shouldDeliver = deliveryGate.shouldDeliver(result, now)
                             if (result != null && shouldDeliver
                                 && delivered.compareAndSet(false, true)) {
