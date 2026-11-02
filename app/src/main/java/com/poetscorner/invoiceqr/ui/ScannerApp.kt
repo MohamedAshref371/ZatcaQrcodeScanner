@@ -253,7 +253,10 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                 }
             }
         }
-        Scaffold(topBar = { TopAppBar(modifier = Modifier.testTag("app_title_bar"),
+        val safeWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
+        Scaffold(contentWindowInsets = safeWindowInsets,
+            topBar = { TopAppBar(modifier = Modifier.testTag("app_title_bar"),
+            windowInsets = safeWindowInsets.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
             scrollBehavior = if (screen == 0) null else titleScrollBehavior, navigationIcon = {
             IconTile(R.drawable.ic_scan, Modifier.padding(start = 16.dp, end = 8.dp))
         }, title = { Column {
@@ -263,7 +266,8 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
         } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = if (screen == 0) 0.88f else 1f))) }, bottomBar = {
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = if (screen == 0) 0.88f else 1f), shadowElevation = 8.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
-            NavigationBar(containerColor = androidx.compose.ui.graphics.Color.Transparent, tonalElevation = 0.dp) {
+            NavigationBar(containerColor = androidx.compose.ui.graphics.Color.Transparent, tonalElevation = 0.dp,
+                windowInsets = safeWindowInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)) {
             listOf(0 to R.string.nav_scanner, 1 to R.string.nav_result, 2 to R.string.nav_history,
                 4 to R.string.nav_statistics, 3 to R.string.nav_settings).forEach { (index, label) ->
                 NavigationBarItem(selected = screen == index, onClick = {

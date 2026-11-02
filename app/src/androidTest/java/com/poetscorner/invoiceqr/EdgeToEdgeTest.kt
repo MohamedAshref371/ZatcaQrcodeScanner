@@ -28,16 +28,20 @@ class EdgeToEdgeTest {
 
     @Test fun appBarsKeepControlsOutsideSystemBars() {
         ready()
-        val (insets, height) = compose.runOnIdle {
+        val (insets, size) = compose.runOnIdle {
             val decor = compose.activity.window.decorView
             val insets = ViewCompat.getRootWindowInsets(decor)!!
                 .getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            insets to decor.height
+            insets to (decor.width to decor.height)
         }
         val title = compose.onNodeWithText(text(R.string.app_name)).fetchSemanticsNode().boundsInRoot
         val navigation = compose.onNodeWithText(text(R.string.nav_settings)).fetchSemanticsNode().boundsInRoot
         assertTrue("Title overlaps status bar/cutout", title.top >= insets.top)
-        assertTrue("Navigation overlaps system navigation", navigation.bottom <= height - insets.bottom)
+        assertTrue("Navigation overlaps system navigation", navigation.bottom <= size.second - insets.bottom)
+        assertTrue("Title overlaps left system inset/cutout", title.left >= insets.left)
+        assertTrue("Title overlaps right system inset/cutout", title.right <= size.first - insets.right)
+        assertTrue("Navigation overlaps left system inset/cutout", navigation.left >= insets.left)
+        assertTrue("Navigation overlaps right system inset/cutout", navigation.right <= size.first - insets.right)
     }
 
     @Test fun systemBarIconsFollowTheAppTheme() = runBlocking {

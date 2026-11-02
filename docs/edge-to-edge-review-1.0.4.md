@@ -1,5 +1,10 @@
 # Edge-to-edge review: 1.0.4
 
+Follow-up (2026-11-02): the landscape side-cutout overlap was addressed in
+`ScannerApp.kt` and validated on an Android 17 emulator in both landscape
+directions. See [display-cutout-validation.md](display-cutout-validation.md).
+The findings below describe the earlier 1.0.4 artifact.
+
 Review date: 2026-10-23.
 
 ## Release artifact evidence
