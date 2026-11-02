@@ -56,6 +56,7 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.content.Context
 import android.content.ContextWrapper
+import android.text.TextUtils
 import androidx.core.view.WindowCompat
 import com.poetscorner.invoiceqr.billing.SupporterViewModel
 import com.poetscorner.invoiceqr.billing.SupporterState
@@ -78,9 +79,9 @@ import java.util.Date
 
 @Composable
 fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel = viewModel()) {
-    // Locale changes update resources in place; the host View can retain its old direction.
-    // Drive Compose from the current configuration so language and layout change together.
-    val direction = if (LocalConfiguration.current.layoutDirection == android.view.View.LAYOUT_DIRECTION_RTL) {
+    // Returning to the system language can update the locale without updating layoutDirection.
+    val locale = LocalConfiguration.current.locales[0]
+    val direction = if (TextUtils.getLayoutDirectionFromLocale(locale) == android.view.View.LAYOUT_DIRECTION_RTL) {
         LayoutDirection.Rtl
     } else LayoutDirection.Ltr
     CompositionLocalProvider(LocalLayoutDirection provides direction) {

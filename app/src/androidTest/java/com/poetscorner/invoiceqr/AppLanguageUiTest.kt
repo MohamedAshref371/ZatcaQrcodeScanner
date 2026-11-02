@@ -76,6 +76,9 @@ class AppLanguageUiTest {
                 compose.onNodeWithTag("settings_list").assertExists()
                 compose.onNode(hasText(text(R.string.app_language)) and hasText(text(R.string.language_system)))
                     .assertIsDisplayed()
+                assertEquals(deviceLanguage, compose.activity.resources.configuration.locales[0].language)
+                assertNavigationDirection(if (deviceLanguage == "ar")
+                    View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR)
             }
         } finally {
             compose.activityRule.scenario.onActivity { AppCompatDelegate.setApplicationLocales(original) }
