@@ -116,7 +116,6 @@
     <string name="manual_base64_hint">Have the invoice QR code as Base64 from another app? Paste it below and tap Inspect to view the invoice result.</string>
     <string name="manual_base64_label">Invoice QR Base64</string>
     <string name="manual_base64_inspect">Inspect</string>
-    <string name="export_json">Export JSON</string>
     <string name="export_csv">Export CSV</string>
     <string name="export_invoice_date">Invoice date</string>
     <string name="clear">Delete</string>
@@ -127,7 +126,6 @@
     <string name="history_search">Search by seller or VAT number</string>
     <string name="history_scan_date">Check date</string>
     <string name="history_invoice_date">Invoice date</string>
-    <string name="history_filter_search">Search</string>
     <string name="history_filter_title">Filter history</string>
     <string name="history_filter_hint">Search your details, choose a category, or set a date range.</string>
     <string name="history_invoice_date_help">Date in the QR code</string>
@@ -322,7 +320,7 @@
     <string name="app_tagline">Accurate scanning, clear details</string>
     <string name="scanner_heading">Scan invoice QR code</string>
     <string name="history_heading">Your invoice archive</string>
-    <string name="history_subtitle">Find, review and export your saved invoices.</string>
+    <string name="history_subtitle">Saved invoices</string>
     <string name="settings_heading">Make it yours</string>
     <string name="settings_subtitle">Fine-tune scanning and choose your appearance.</string>
     <string name="settings_camera">Camera &amp; scanning</string>

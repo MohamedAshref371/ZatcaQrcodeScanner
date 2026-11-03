@@ -36,6 +36,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.res.stringResource
 import com.poetscorner.invoiceqr.BuildConfig
 import com.poetscorner.invoiceqr.R
@@ -200,10 +202,6 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     }
     val imageImport by vm.imageImport.collectAsStateWithLifecycle()
     val imageImportSummary by vm.imageImportSummary.collectAsStateWithLifecycle()
-    val json = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
-        pendingFileAction = null
-        it?.let { uri -> vm.export(uri, false, exportFilter) }
-    }
     val csv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) {
         pendingFileAction = null
         it?.let { uri -> vm.export(uri, true, exportFilter) }
@@ -314,34 +312,46 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                                 if (vm.skipInvoiceDeleteConfirmation) vm.delete(it.id)
                                 else invoiceToDelete = it
                             }, actions = {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        val tooltipPosition = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above)
+                        val filtersActive = historyCategory != null || historyAnnotationQuery.isNotBlank() ||
+                            historyFrom != null || historyTo != null
+                        val filterState = stringResource(if (filtersActive) R.string.stats_filters_active
+                            else R.string.stats_filters_inactive)
+                        Row(horizontalArrangement = Arrangement.spacedBy(0.dp),
                             verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedButton(onClick = {
-                                exportFilter = activeHistoryFilter
-                                pendingFileAction = "json"
-                                json.launch("zatca-history.json")
-                            }, enabled = visibleHistory.canExport && !transferLocked, modifier = Modifier.weight(1.15f).heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)) {
-                                Text(stringResource(R.string.export_json), style = MaterialTheme.typography.labelMedium)
+                            TooltipBox(positionProvider = tooltipPosition,
+                                tooltip = { PlainTooltip { Text(stringResource(R.string.export_csv)) } },
+                                state = rememberTooltipState()) {
+                                IconButton(onClick = {
+                                    exportFilter = activeHistoryFilter
+                                    pendingFileAction = "csv"
+                                    csv.launch("zatca-history.csv")
+                                }, enabled = visibleHistory.canExport && !transferLocked,
+                                    modifier = Modifier.size(48.dp)) {
+                                    AppIcon(R.drawable.ic_download, description = stringResource(R.string.export_csv))
+                                }
                             }
-                            OutlinedButton(onClick = {
-                                exportFilter = activeHistoryFilter
-                                pendingFileAction = "csv"
-                                csv.launch("zatca-history.csv")
-                            }, enabled = visibleHistory.canExport && !transferLocked, modifier = Modifier.weight(1.15f).heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)) {
-                                Text(stringResource(R.string.export_csv), style = MaterialTheme.typography.labelMedium)
+                            TooltipBox(positionProvider = tooltipPosition,
+                                tooltip = { PlainTooltip { Text(stringResource(R.string.history_filter_title)) } },
+                                state = rememberTooltipState()) {
+                                IconButton(onClick = { historyFilterDialog = true },
+                                    modifier = Modifier.size(48.dp).semantics { stateDescription = filterState }) {
+                                    BadgedBox(badge = { if (filtersActive) Badge() }) {
+                                        AppIcon(R.drawable.ic_filter,
+                                            description = stringResource(R.string.history_filter_title))
+                                    }
+                                }
                             }
-                            OutlinedButton(onClick = { historyFilterDialog = true },
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)) {
-                                Text(stringResource(R.string.history_filter_search), style = MaterialTheme.typography.labelMedium)
-                            }
-                            TextButton(onClick = { clearDialog = true }, enabled = history.total > 0 && !transferLocked,
-                                modifier = Modifier.weight(0.8f).heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp),
-                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
-                                Text(stringResource(R.string.clear), style = MaterialTheme.typography.labelMedium)
+                            TooltipBox(positionProvider = tooltipPosition,
+                                tooltip = { PlainTooltip { Text(stringResource(R.string.clear_title)) } },
+                                state = rememberTooltipState()) {
+                                IconButton(onClick = { clearDialog = true },
+                                    enabled = history.total > 0 && !transferLocked,
+                                    modifier = Modifier.size(48.dp),
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error)) {
+                                    AppIcon(R.drawable.ic_delete, description = stringResource(R.string.clear_title))
+                                }
                             }
                         } })
                         }

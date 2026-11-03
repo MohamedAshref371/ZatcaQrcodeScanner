@@ -114,7 +114,6 @@
     <string name="manual_base64_hint">هل لديك نص Base64 لرمز QR الخاص بالفاتورة من برنامج آخر؟ الصقه في الصندوق أدناه واضغط «فحص» لعرض نتيجة الفاتورة.</string>
     <string name="manual_base64_label">نص Base64 للفاتورة</string>
     <string name="manual_base64_inspect">فحص</string>
-    <string name="export_json">تصدير JSON</string>
     <string name="export_csv">تصدير CSV</string>
     <string name="export_invoice_date">تاريخ الفاتورة</string>
     <string name="clear">حذف</string>
@@ -125,7 +124,6 @@
     <string name="history_search">ابحث باسم البائع أو الرقم الضريبي</string>
     <string name="history_scan_date">تاريخ الفحص</string>
     <string name="history_invoice_date">تاريخ الفاتورة</string>
-    <string name="history_filter_search">بحث</string>
     <string name="history_filter_title">فلترة السجل</string>
     <string name="history_filter_hint">ابحث في بياناتك أو اختر تصنيفًا أو فترة زمنية.</string>
     <string name="history_invoice_date_help">التاريخ داخل رمز QR</string>
@@ -313,7 +311,7 @@
     <string name="app_tagline">قراءة دقيقة، وتفاصيل واضحة</string>
     <string name="scanner_heading">قراءة رمز الفاتورة</string>
     <string name="history_heading">أرشيف فواتيرك</string>
-    <string name="history_subtitle">ابحث في فواتيرك المحفوظة وراجعها وصدّرها.</string>
+    <string name="history_subtitle">فواتيرك المحفوظة</string>
     <string name="settings_heading">اضبطه على راحتك</string>
     <string name="settings_subtitle">خصّص تجربة المسح ومظهر التطبيق.</string>
     <string name="settings_camera">الكاميرا والمسح</string>

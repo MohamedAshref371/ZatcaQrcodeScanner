@@ -3,6 +3,7 @@ package com.poetscorner.invoiceqr
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -35,16 +36,14 @@ class HistoryNavigationTest {
     @Test fun exportsDisableForNoMatchesAndRecoverWhenSearchIsCleared() {
         compose.onNodeWithText(text(R.string.nav_history)).performClick()
         compose.onNode(hasSetTextAction()).performTextReplacement(UUID.randomUUID().toString())
-        compose.onNodeWithText(text(R.string.export_json)).assertIsNotEnabled()
-        compose.onNodeWithText(text(R.string.export_csv)).assertIsNotEnabled()
+        compose.onNodeWithContentDescription(text(R.string.export_csv)).assertIsNotEnabled()
         compose.onNode(hasSetTextAction()).performTextClearance()
         val vm = compose.runOnIdle { ViewModelProvider(compose.activity)[ScannerViewModel::class.java] }
         compose.waitUntil(5000) {
             val expectedEnabled = vm.historyState.value.canExport
-            listOf(R.string.export_json, R.string.export_csv).all { id ->
-                val disabled = compose.onNodeWithText(text(id)).fetchSemanticsNode().config.contains(SemanticsProperties.Disabled)
-                disabled != expectedEnabled
-            }
+            val disabled = compose.onNodeWithContentDescription(text(R.string.export_csv)).fetchSemanticsNode()
+                .config.contains(SemanticsProperties.Disabled)
+            disabled != expectedEnabled
         }
     }
 
@@ -52,12 +51,12 @@ class HistoryNavigationTest {
         repeat(3) {
             compose.onNodeWithText(text(R.string.nav_history)).performClick()
             compose.onNodeWithText(text(R.string.history_search)).assertIsDisplayed()
-            compose.onNodeWithText(text(R.string.history_filter_search)).performClick()
+            compose.onNodeWithContentDescription(text(R.string.history_filter_title)).performClick()
             compose.onNodeWithText(text(R.string.history_filter_title)).assertIsDisplayed()
             compose.onNodeWithText(text(R.string.history_scan_date)).performClick()
             compose.onNodeWithText(text(R.string.cancel)).performClick()
             compose.onNodeWithText(text(R.string.history_search)).assertIsDisplayed()
-            compose.onNodeWithText(text(R.string.history_filter_search)).performClick()
+            compose.onNodeWithContentDescription(text(R.string.history_filter_title)).performClick()
             compose.onNodeWithText(text(R.string.history_invoice_date)).performClick()
             compose.onNodeWithText(text(R.string.history_confirm_filters)).performClick()
             compose.onNodeWithText(text(R.string.history_search)).assertIsDisplayed()
@@ -68,7 +67,7 @@ class HistoryNavigationTest {
     @Test fun annotationSearchAndCategoryDropdownAreInsideFilters() {
         compose.onNodeWithText(text(R.string.nav_history)).performClick()
         compose.onNodeWithText(text(R.string.history_search)).assertIsDisplayed()
-        compose.onNodeWithText(text(R.string.history_filter_search)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.history_filter_title)).performClick()
         compose.onNode(hasSetTextAction() and androidx.compose.ui.test.hasText(
             text(R.string.history_annotation_search))).performTextReplacement("INV-007")
         compose.onNodeWithText(text(R.string.history_all_categories)).performClick()
