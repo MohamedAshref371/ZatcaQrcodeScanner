@@ -16,7 +16,7 @@
     <string name="copy_vat">Copy VAT number</string>
     <string name="vat_copied">VAT number copied</string>
     <string name="settings_backup">Backup and restore</string>
-    <string name="backup_description">Back up all invoices, their original QR content and check dates. Import a backup created here to merge invoices with your history without deleting or duplicating existing entries. Settings and supporter purchases are not included.</string>
+    <string name="backup_description">Back up all invoices, their original QR content, check dates, invoice numbers, categories and notes. Import a backup created here to merge invoices with your history without deleting or duplicating existing entries. Settings and supporter purchases are not included.</string>
     <string name="backup_create">Create backup</string>
     <string name="backup_import">Import backup</string>
     <string name="backup_success">Backup saved</string>
@@ -129,7 +129,7 @@
     <string name="history_invoice_date">Invoice date</string>
     <string name="history_filter_search">Search</string>
     <string name="history_filter_title">Filter history</string>
-    <string name="history_filter_hint">Choose a date type and period.</string>
+    <string name="history_filter_hint">Search your details, choose a category, or set a date range.</string>
     <string name="history_invoice_date_help">Date in the QR code</string>
     <string name="history_scan_date_help">First saved in the app</string>
     <string name="history_today">Today</string>
@@ -152,7 +152,7 @@
     <string name="history_summary_result_count">Results: %1$s</string>
     <string name="history_summary_result_total">Results total: %1$s</string>
     <string name="history_total_unavailable">Unavailable</string>
-    <string name="history_export_filtered">Export includes scans matching the search and applied date filter.</string>
+    <string name="history_export_filtered">Export includes invoices matching the search and applied filters.</string>
     <string name="unknown_seller">Invalid code / no seller name</string>
     <string name="history_passed">Local checks passed · Phase %1$d</string>
     <string name="history_failed">Local checks failed</string>
@@ -343,4 +343,20 @@
     <string name="default_theme">Default theme</string>
     <string name="purple_theme">Purple theme</string>
     <string name="blue_theme">Blue theme</string>
+    <string name="invoice_your_data">Your details</string>
+    <string name="invoice_number">Invoice number</string>
+    <string name="invoice_category">Category</string>
+    <string name="invoice_note">Note</string>
+    <string name="invoice_edit_details">Edit</string>
+    <string name="invoice_save_details">Save</string>
+    <string name="invoice_details_empty">No details added</string>
+    <string name="invoice_details_save_error">Could not save your details.</string>
+    <string name="invoice_category_none">No category</string>
+    <string name="invoice_category_work">Business expense</string>
+    <string name="invoice_category_personal">Personal expense</string>
+    <string name="invoice_category_needs_review">Needs review</string>
+    <string name="invoice_category_reviewed">Reviewed</string>
+    <string name="invoice_category_other">Other</string>
+    <string name="history_all_categories">All categories</string>
+    <string name="history_annotation_search">Search invoice number or note</string>
 </resources>

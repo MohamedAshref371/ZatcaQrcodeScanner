@@ -21,11 +21,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.HistoryPageState
 import com.poetscorner.invoiceqr.data.HistorySummary
 import com.poetscorner.invoiceqr.data.HistoryDateSource
+import com.poetscorner.invoiceqr.data.InvoiceCategories
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.time.Instant
 import java.time.LocalDate
@@ -89,7 +91,9 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
             }
         }
         if (state.entries.isNotEmpty() || (!state.loading && !state.failed)) item(key = "history_summary") {
-            val filtered = state.displayedFilter.query.isNotBlank() || state.displayedFilter.fromDay != null || state.displayedFilter.toDay != null
+            val filtered = state.displayedFilter.query.isNotBlank() || state.displayedFilter.annotationQuery.isNotBlank() ||
+                state.displayedFilter.fromDay != null || state.displayedFilter.toDay != null ||
+                state.displayedFilter.category != null
             Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium) {
                 FlowRow(
                     modifier = Modifier.fillMaxWidth().testTag("history_summary").padding(16.dp),
@@ -128,6 +132,12 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                             modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
                         if (row.vat.isNotBlank()) Text(stringResource(R.string.history_vat, row.vat),
                             style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (row.invoiceNumber.isNotBlank()) Text(listOfNotNull(
+                            stringResource(R.string.invoice_number) + ": " + row.invoiceNumber,
+                            row.category.takeIf { it != 0 }?.let { stringResource(InvoiceCategories.label(it)) }
+                        ).joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(stringResource(R.string.history_invoice_total,
                             row.total.ifBlank { stringResource(R.string.missing) }),
@@ -176,10 +186,15 @@ internal fun InvoiceDeleteDialog(seller: String, onDismiss: () -> Unit, onConfir
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, toDay: Long?,
-    onDismiss: () -> Unit, onApply: (HistoryDateSource, Long?, Long?) -> Unit) {
+    categoryFilter: Int?, annotationQuery: String, onDismiss: () -> Unit,
+    onApply: (HistoryDateSource, Long?, Long?, Int?, String) -> Unit) {
     var source by rememberSaveable { mutableStateOf(dateSource) }
+    var selectedCategory by rememberSaveable { mutableStateOf(categoryFilter) }
+    var annotationTerm by rememberSaveable { mutableStateOf(annotationQuery) }
+    var categoryExpanded by remember { mutableStateOf(false) }
     var invoiceFrom by rememberSaveable { mutableStateOf(if (dateSource == HistoryDateSource.INVOICE) fromDay else null) }
     var invoiceTo by rememberSaveable { mutableStateOf(if (dateSource == HistoryDateSource.INVOICE) toDay else null) }
     var scanFrom by rememberSaveable { mutableStateOf(if (dateSource == HistoryDateSource.SCAN) fromDay else null) }
@@ -209,6 +224,25 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(stringResource(R.string.history_filter_hint), style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(value = annotationTerm, onValueChange = { annotationTerm = it },
+                    label = { Text(stringResource(R.string.history_annotation_search)) },
+                    singleLine = true, modifier = Modifier.fillMaxWidth())
+                ExposedDropdownMenuBox(expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = it }) {
+                    OutlinedTextField(value = stringResource(selectedCategory?.let(InvoiceCategories::label)
+                        ?: R.string.history_all_categories), onValueChange = {}, readOnly = true,
+                        label = { Text(stringResource(R.string.invoice_category)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
+                    ExposedDropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.history_all_categories)) },
+                            onClick = { selectedCategory = null; categoryExpanded = false })
+                        InvoiceCategories.ids.forEach { id ->
+                            DropdownMenuItem(text = { Text(stringResource(InvoiceCategories.label(id))) },
+                                onClick = { selectedCategory = id; categoryExpanded = false })
+                        }
+                    }
+                }
                 Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                   HistoryDateSource.entries.forEach { option ->
                     val selected = source == option
@@ -262,7 +296,7 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
             }
         },
         confirmButton = {
-            Button(onClick = { onApply(source, selectedFrom, selectedTo) }) {
+            Button(onClick = { onApply(source, selectedFrom, selectedTo, selectedCategory, annotationTerm.trim()) }) {
                 Text(stringResource(R.string.history_confirm_filters))
             }
         },

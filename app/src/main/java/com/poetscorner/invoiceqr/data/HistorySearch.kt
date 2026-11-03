@@ -11,11 +11,19 @@ enum class HistoryDateSource { INVOICE, SCAN }
 data class HistoryFilter(val query: String = "", val fromDay: Long? = null, val toDay: Long? = null,
     val dateSource: HistoryDateSource = HistoryDateSource.INVOICE,
     val zoneId: String = ZoneId.systemDefault().id,
-    val statisticsSelection: StatisticsSelection? = null) : Serializable {
+    val statisticsSelection: StatisticsSelection? = null,
+    val category: Int? = null,
+    val annotationQuery: String = "") : Serializable {
     fun apply(entries: List<HistoryEntry>): List<HistoryEntry> =
         filterHistory(entries, query, fromDay, toDay, ZoneId.of(zoneId), dateSource).let { rows ->
             val selected = statisticsSelection
-            if (selected == null) rows else rows.filter { selected.matches(it.scan.seller, it.vat, it.invoiceDay) }
+            val annotationTerm = annotationQuery.trim()
+            rows.filter { entry ->
+                (selected == null || selected.matches(entry.scan.seller, entry.vat, entry.invoiceDay)) &&
+                    (category == null || entry.scan.category == category) &&
+                    (annotationTerm.isEmpty() || entry.scan.invoiceNumber.contains(annotationTerm, ignoreCase = true) ||
+                        entry.scan.note.contains(annotationTerm, ignoreCase = true))
+            }
         }
 }
 

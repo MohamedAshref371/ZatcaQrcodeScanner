@@ -21,7 +21,8 @@ import com.poetscorner.invoiceqr.domain.ZatcaParser
 @RunWith(AndroidJUnit4::class)
 class HistoryStorageTest {
     private lateinit var db: ScanDatabase
-    private val names = mapOf(1 to "Seller", 2 to "VAT", 3 to "Date", 4 to "Total", 5 to "Tax", 6 to "Hash")
+    private val names = mapOf(1 to "Seller", 2 to "VAT", 3 to "Date", 4 to "Total", 5 to "Tax", 6 to "Hash",
+        7 to "Invoice number", 8 to "Category", 9 to "Note")
     @Before fun setUp() {
         db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext,
             ScanDatabase::class.java).build()
@@ -32,13 +33,18 @@ class HistoryStorageTest {
         val fixtures = (1..12).map { i -> historyFixture(i, seller = when (i) {
             1 -> "North Market"; 2 -> "literal %_"; 3 -> "متجر ١٢٣"; else -> "متجر $i"
         }, date = if (i == 12) "invalid" else "2026-10-${(i + 1).toString().padStart(2, '0')}T00:30:00+03:00",
-            time = Instant.parse("2026-11-01T04:00:00Z").toEpochMilli() + i * 3600000L) }
+            time = Instant.parse("2026-11-01T04:00:00Z").toEpochMilli() + i * 3600000L)
+                .let { if (i == 4) it.copy(invoiceNumber = "INV-004", category = 3, note = "Client follow-up") else it } }
         db.scans().insertBatch(fixtures)
         val stored = db.scans().all()
         val filters = listOf(HistoryFilter(), HistoryFilter("NORTH"), HistoryFilter("%_"), HistoryFilter("١٢٣"),
             HistoryFilter("٣٠٠٠٠٠٠٠٠٠٠٠٠٠١"), HistoryFilter("' OR 1=1 --"), HistoryFilter("no match"),
             HistoryFilter(fromDay = historyBaseDay + 2, toDay = historyBaseDay + 8),
             HistoryFilter(fromDay = historyBaseDay + 2), HistoryFilter(toDay = historyBaseDay + 8),
+            HistoryFilter("INV-004"), HistoryFilter("follow-up"),
+            HistoryFilter(annotationQuery = "INV-004"), HistoryFilter(annotationQuery = "follow-up"),
+            HistoryFilter(query = "متجر", annotationQuery = "INV-004"), HistoryFilter(category = 3),
+            HistoryFilter(category = 0),
             HistoryFilter(fromDay = 20758, toDay = 20758, dateSource = HistoryDateSource.SCAN, zoneId = "America/New_York"))
         for (filter in filters) {
             val expected = filter.apply(stored.map { HistoryEntry.from(it) }).map { it.scan.id }
@@ -91,5 +97,27 @@ class HistoryStorageTest {
         }
         assertTrue(plan, plan.contains("index_scans_payloadKey"))
         assertEquals(1, db.scans().all().size)
+    }
+
+    @Test fun streamingHumanExportsUseTheCategoryDescriptionAndRequestedColumnOrder() = runBlocking {
+        db.scans().insert(historyFixture(99101).copy(invoiceNumber = "INV-0007", category = 1,
+            note = "Business trip"))
+        val csv = StringWriter()
+        val json = StringWriter()
+        db.withTransaction {
+            HistoryExporter.write(db.scans(), HistoryFilter(), csv, true, names,
+                categoryName = { "Business expense" })
+            HistoryExporter.write(db.scans(), HistoryFilter(), json, false, names,
+                categoryName = { "Business expense" })
+        }
+        assertTrue(csv.toString().startsWith("\uFEFF\"Invoice number\",\"Seller\""))
+        assertTrue(csv.toString().trimEnd().endsWith("\"Business expense\",\"Business trip\""))
+        val jsonText = json.toString()
+        assertTrue(jsonText.indexOf("\"Invoice number\"") < jsonText.indexOf("\"Seller\""))
+        assertTrue(jsonText.indexOf("\"Category\"") > jsonText.indexOf("\"Tax\""))
+        val item = JSONArray(jsonText).getJSONObject(0)
+        assertEquals("INV-0007", item.getString("Invoice number"))
+        assertEquals("Business expense", item.getString("Category"))
+        assertEquals("Business trip", item.getString("Note"))
     }
 }

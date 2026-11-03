@@ -14,7 +14,7 @@
     <string name="copy_vat">نسخ الرقم الضريبي</string>
     <string name="vat_copied">تم نسخ الرقم الضريبي</string>
     <string name="settings_backup">النسخ الاحتياطي والاستعادة</string>
-    <string name="backup_description">احفظ كل الفواتير بمحتوى QR الأصلي وأوقات الفحص. استورد نسخة أُنشئت من هنا لدمج فواتيرها مع السجل دون حذف الموجود أو تكراره. لا تشمل النسخة الإعدادات أو مشتريات الدعم.</string>
+    <string name="backup_description">احفظ كل الفواتير بمحتوى QR الأصلي وأوقات الفحص وأرقام الفواتير وتصنيفاتها وملاحظاتها. استورد نسخة أُنشئت من هنا لدمج فواتيرها مع السجل دون حذف الموجود أو تكراره. لا تشمل النسخة الإعدادات أو مشتريات الدعم.</string>
     <string name="backup_create">إنشاء نسخة احتياطية</string>
     <string name="backup_import">استيراد نسخة احتياطية</string>
     <string name="backup_success">تم حفظ النسخة الاحتياطية</string>
@@ -127,7 +127,7 @@
     <string name="history_invoice_date">تاريخ الفاتورة</string>
     <string name="history_filter_search">بحث</string>
     <string name="history_filter_title">فلترة السجل</string>
-    <string name="history_filter_hint">اختر نوع التاريخ والفترة.</string>
+    <string name="history_filter_hint">ابحث في بياناتك أو اختر تصنيفًا أو فترة زمنية.</string>
     <string name="history_invoice_date_help">التاريخ داخل رمز QR</string>
     <string name="history_scan_date_help">أول حفظ في التطبيق</string>
     <string name="history_today">اليوم</string>
@@ -150,7 +150,7 @@
     <string name="history_summary_result_count">عدد النتائج: %1$s</string>
     <string name="history_summary_result_total">إجمالي النتائج: %1$s</string>
     <string name="history_total_unavailable">غير متاح</string>
-    <string name="history_export_filtered">التصدير يشمل القراءات المطابقة للبحث وفلتر التاريخ المطبّق.</string>
+    <string name="history_export_filtered">التصدير يشمل الفواتير المطابقة للبحث والفلاتر المطبّقة.</string>
     <string name="unknown_seller">رمز غير صالح / بلا اسم</string>
     <string name="history_passed">اجتاز الفحوص المحلية · المرحلة %1$d</string>
     <string name="history_failed">لم يجتز الفحوص المحلية</string>
@@ -334,4 +334,20 @@
     <string name="default_theme">المظهر العادي</string>
     <string name="purple_theme">المظهر البنفسجي</string>
     <string name="blue_theme">المظهر الأزرق</string>
+    <string name="invoice_your_data">بياناتك</string>
+    <string name="invoice_number">رقم الفاتورة</string>
+    <string name="invoice_category">التصنيف</string>
+    <string name="invoice_note">ملاحظة</string>
+    <string name="invoice_edit_details">تعديل</string>
+    <string name="invoice_save_details">حفظ</string>
+    <string name="invoice_details_empty">لم تضف بيانات</string>
+    <string name="invoice_details_save_error">تعذّر حفظ بياناتك.</string>
+    <string name="invoice_category_none">بدون تصنيف</string>
+    <string name="invoice_category_work">مصروفات عمل</string>
+    <string name="invoice_category_personal">مصروفات شخصية</string>
+    <string name="invoice_category_needs_review">تحتاج مراجعة</string>
+    <string name="invoice_category_reviewed">تمت مراجعتها</string>
+    <string name="invoice_category_other">أخرى</string>
+    <string name="history_all_categories">كل التصنيفات</string>
+    <string name="history_annotation_search">ابحث برقم الفاتورة أو الملاحظة</string>
 </resources>

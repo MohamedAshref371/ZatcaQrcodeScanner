@@ -36,9 +36,11 @@ class HistoryBackupTest {
         }).toString()
 
     @Test fun roundTripAcrossBatchesPreservesOriginalQrDatesAndExistingDuplicates() = runBlocking {
-        val rows = (1..235).map { historyFixture(94000 + it, seller = "Backup seller $it") }
+        val rows = (1..235).map { historyFixture(94000 + it, seller = "Backup seller $it")
+            .copy(invoiceNumber = "INV-$it", category = it % 6, note = "Note $it") }
         source.scans().insertBatch(rows)
-        val existing = rows.first().copy(raw = " \n" + rows.first().raw.trimEnd('='), scannedAt = 1234L)
+        val existing = rows.first().copy(raw = " \n" + rows.first().raw.trimEnd('='),
+            scannedAt = 1234L, invoiceNumber = "LOCAL-1", category = 5, note = "Keep local note")
         target.scans().saveIfNew(existing)
         val progress = mutableListOf<Pair<Int, Int>>()
         val output = StringWriter()
@@ -54,9 +56,15 @@ class HistoryBackupTest {
             assertEquals(row.raw, actual.raw)
             assertEquals(row.scannedAt, actual.scannedAt)
             assertEquals(row.details, actual.details)
+            assertEquals(row.invoiceNumber, actual.invoiceNumber)
+            assertEquals(row.category, actual.category)
+            assertEquals(row.note, actual.note)
         }
         assertEquals(existing.raw, restored[existing.payloadKey]?.raw)
         assertEquals(1234L, restored[existing.payloadKey]?.scannedAt)
+        assertEquals("LOCAL-1", restored[existing.payloadKey]?.invoiceNumber)
+        assertEquals(5, restored[existing.payloadKey]?.category)
+        assertEquals("Keep local note", restored[existing.payloadKey]?.note)
         assertEquals(ImportSummary(0, 235), HistoryBackup.restore(target, StringReader(output.toString())))
         assertEquals(235, target.scans().count())
     }
@@ -77,7 +85,7 @@ class HistoryBackupTest {
     @Test fun unsupportedTruncatedAndOrdinaryExportFilesAreRejectedWithoutChanges() = runBlocking {
         val row = historyFixture(96001, hash = false)
         val valid = document(listOf(row))
-        val cases = listOf(document(listOf(row), version = 2), valid.dropLast(3), "[]", valid + " {}",
+        val cases = listOf(document(listOf(row), version = 3), valid.dropLast(3), "[]", valid + " {}",
             valid.replace("\"checkedAt\":${row.scannedAt}", "\"checkedAt\":-1"),
             valid.replace("\"checkedAt\":${row.scannedAt}", "\"checkedAt\":1.5"),
             valid.replace("\"version\":1", "\"version\":1,\"version\":1"))
@@ -88,6 +96,22 @@ class HistoryBackupTest {
             } catch (_: InvalidBackupException) { }
             assertEquals(0, target.scans().count())
         }
+    }
+
+    @Test fun oldBackupsRestoreEmptyAnnotationsAndInvalidCategoryRollsBack() = runBlocking {
+        val row = historyFixture(96501, hash = false)
+        assertEquals(ImportSummary(1, 0), HistoryBackup.restore(target, StringReader(document(listOf(row)))))
+        val restored = requireNotNull(target.scans().byPayloadKey(row.payloadKey))
+        assertEquals("", restored.invoiceNumber)
+        assertEquals(0, restored.category)
+        assertEquals("", restored.note)
+        val bad = JSONObject(document(listOf(historyFixture(96502)), version = 2))
+        bad.getJSONArray("invoices").getJSONObject(0).put("category", 99)
+        try {
+            HistoryBackup.restore(target, StringReader(bad.toString()))
+            fail("Unknown category must reject the backup")
+        } catch (_: InvalidBackupException) { }
+        assertEquals(1, target.scans().count())
     }
 
     @Test fun cancellationDuringImportRollsBackAndIsNotReportedAsInvalidBackup() = runBlocking {

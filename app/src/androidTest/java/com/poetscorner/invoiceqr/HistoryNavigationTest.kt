@@ -64,4 +64,22 @@ class HistoryNavigationTest {
             compose.onNodeWithText(text(R.string.nav_result)).performClick()
         }
     }
+
+    @Test fun annotationSearchAndCategoryDropdownAreInsideFilters() {
+        compose.onNodeWithText(text(R.string.nav_history)).performClick()
+        compose.onNodeWithText(text(R.string.history_search)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.history_filter_search)).performClick()
+        compose.onNode(hasSetTextAction() and androidx.compose.ui.test.hasText(
+            text(R.string.history_annotation_search))).performTextReplacement("INV-007")
+        compose.onNodeWithText(text(R.string.history_all_categories)).performClick()
+        compose.onNodeWithText(text(R.string.invoice_category_work)).performClick()
+        compose.onNodeWithText(text(R.string.history_confirm_filters)).performClick()
+        val vm = compose.runOnIdle { ViewModelProvider(compose.activity)[ScannerViewModel::class.java] }
+        compose.waitUntil(5000) {
+            vm.historyState.value.filter.annotationQuery == "INV-007" &&
+                vm.historyState.value.filter.category == 1
+        }
+        compose.onNodeWithText(text(R.string.history_search)).assertIsDisplayed()
+        org.junit.Assert.assertEquals("", vm.historyState.value.filter.query)
+    }
 }

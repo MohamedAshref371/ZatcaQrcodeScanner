@@ -12,7 +12,8 @@ import java.util.Base64
 
 @RunWith(AndroidJUnit4::class)
 class FilteredHistoryExportTest {
-    private val names = mapOf(1 to "Seller", 2 to "VAT", 3 to "Date", 4 to "Total", 5 to "Tax", 6 to "Hash")
+    private val names = mapOf(1 to "Seller", 2 to "VAT", 3 to "Date", 4 to "Total", 5 to "Tax", 6 to "Hash",
+        7 to "Invoice number", 8 to "Category", 9 to "Note")
     private val day = LocalDate.of(2026, 10, 20).toEpochDay()
     private fun entry(id: Long, seller: String, invoiceDate: String, scanDate: String): HistoryEntry {
         val vat = if (seller == "Alpha") "31000000000000$id" else "32000000000000$id"

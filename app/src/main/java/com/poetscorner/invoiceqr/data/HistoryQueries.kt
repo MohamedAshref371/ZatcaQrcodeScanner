@@ -29,14 +29,17 @@ data class InvoiceDetails(val sellerSearch: String, val vat: String, val invoice
 }
 
 data class HistorySummary(val id: Long, val seller: String, val vat: String, val total: String,
-    val scannedAt: Long, val passed: Boolean, val phase: Int)
+    val scannedAt: Long, val passed: Boolean, val phase: Int,
+    val invoiceNumber: String = "", val category: Int = 0)
 data class HistoryCounts(val total: Int, val matching: Int)
 data class HistoryCursor(val scannedAt: Long, val id: Long)
 data class HistoryAmount(val id: Long, val scannedAt: Long, val total: String)
 data class HistoryOverview(val counts: HistoryCounts, val rows: List<HistorySummary>, val amount: BigDecimal?)
 data class ExportInvoice(val id: Long, val scannedAt: Long, val seller: String, val vat: String,
-    val invoiceDate: String, val total: String, val tax: String, val hash: String) {
-    fun fields(): List<String> = listOf(seller, vat, invoiceDate, total, tax, hash)
+    val invoiceDate: String, val total: String, val tax: String, val hash: String,
+    val invoiceNumber: String, val category: Int, val note: String) {
+    fun fields(categoryName: String): List<String> = listOf(invoiceNumber, seller, vat, invoiceDate,
+        total, tax, hash, if (category == 0) "" else categoryName, note)
 }
 
 /** Only bound parameters contain user input; date predicates can use the matching index. */
@@ -54,6 +57,12 @@ class HistoryQueries(private val filter: HistoryFilter) {
             clauses += "(instr(sellerSearch, ?) > 0 OR instr(vat, ?) > 0)"
             args += term.lowercase(Locale.ROOT); args += digits
         }
+        filter.annotationQuery.trim().takeIf { it.isNotEmpty() }?.let { annotationTerm ->
+            clauses += "(instr(lower(invoiceNumber), ?) > 0 OR instr(lower(note), ?) > 0)"
+            val lowered = annotationTerm.lowercase(Locale.ROOT)
+            args += lowered; args += lowered
+        }
+        filter.category?.let { clauses += "category = ?"; args += it }
         if (filter.dateSource == HistoryDateSource.INVOICE) {
             filter.fromDay?.let { clauses += "invoiceDay >= ?"; args += it }
             filter.toDay?.let { clauses += "invoiceDay <= ?"; args += it }
@@ -81,7 +90,7 @@ class HistoryQueries(private val filter: HistoryFilter) {
     }
     fun counts() = query("(SELECT COUNT(*) FROM scans) AS total, COUNT(*) AS matching")
     fun amounts(cursor: HistoryCursor? = null) = query("id, scannedAt, total", cursor, 200)
-    fun page(cursor: HistoryCursor? = null, limit: Int = 50) = query("id, seller, vat, total, scannedAt, passed, phase", cursor, limit)
-    fun export(cursor: HistoryCursor? = null, limit: Int = 200) = query("id, scannedAt, seller, vat, invoiceDate, total, tax, hash", cursor, limit)
+    fun page(cursor: HistoryCursor? = null, limit: Int = 50) = query("id, seller, vat, total, scannedAt, passed, phase, invoiceNumber, category", cursor, limit)
+    fun export(cursor: HistoryCursor? = null, limit: Int = 200) = query("id, scannedAt, seller, vat, invoiceDate, total, tax, hash, invoiceNumber, category, note", cursor, limit)
     fun hashExists() = query("COUNT(*) > 0", hashOnly = true)
 }

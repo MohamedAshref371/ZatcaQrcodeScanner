@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.LayoutDirection
 import android.app.Activity
 import android.content.pm.ActivityInfo
@@ -68,6 +70,8 @@ import com.poetscorner.invoiceqr.data.HistoryDateSource
 import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.HistoryPageState
 import com.poetscorner.invoiceqr.data.HistorySummary
+import com.poetscorner.invoiceqr.data.InvoiceAnnotation
+import com.poetscorner.invoiceqr.data.InvoiceCategories
 import com.poetscorner.invoiceqr.domain.Invoice
 import com.poetscorner.invoiceqr.domain.InvoiceType
 import com.poetscorner.invoiceqr.domain.ZatcaParser
@@ -162,6 +166,8 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     var historyFrom by rememberSaveable { mutableStateOf<Long?>(null) }
     var historyTo by rememberSaveable { mutableStateOf<Long?>(null) }
     var historyDateSource by rememberSaveable { mutableStateOf(HistoryDateSource.INVOICE) }
+    var historyCategory by rememberSaveable { mutableStateOf<Int?>(null) }
+    var historyAnnotationQuery by rememberSaveable { mutableStateOf("") }
     var historyFilterDialog by rememberSaveable { mutableStateOf(false) }
     val lifecycleState by lifecycle.currentStateAsState()
     val reviewAllowed = reviewOpportunity > 0 && !previewActive && screen == 2 && !busy && !transferLocked && message == null &&
@@ -182,8 +188,10 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
         }
     }
     var exportFilter by rememberSaveable { mutableStateOf(HistoryFilter()) }
-    val activeHistoryFilter = remember(historyQuery, historyFrom, historyTo, historyDateSource) {
-        HistoryFilter(historyQuery, historyFrom, historyTo, historyDateSource)
+    val activeHistoryFilter = remember(historyQuery, historyFrom, historyTo, historyDateSource,
+        historyCategory, historyAnnotationQuery) {
+        HistoryFilter(historyQuery, historyFrom, historyTo, historyDateSource,
+            category = historyCategory, annotationQuery = historyAnnotationQuery)
     }
     LaunchedEffect(activeHistoryFilter) { vm.filterHistory(activeHistoryFilter) }
     val visibleHistory = history.forDisplay(activeHistoryFilter)
@@ -292,7 +300,7 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                     0 -> ScannerHome(settings, continuousScan, busy, { gallery.launch("image/*") },
                         vm::setContinuousScanning, vm::scanned, padding) { vm.update { it.copy(torch = !it.torch) } }
                     1 -> if (result != null) resultScreenState.SaveableStateProvider("result") {
-                        ResultScreen(result!!.invoice, result!!.checkedAt, onShare = {
+                        ResultScreen(result!!, vm::saveAnnotation, onShare = {
                             if (!shareInvoice(context, result!!.invoice)) vm.message.value = UiText(R.string.share_error)
                         }) {
                             vm.navigate(0)
@@ -400,8 +408,11 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
             }
         }
         if (historyFilterDialog) HistoryFilterDialog(historyDateSource, historyFrom, historyTo,
-            onDismiss = { historyFilterDialog = false }, onApply = { source, from, to ->
-                historyDateSource = source; historyFrom = from; historyTo = to; historyFilterDialog = false
+            historyCategory, historyAnnotationQuery,
+            onDismiss = { historyFilterDialog = false }, onApply = { source, from, to, category, annotationQuery ->
+                historyDateSource = source; historyFrom = from; historyTo = to
+                historyCategory = category; historyAnnotationQuery = annotationQuery
+                historyFilterDialog = false
             })
         imageImportSummary?.let { summary ->
             AlertDialog(onDismissRequest = vm::dismissImageImportSummary,
@@ -473,7 +484,10 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
 }
 
 @Composable
-private fun ResultScreen(invoice: Invoice, checkedAt: Long, onShare: () -> Unit, again: () -> Unit) {
+private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotation) -> Unit,
+    onShare: () -> Unit, again: () -> Unit) {
+    val invoice = result.invoice
+    val checkedAt = result.checkedAt
     val locale = LocalConfiguration.current.locales[0]
     val checkedAtText = remember(checkedAt, locale) {
         DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, locale).format(Date(checkedAt))
@@ -507,6 +521,9 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, onShare: () -> Unit,
         } }
         item { Text(stringResource(R.string.structural_disclaimer), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (result.scanId != null) item {
+            InvoiceAnnotationCard(result.annotation, onSaveAnnotation)
+        }
         item { SectionHeading(stringResource(R.string.invoice_details_heading)) }
         items((1..if (invoice.phase2) 6 else 5).toList()) { tag -> InvoiceField(invoice, tag) }
         if (invoice.phase2) {
@@ -542,6 +559,85 @@ private fun ResultScreen(invoice: Invoice, checkedAt: Long, onShare: () -> Unit,
         }
         item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.scan_again)) } }
     }
+}
+
+@Composable
+private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (InvoiceAnnotation) -> Unit) {
+    var editing by rememberSaveable { mutableStateOf(false) }
+    var number by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableIntStateOf(0) }
+    var note by rememberSaveable { mutableStateOf("") }
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.invoice_your_data), style = MaterialTheme.typography.titleSmall)
+                if (annotation.invoiceNumber.isBlank() && annotation.category == 0 && annotation.note.isBlank()) {
+                    Text(stringResource(R.string.invoice_details_empty), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    val numberText = annotation.invoiceNumber.takeIf { it.isNotBlank() }
+                        ?.let { stringResource(R.string.invoice_number) + ": " + it }
+                    val categoryText = annotation.category.takeIf { it != 0 }
+                        ?.let { stringResource(InvoiceCategories.label(it)) }
+                    if (numberText != null && categoryText != null) {
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            val combined = "$numberText · $categoryText"
+                            val fits = rememberTextMeasurer().measure(combined,
+                                style = MaterialTheme.typography.bodySmall, maxLines = 1,
+                                softWrap = false).size.width <= with(LocalDensity.current) { maxWidth.roundToPx() }
+                            if (fits) Text(combined, maxLines = 1, style = MaterialTheme.typography.bodySmall)
+                            else Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(numberText, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodySmall)
+                                Text(categoryText, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    } else {
+                        numberText?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall) }
+                        categoryText?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall) }
+                    }
+                    if (annotation.note.isNotBlank()) Text(annotation.note, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            TextButton(onClick = {
+                number = annotation.invoiceNumber; category = annotation.category; note = annotation.note
+                editing = true
+            }) { Text(stringResource(R.string.invoice_edit_details)) }
+        }
+    }
+    if (editing) AlertDialog(onDismissRequest = { editing = false },
+        title = { Text(stringResource(R.string.invoice_your_data)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(number, { number = it.take(120) },
+                    label = { Text(stringResource(R.string.invoice_number)) },
+                    singleLine = true, modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.invoice_category), style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    InvoiceCategories.ids.forEach { id ->
+                        FilterChip(selected = category == id, onClick = { category = id },
+                            label = { Text(stringResource(InvoiceCategories.label(id))) })
+                    }
+                }
+                OutlinedTextField(note, { note = it.take(2_000) },
+                    label = { Text(stringResource(R.string.invoice_note)) },
+                    minLines = 3, maxLines = 6, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = { Button(onClick = {
+            onSave(InvoiceAnnotation(number.trim(), category, note.trim()))
+            editing = false
+        }) { Text(stringResource(R.string.invoice_save_details)) } },
+        dismissButton = { TextButton(onClick = { editing = false }) { Text(stringResource(R.string.cancel)) } })
 }
 
 @Composable

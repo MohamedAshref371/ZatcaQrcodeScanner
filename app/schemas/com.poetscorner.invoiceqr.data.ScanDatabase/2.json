@@ -1,0 +1,174 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "bbf5669ead09de1ebb33bacfc05482fd",
+    "entities": [
+      {
+        "tableName": "scans",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `raw` TEXT NOT NULL, `seller` TEXT NOT NULL, `scannedAt` INTEGER NOT NULL, `passed` INTEGER NOT NULL, `phase` INTEGER NOT NULL, `invoiceType` TEXT NOT NULL DEFAULT 'STANDARD', `payloadKey` TEXT NOT NULL, `invoiceNumber` TEXT NOT NULL DEFAULT '', `category` INTEGER NOT NULL DEFAULT 0, `note` TEXT NOT NULL DEFAULT '', `sellerSearch` TEXT NOT NULL, `vat` TEXT NOT NULL, `invoiceDate` TEXT NOT NULL, `invoiceDay` INTEGER, `total` TEXT NOT NULL, `tax` TEXT NOT NULL, `hash` TEXT NOT NULL, `hashPresent` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "raw",
+            "columnName": "raw",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seller",
+            "columnName": "seller",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scannedAt",
+            "columnName": "scannedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "passed",
+            "columnName": "passed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phase",
+            "columnName": "phase",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "invoiceType",
+            "columnName": "invoiceType",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'STANDARD'"
+          },
+          {
+            "fieldPath": "payloadKey",
+            "columnName": "payloadKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "invoiceNumber",
+            "columnName": "invoiceNumber",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "details.sellerSearch",
+            "columnName": "sellerSearch",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "details.vat",
+            "columnName": "vat",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "details.invoiceDate",
+            "columnName": "invoiceDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "details.invoiceDay",
+            "columnName": "invoiceDay",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "details.total",
+            "columnName": "total",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "details.tax",
+            "columnName": "tax",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "details.hash",
+            "columnName": "hash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "details.hashPresent",
+            "columnName": "hashPresent",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_scans_payloadKey",
+            "unique": true,
+            "columnNames": [
+              "payloadKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_scans_payloadKey` ON `${TABLE_NAME}` (`payloadKey`)"
+          },
+          {
+            "name": "index_scans_scannedAt_id",
+            "unique": false,
+            "columnNames": [
+              "scannedAt",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_scans_scannedAt_id` ON `${TABLE_NAME}` (`scannedAt`, `id`)"
+          },
+          {
+            "name": "index_scans_invoiceDay_scannedAt_id",
+            "unique": false,
+            "columnNames": [
+              "invoiceDay",
+              "scannedAt",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_scans_invoiceDay_scannedAt_id` ON `${TABLE_NAME}` (`invoiceDay`, `scannedAt`, `id`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'bbf5669ead09de1ebb33bacfc05482fd')"
+    ]
+  }
+}

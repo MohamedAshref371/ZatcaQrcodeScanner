@@ -24,7 +24,8 @@ import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.io.Writer
 
-data class ScanResult(val invoice: Invoice, val checkedAt: Long, val scanId: Long? = null)
+data class ScanResult(val invoice: Invoice, val checkedAt: Long, val scanId: Long? = null,
+    val annotation: InvoiceAnnotation = InvoiceAnnotation())
 data class ImageImportProgress(val current: Int, val total: Int)
 data class ImageImportSummary(val added: Int = 0, val duplicates: Int = 0, val needsReview: Int = 0,
     val invalidQr: Int = 0, val unreadable: Int = 0, val saveFailed: Int = 0,
@@ -231,7 +232,7 @@ class ScannerViewModel(
                     message.value = UiText(R.string.history_entry_missing)
                 } else {
                     mutableResult.value = withContext(Dispatchers.Default) {
-                        ScanResult(ZatcaParser.parse(scan.raw), scan.scannedAt, scan.id)
+                        ScanResult(ZatcaParser.parse(scan.raw), scan.scannedAt, scan.id, InvoiceAnnotation.from(scan))
                     }
                     if (navigate) savedState["screen"] = 1
                 }
@@ -303,7 +304,8 @@ class ScannerViewModel(
                 ZatcaParser.parse(saved.scan.raw)
             } else invoice
             if (currentSession()) {
-                val scan = ScanResult(savedInvoice, saved.scan.scannedAt, saved.scan.id)
+                val scan = ScanResult(savedInvoice, saved.scan.scannedAt, saved.scan.id,
+                    InvoiceAnnotation.from(saved.scan))
                 if (continuous) {
                     val status = when {
                         saved.alreadyExists -> ContinuousScanStatus.DUPLICATE
@@ -346,6 +348,27 @@ class ScannerViewModel(
     fun openStatisticsInvoice(id: Long) {
         savedState["result_return_screen"] = 4
         loadResult(id, navigate = true)
+    }
+    fun saveAnnotation(annotation: InvoiceAnnotation) {
+        val current = mutableResult.value ?: return
+        val id = current.scanId ?: return
+        if (annotation.invoiceNumber.length > 120 || annotation.note.length > 2_000 ||
+            annotation.category !in InvoiceCategories.ids) return
+        viewModelScope.launch {
+            try {
+                val updated = withContext(Dispatchers.IO) {
+                    db.scans().updateAnnotation(id, annotation.invoiceNumber, annotation.category, annotation.note)
+                }
+                if (updated == 0) {
+                    message.value = UiText(R.string.history_entry_missing)
+                } else if (mutableResult.value?.scanId == id) {
+                    mutableResult.value = mutableResult.value?.copy(annotation = annotation)
+                }
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                message.value = UiText(R.string.invoice_details_save_error)
+            }
+        }
     }
     fun backFromResultOrHome() {
         val destination = savedState.get<Int>("result_return_screen")?.takeIf { it == 2 || it == 4 } ?: 0
@@ -443,11 +466,14 @@ class ScannerViewModel(
     fun export(uri: Uri, csv: Boolean, filter: HistoryFilter): Job? = startTransfer(TransferKind.EXPORT) {
         val names = mapOf(1 to R.string.tag_seller, 2 to R.string.tag_vat,
             3 to R.string.export_invoice_date, 4 to R.string.tag_total,
-            5 to R.string.tag_tax, 6 to R.string.tag_hash)
+            5 to R.string.tag_tax, 6 to R.string.tag_hash,
+            7 to R.string.invoice_number, 8 to R.string.invoice_category, 9 to R.string.invoice_note)
             .mapValues { ContextCompat.getString(getApplication(), it.value) }
+        val languageContext = ContextCompat.getContextForLanguage(getApplication())
         outputDocument(uri) { writer ->
             db.withTransaction {
-                HistoryExporter.write(db.scans(), filter, writer, csv, names) { count, total ->
+                HistoryExporter.write(db.scans(), filter, writer, csv, names,
+                    categoryName = { languageContext.getString(InvoiceCategories.label(it)) }) { count, total ->
                     mutableTransfer.value = DataTransferState(TransferKind.EXPORT, count, total)
                 }
             }

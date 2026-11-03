@@ -28,6 +28,9 @@ data class ScanEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val raw
     val seller: String, val scannedAt: Long = System.currentTimeMillis(), val passed: Boolean, val phase: Int,
     @ColumnInfo(defaultValue = "'STANDARD'") val invoiceType: String = "STANDARD",
     val payloadKey: String = invoicePayloadKey(raw),
+    @ColumnInfo(defaultValue = "''") val invoiceNumber: String = "",
+    @ColumnInfo(defaultValue = "0") val category: Int = 0,
+    @ColumnInfo(defaultValue = "''") val note: String = "",
     @Embedded val details: InvoiceDetails = InvoiceDetails.from(ZatcaParser.parse(raw), seller)) {
     fun revalidated(): ScanEntity {
         val invoice = ZatcaParser.parse(raw)
@@ -45,13 +48,15 @@ interface ScanDao {
     @Query("SELECT DISTINCT trim(seller) AS name FROM scans WHERE :term != '' AND instr(sellerSearch, :term) > 0 AND trim(seller) != '' ORDER BY name COLLATE NOCASE LIMIT 5")
     suspend fun sellerSuggestions(term: String): List<String>
     @Query("SELECT COUNT(*) FROM scans") suspend fun count(): Int
-    @Query("SELECT id, raw, scannedAt FROM scans WHERE id > :afterId ORDER BY id LIMIT 50")
+    @Query("SELECT id, raw, scannedAt, invoiceNumber, category, note FROM scans WHERE id > :afterId ORDER BY id LIMIT 50")
     suspend fun backupRows(afterId: Long): List<BackupRow>
     @Query("SELECT * FROM scans ORDER BY scannedAt DESC, id DESC") suspend fun all(): List<ScanEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(scan: ScanEntity): Long
     @Insert suspend fun insertBatch(scans: List<ScanEntity>)
     @Query("SELECT * FROM scans WHERE payloadKey = :key LIMIT 1") suspend fun byPayloadKey(key: String): ScanEntity?
     @Query("SELECT * FROM scans WHERE id = :id") suspend fun byId(id: Long): ScanEntity?
+    @Query("UPDATE scans SET invoiceNumber = :number, category = :category, note = :note WHERE id = :id")
+    suspend fun updateAnnotation(id: Long, number: String, category: Int, note: String): Int
     @RawQuery(observedEntities = [ScanEntity::class]) fun observeCounts(query: SupportSQLiteQuery): Flow<HistoryCounts>
     @RawQuery suspend fun summaries(query: SupportSQLiteQuery): List<HistorySummary>
     @RawQuery suspend fun exportRows(query: SupportSQLiteQuery): List<ExportInvoice>
@@ -110,13 +115,21 @@ interface ScanDao {
 }
 data class SavedScan(val scan: ScanEntity, val alreadyExists: Boolean)
 
-@Database(entities = [ScanEntity::class], version = 1, exportSchema = true)
+@Database(entities = [ScanEntity::class], version = 2, exportSchema = true)
 abstract class ScanDatabase : RoomDatabase() {
     abstract fun scans(): ScanDao
 
     companion object {
+        val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE scans ADD COLUMN invoiceNumber TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE scans ADD COLUMN category INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE scans ADD COLUMN note TEXT NOT NULL DEFAULT ''")
+            }
+        }
         fun open(context: Context, name: String = "invoices.db"): ScanDatabase =
-            Room.databaseBuilder(context.applicationContext, ScanDatabase::class.java, name).build()
+            Room.databaseBuilder(context.applicationContext, ScanDatabase::class.java, name)
+                .addMigrations(MIGRATION_1_2).build()
     }
 }
 

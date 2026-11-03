@@ -2,6 +2,7 @@ package com.poetscorner.invoiceqr
 
 import com.poetscorner.invoiceqr.data.HistoryEntry
 import com.poetscorner.invoiceqr.data.HistoryDateSource
+import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.ScanEntity
 import com.poetscorner.invoiceqr.data.filterHistory
 import org.junit.Assert.*
@@ -33,6 +34,18 @@ class HistorySearchTest {
     @Test fun arabicAndPersianDigitsCanFindAsciiVatNumbers() {
         assertEquals(3L, filterHistory(rows, "٣١٠١٢٣", null, null, zone).single().scan.id)
         assertEquals(2L, filterHistory(rows, "۳۲۰۱۲۳", null, null, zone).single().scan.id)
+    }
+
+    @Test fun invoiceNumberAndNoteSearchStaySeparateFromSellerAndVatSearch() {
+        val annotated = rows[1].copy(scan = rows[1].scan.copy(
+            invoiceNumber = "INV-007", category = 1, note = "Client follow-up"))
+        assertTrue(HistoryFilter(query = "INV-007").apply(listOf(annotated)).isEmpty())
+        assertTrue(HistoryFilter(query = "follow-up").apply(listOf(annotated)).isEmpty())
+        assertEquals(listOf(annotated), HistoryFilter(annotationQuery = "inv-007").apply(listOf(annotated)))
+        assertEquals(listOf(annotated), HistoryFilter(annotationQuery = "FOLLOW-UP").apply(listOf(annotated)))
+        assertEquals(listOf(annotated), HistoryFilter(query = "North", annotationQuery = "INV-007", category = 1)
+            .apply(listOf(annotated)))
+        assertTrue(HistoryFilter(query = "North", annotationQuery = "missing").apply(listOf(annotated)).isEmpty())
     }
 
     @Test fun dateRangeIncludesWholeLocalDaysAndCombinesWithSearch() {
