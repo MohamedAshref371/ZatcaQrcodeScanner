@@ -10,7 +10,7 @@ Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL)
 
 ## Features
 
-- Read invoice QR codes with the camera, choose one or several images from the gallery, receive images shared by other apps, or paste Base64 manually. A single image opens its result; multiple images are saved automatically with an import summary.
+- Read invoice QR codes with the camera, choose images and PDFs together through the same import button, receive images and PDFs shared by other apps, or paste Base64 manually. A single image opens its result; multiple files are saved automatically with an import summary. For each PDF, scanning stops at the first parseable invoice QR and moves to the next file.
 - Use ZXing by default, or download the optional Google ML Kit scanning component.
 - Scan individual invoices or enable continuous scanning with a session counter and result notifications.
 - View seller, VAT number, timestamp, total including VAT, tax, and phase-two fields when present.
@@ -39,7 +39,7 @@ Engine preferences are stored in DataStore and apply to both camera and gallery 
 
 ## Results, history, and export
 
-Duplicate detection covers camera scans, gallery images, and manual Base64 input. The app compares a unique, indexed SHA-256 key of Base64 normalized for whitespace and padding, while preserving the originally saved text. Lookup and insertion run in one database transaction. Scanning a duplicate opens the saved invoice without adding an entry or changing its original check date.
+Duplicate detection covers camera scans, images, PDFs, and manual Base64 input. The app compares a unique, indexed SHA-256 key of Base64 normalized for whitespace and padding, while preserving the originally saved text. Lookup and insertion run in one database transaction. A single duplicate scan opens the saved invoice; batch imports count it as a duplicate. Neither adds an entry or changes the original check date.
 
 Results show the seller, VAT number, timestamp, total, and tax in field order. For phase-two candidates, the hash is also shown among the main fields. Signature, public key, and stamp are in an advanced section that starts collapsed. Failed checks appear in the result summary; detailed checks and original QR text can be expanded separately. Malformed Base64/TLV is rejected without opening a result or adding history. Parseable invoices with failed field checks can still be saved for review.
 
@@ -142,7 +142,7 @@ app/src/main/java/com/poetscorner/invoiceqr/
 
 CameraX uses one analysis executor with `STRATEGY_KEEP_ONLY_LATEST` and closes `ImageProxy` in `finally`. Normal, fast, and fastest modes use minimum scheduling intervals of 300 ms, 100 ms, and no added delay respectively; these are not guaranteed frame rates. Single-scan mode stops after an accepted result; continuous mode keeps scanning and reports saved, duplicate, and review states without navigating away from the camera. Leaving the scanner disposes its camera use cases.
 
-Gallery decoding, parsing, and export run off the UI thread. Gallery images are corrected for EXIF orientation and downsampled when either dimension exceeds 4096 pixels to bound memory use.
+Image and PDF decoding, parsing, and export run off the UI thread. Images are corrected for EXIF orientation and downsampled when either dimension exceeds 4096 pixels to bound memory use. PDFs are copied to private cache while being read, limited to 64 MiB, rendered one page at a time, and deleted after processing. Each PDF contributes at most one invoice; unrelated or malformed QR codes do not stop the page search. Password-protected PDFs are not supported on the app's older Android versions.
 
 **Lock app to portrait**, under Appearance & app in Settings, is disabled by default (including for existing installations without a saved choice). Enabling it locks supported compact fullscreen devices to portrait; otherwise the app follows the phone's rotation preference. The choice is saved in DataStore. When rotation is allowed, screen rotation updates the existing camera use cases instead of recreating the Activity or rebinding on preview size changes, preserving zoom and the continuous-scan delivery gate. Display rotation updates include 180-degree turns. The crop guide uses the unobstructed space between the app bars and, in landscape, beside the controls (mirrored for RTL). Its rectangle is mapped through CameraX sensor transforms into each analysis buffer, so the visible guide and decoded region stay aligned without a fixed ViewPort. With cropping disabled, the same mapping scans the full visible preview.
 

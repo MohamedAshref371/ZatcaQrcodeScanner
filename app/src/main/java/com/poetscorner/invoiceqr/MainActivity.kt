@@ -24,9 +24,9 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         val vm = ViewModelProvider(this)[ScannerViewModel::class.java]
         scannerViewModel = vm
-        val images = if (savedInstanceState == null) intent.sharedImageUris() else emptyList()
-        if (images.isNotEmpty()) vm.galleryImages(images)
-        if (vm.screen.value == 0 && images.isEmpty() &&
+        val files = if (savedInstanceState == null) intent.sharedInvoiceUris() else emptyList()
+        if (files.isNotEmpty()) vm.importInvoiceFiles(files)
+        if (vm.screen.value == 0 && files.isEmpty() &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             runCatching { ProcessCameraProvider.getInstance(applicationContext) }
         }
@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        scannerViewModel.galleryImages(intent.sharedImageUris())
+        scannerViewModel.importInvoiceFiles(intent.sharedInvoiceUris())
     }
 }
 

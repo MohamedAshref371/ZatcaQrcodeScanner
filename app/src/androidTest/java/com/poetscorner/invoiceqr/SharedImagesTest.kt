@@ -14,12 +14,12 @@ class SharedImagesTest {
     private val first = Uri.parse("content://example.provider/first")
     private val second = Uri.parse("content://example.provider/second")
 
-    @Test fun acceptsSingleAndMultipleSharedImagesWithoutDoubleProcessingClipData() {
+    @Test fun acceptsSingleAndMultipleSharedFilesWithoutDoubleProcessingClipData() {
         val single = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, first)
         }
-        assertEquals(listOf(first), single.sharedImageUris())
+        assertEquals(listOf(first), single.sharedInvoiceUris())
 
         val multiple = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
             type = "image/jpeg"
@@ -28,19 +28,39 @@ class SharedImagesTest {
                 addItem(ClipData.Item(second))
             }
         }
-        assertEquals(listOf(first, second), multiple.sharedImageUris())
-    }
+        assertEquals(listOf(first, second), multiple.sharedInvoiceUris())
 
-    @Test fun ignoresOtherMimeTypesAndActions() {
-        val text = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
+        val pdf = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, first)
         }
-        assertTrue(text.sharedImageUris().isEmpty())
+        assertEquals(listOf(first), pdf.sharedInvoiceUris())
+
+        val mixed = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+            type = "*/*"
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, arrayListOf(first, second))
+        }
+        assertEquals(listOf(first, second), mixed.sharedInvoiceUris())
+    }
+
+    @Test fun ignoresTextWithoutFilesAndOtherActions() {
+        val text = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, "hello")
+        }
+        assertTrue(text.sharedInvoiceUris().isEmpty())
         val view = Intent(Intent.ACTION_VIEW).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, first)
         }
-        assertTrue(view.sharedImageUris().isEmpty())
+        assertTrue(view.sharedInvoiceUris().isEmpty())
+    }
+
+    @Test fun pickerReturnsSelectedSingleOrMixedUrisOnlyOnce() {
+        val result = Intent().apply {
+            data = first
+            clipData = ClipData.newRawUri("picked", first).apply { addItem(ClipData.Item(second)) }
+        }
+        assertEquals(listOf(first, second), result.selectedInvoiceUris())
     }
 }

@@ -40,13 +40,13 @@ class ImageImportTest {
             instrumentation.context.assets.open("play-services-qr.png").use { asset ->
                 second.outputStream().use { output -> asset.copyTo(output) }
             }
-            vm.galleryImages(listOf(Uri.fromFile(first), Uri.fromFile(missing), Uri.fromFile(second)))
+            vm.importInvoiceFiles(listOf(Uri.fromFile(first), Uri.fromFile(missing), Uri.fromFile(second)))
             val summary = withTimeout(25_000) { vm.imageImportSummary.filterNotNull().first() }
             assertEquals(0, summary.added)
             assertEquals(2, summary.invalidQr)
             assertEquals(1, summary.unreadable)
             assertFalse(summary.interrupted)
-            assertEquals(2, vm.screen.value)
+            assertEquals(2, withTimeout(5_000) { vm.screen.first { it == 2 } })
         } finally {
             store.clear()
             first.delete()

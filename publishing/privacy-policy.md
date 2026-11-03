@@ -20,7 +20,7 @@
 
 ## البيانات التي يستخدمها التطبيق
 
-يستخدم التطبيق الكاميرا لقراءة QR عند منح الصلاحية، أو يعالج صورة يختارها المستخدم من منتقي النظام، أو صورة واحدة أو عدة صور يشاركها المستخدم مع التطبيق من تطبيق آخر عبر قائمة المشاركة في Android. تتم معالجة الصور على الجهاز. عند مشاركة عدة صور، يفحصها التطبيق تباعًا ويحفظ بيانات الفواتير التي يمكن استخراجها منها في السجل المحلي، بما فيها الفواتير التي تحتاج إلى مراجعة نتيجة الفحص المحلي. لا يسجل التطبيق فيديو ولا يحفظ إطارات الكاميرا أو نسخًا من الصور المختارة أو المشتركة.
+يستخدم التطبيق الكاميرا لقراءة QR عند منح الصلاحية، أو يعالج صورًا وملفات PDF يختارها المستخدم من منتقي النظام أو يشاركها مع التطبيق من تطبيق آخر عبر قائمة المشاركة في Android. تتم معالجة الملفات على الجهاز. يفحص التطبيق الملفات تباعًا ويحفظ بيانات الفواتير التي يمكن استخراجها منها في السجل المحلي، بما فيها الفواتير التي تحتاج إلى مراجعة نتيجة الفحص المحلي. يفحص كل PDF حتى أول QR فاتورة قابل للتحليل. لا يسجل التطبيق فيديو ولا يحفظ إطارات الكاميرا أو نسخًا من الصور المختارة أو المشتركة. يُنسخ PDF مؤقتًا إلى ذاكرة التخزين المؤقت الخاصة بالتطبيق أثناء فحصه ويُحذف عند انتهاء المعالجة؛ وقد يبقى ملف مؤقت بعد إغلاق التطبيق فجأة إلى أن يمسح Android الذاكرة المؤقتة أو تُمسح بيانات التطبيق.
 
 يحفظ التطبيق محليًا محتوى QR وبيانات الفاتورة المستخرجة ووقت الفحص ونتيجته ونوع الفاتورة، إضافة إلى تفضيلات المسح والمظهر. قد تتضمن بيانات الفاتورة أسماء وأرقامًا ضريبية ومبالغ وتوقيعات. لا يرفع التطبيق محتوى الفواتير إلى خادم للمطوّر أو الناشر، ولا تتطلب وظائف الفواتير حسابًا داخل التطبيق. يعمل محرك ZXing الافتراضي دون إنترنت فورًا. لا توجد إعلانات ولا يشغّل المطوّر خادمًا لتحليلات الاستخدام؛ ولخدمات Google الموضحة أدناه ممارساتها الخاصة المتعلقة بالبيانات التقنية.
 
@@ -56,7 +56,7 @@
 
 تتيح النسخة الاحتياطية اليدوية الاختيارية في الإعدادات حفظ ملف JSON غير مشفر يحتوي على كل رموز QR المحفوظة وأوقات فحصها الأصلية في وجهة تختارها. يدمج استيراد نسخة متوافقة الفواتير في السجل المحلي ويتخطى المكرر. لا تشمل النسخة التفضيلات أو مشتريات الدعم. يستخدم التصدير والاستيراد ملفات مؤقتة داخل ذاكرة التخزين المؤقت الخاصة بالتطبيق، وتُحذف عند اكتمال كل عملية؛ قد تبقى بعد إغلاق العملية المفاجئ إلى أن يمسح Android الذاكرة المؤقتة أو تُمسح بيانات التطبيق. تبقى النسخ المحفوظة خارج التطبيق بعد مسح السجل أو إزالة التطبيق وتُحذف بشكل مستقل. تخضع وجهة الحفظ أو مصدر الاستيراد السحابي لسياسة خصوصية مزوّده.
 
-تُخزن البيانات في المساحة الخاصة بالتطبيق على الجهاز. لا توجد طبقة تشفير مستقلة لقاعدة البيانات داخل التطبيق. لا يطلب التطبيق وصولًا عامًا إلى مكتبة الصور أو التخزين، ويمكن رفض إذن الكاميرا واستخدام اختيار الصور. يعطّل التطبيق النسخ الاحتياطي التلقائي ويستبعد بياناته الخاصة صراحةً من قواعد النسخ السحابي ونقل بيانات الجهاز في Android. قد يختلف سلوك النظام والشركة المصنّعة. تتحكم اختياراتك للملفات في النسخ اليدوي والتصدير.
+تُخزن البيانات في المساحة الخاصة بالتطبيق على الجهاز. لا توجد طبقة تشفير مستقلة لقاعدة البيانات داخل التطبيق. لا يطلب التطبيق وصولًا عامًا إلى مكتبة الصور أو التخزين، ويمكن رفض إذن الكاميرا واختيار الصور أو ملفات PDF. يعطّل التطبيق النسخ الاحتياطي التلقائي ويستبعد بياناته الخاصة صراحةً من قواعد النسخ السحابي ونقل بيانات الجهاز في Android. قد يختلف سلوك النظام والشركة المصنّعة. تتحكم اختياراتك للملفات في النسخ اليدوي والتصدير.
 
 ## مدة الاحتفاظ والحذف
 
@@ -92,7 +92,7 @@ This policy describes how Invoice QR Reader (قارئ فاتورة), package `co
 
 ## Data handled on your device
 
-With permission, the app uses the camera to read QR codes. Alternatively, it processes an image you select through the system picker, or one or more images you share with the app from another app through Android's share menu. Image processing takes place on your device. When you share multiple images, the app scans them in turn and saves invoice details it can extract to local history, including invoices flagged for review by the local check. The app does not record video, save camera frames or retain copies of selected or shared images.
+With permission, the app uses the camera to read QR codes. Alternatively, it processes images and PDFs you select through the system picker or share with the app through Android's share menu. File processing takes place on your device. It scans selected files in turn and saves invoice details it can extract to local history, including invoices flagged for review by the local check. Each PDF is scanned until the first parseable invoice QR. The app does not record video, save camera frames or retain copies of selected or shared images. A PDF is temporarily copied to the app's private cache while it is scanned and deleted when processing ends; an interrupted process may leave a cache file until Android clears the cache or app data.
 
 The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. The app does not upload invoice content to a developer or publisher server. Invoice features do not require an app account. The default ZXing scanner works offline immediately. The app contains no advertising and the developer does not operate an analytics backend; the Google services described below have their own technical data practices.
 
@@ -128,7 +128,7 @@ Delete scans from the History screen. Clear the app's data in Android settings o
 
 The optional manual backup in Settings creates an unencrypted JSON file containing all saved QR payloads and original check times at a destination you choose. Importing a compatible backup merges invoices into local history and skips duplicates. Backups do not include preferences or supporter purchases. Export and import use temporary files in the app’s private cache, removed when each operation completes; an interrupted process may leave cache files until Android clears the cache or the app’s data is cleared. Backup files saved outside the app remain after clearing history or uninstalling and must be deleted separately. A selected cloud destination or source is governed by its provider’s own privacy practices.
 
-Data is kept in the app's private storage. The app does not add its own database encryption layer. It does not request general access to your photos or storage. Camera permission can be declined while continuing to select images. The app disables automatic backup and explicitly excludes its private data from Android cloud backup and device-transfer rules. System and manufacturer behavior can vary. Manual backups and exports are controlled by your file selections.
+Data is kept in the app's private storage. The app does not add its own database encryption layer. It does not request general access to your photos or storage. Camera permission can be declined while continuing to select images or PDFs. The app disables automatic backup and explicitly excludes its private data from Android cloud backup and device-transfer rules. System and manufacturer behavior can vary. Manual backups and exports are controlled by your file selections.
 
 ## Retention and deletion
 

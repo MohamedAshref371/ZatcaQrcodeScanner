@@ -15,6 +15,7 @@ import java.io.Closeable
 interface QrDecoder : Closeable {
     fun read(image: ImageProxy, settings: ScannerSettings): String?
     fun read(bitmap: Bitmap, settings: ScannerSettings): String?
+    fun readAll(bitmap: Bitmap, settings: ScannerSettings): List<String>
 }
 
 fun ScanEngine.decoder(): QrDecoder = when (this) {
@@ -28,6 +29,11 @@ private class ZxingDecoder : QrDecoder {
 
     override fun read(bitmap: Bitmap, settings: ScannerSettings) =
         settings.reader().read(bitmap).firstOrNull { it.error == null && it.text != null }?.text
+
+    override fun readAll(bitmap: Bitmap, settings: ScannerSettings): List<String> =
+        settings.reader(maxSymbols = 16).read(bitmap).mapNotNull { result ->
+            result.text?.takeIf { result.error == null }
+        }
 
     override fun close() = Unit
 }
@@ -47,6 +53,9 @@ private class MlKitDecoder : QrDecoder {
     }
 
     override fun read(bitmap: Bitmap, settings: ScannerSettings) = read(InputImage.fromBitmap(bitmap, 0))
+
+    override fun readAll(bitmap: Bitmap, settings: ScannerSettings): List<String> =
+        Tasks.await(scanner.process(InputImage.fromBitmap(bitmap, 0))).mapNotNull { it.rawValue }
 
     private fun read(image: InputImage): String? =
         Tasks.await(scanner.process(image)).firstOrNull { it.rawValue != null }?.rawValue

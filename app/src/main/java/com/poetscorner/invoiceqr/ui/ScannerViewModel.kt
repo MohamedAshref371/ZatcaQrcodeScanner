@@ -3,6 +3,8 @@ package com.poetscorner.invoiceqr.ui
 import android.app.Application
 import androidx.core.content.ContextCompat
 import com.poetscorner.invoiceqr.R
+import com.poetscorner.invoiceqr.InvoiceFileType
+import com.poetscorner.invoiceqr.invoiceFileType
 import com.poetscorner.invoiceqr.ui.text.UiText
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -397,38 +399,66 @@ class ScannerViewModel(
             finally { busy.value = false }
         }
     }
-    fun galleryImages(uris: List<Uri>) {
-        val images = uris.distinct()
-        if (images.isEmpty()) return
+    fun importInvoiceFiles(uris: List<Uri>) {
+        if (uris.isEmpty()) return
         if (busy.value) { message.value = UiText(R.string.image_import_busy); return }
-        if (images.size == 1) { gallery(images.single()); return }
         busy.value = true
-        mutableImageImportSummary.value = null
         viewModelScope.launch {
+            val app = getApplication<Application>()
+            val files = try {
+                withContext(Dispatchers.IO) {
+                    uris.distinct().map { uri -> uri to app.invoiceFileType(uri) }
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                busy.value = false
+                throw cancelled
+            } catch (_: Exception) {
+                busy.value = false
+                message.value = UiText(R.string.import_unsupported)
+                return@launch
+            }
+            if (files.all { it.second == null }) {
+                busy.value = false
+                message.value = UiText(R.string.import_unsupported)
+                return@launch
+            }
+            if (files.size == 1 && files.single().second == InvoiceFileType.IMAGE) {
+                busy.value = false
+                gallery(files.single().first)
+                return@launch
+            }
+            mutableImageImportSummary.value = null
             var summary = ImageImportSummary()
             try {
                 settingsLoaded.first { it }
                 val scanSettings = settings.value
                 withContext(Dispatchers.IO) {
                     scanSettings.scanEngine.decoder().use { decoder ->
-                        images.forEachIndexed { index, uri ->
+                        files.forEachIndexed { index, (uri, type) ->
                             kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                            mutableImageImport.value = ImageImportProgress(index + 1, images.size)
-                            val raw = try {
-                                val bitmap = decodeGallery(getApplication(), uri)
-                                try { decoder.read(bitmap, scanSettings) } finally { bitmap.recycle() }
+                            mutableImageImport.value = ImageImportProgress(index + 1, files.size)
+                            if (type == null) {
+                                summary = summary.copy(unreadable = summary.unreadable + 1)
+                                return@forEachIndexed
+                            }
+                            val invoice = try {
+                                when (type) {
+                                    InvoiceFileType.IMAGE -> {
+                                        val bitmap = decodeGallery(app, uri)
+                                        val raw = try { decoder.read(bitmap, scanSettings) } finally { bitmap.recycle() }
+                                        raw?.let(ZatcaParser::parse)
+                                    }
+                                    InvoiceFileType.PDF -> firstInvoiceInPdf(app, uri) { bitmap ->
+                                        decoder.readAll(bitmap, scanSettings)
+                                    }
+                                }
                             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                                 throw cancelled
                             } catch (_: Exception) {
                                 summary = summary.copy(unreadable = summary.unreadable + 1)
                                 return@forEachIndexed
                             }
-                            if (raw == null) {
-                                summary = summary.copy(invalidQr = summary.invalidQr + 1)
-                                return@forEachIndexed
-                            }
-                            val invoice = ZatcaParser.parse(raw)
-                            if (invoice.error != null) {
+                            if (invoice == null || invoice.error != null) {
                                 summary = summary.copy(invalidQr = summary.invalidQr + 1)
                                 return@forEachIndexed
                             }

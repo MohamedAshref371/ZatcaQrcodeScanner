@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.res.stringResource
 import com.poetscorner.invoiceqr.BuildConfig
+import com.poetscorner.invoiceqr.selectedInvoiceUris
 import com.poetscorner.invoiceqr.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -59,6 +60,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.LayoutDirection
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.Context
 import android.content.ContextWrapper
@@ -199,8 +201,10 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     }
     LaunchedEffect(activeHistoryFilter) { vm.filterHistory(activeHistoryFilter) }
     val visibleHistory = history.forDisplay(activeHistoryFilter)
-    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) {
-        if (it.isNotEmpty()) vm.galleryImages(it)
+    val invoiceFiles = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == Activity.RESULT_OK) {
+            it.data?.selectedInvoiceUris()?.let(vm::importInvoiceFiles)
+        }
     }
     val imageImport by vm.imageImport.collectAsStateWithLifecycle()
     val imageImportSummary by vm.imageImportSummary.collectAsStateWithLifecycle()
@@ -300,7 +304,14 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                     style = MaterialTheme.typography.bodySmall) }
                 transfer?.let { TransferProgress(it) }
                 when(screen) {
-                    0 -> ScannerHome(settings, continuousScan, busy, { gallery.launch("image/*") },
+                    0 -> ScannerHome(settings, continuousScan, busy, {
+                        invoiceFiles.launch(Intent(Intent.ACTION_GET_CONTENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "application/pdf"))
+                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                        })
+                    },
                         vm::setContinuousScanning, vm::scanned, padding) { vm.update { it.copy(torch = !it.torch) } }
                     1 -> if (result != null) resultScreenState.SaveableStateProvider("result") {
                         ResultScreen(result!!, vm::saveAnnotation, onShare = {
