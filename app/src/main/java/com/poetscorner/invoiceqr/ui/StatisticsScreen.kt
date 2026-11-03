@@ -261,6 +261,7 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Mo
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions: suspend (String) -> List<String>,
     onDismiss: () -> Unit, onApply: (StatisticsRequest) -> Unit) {
@@ -268,6 +269,7 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
     var vatMode by rememberSaveable { mutableStateOf(if (request.excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else request.vatMode) }
     var vat by rememberSaveable { mutableStateOf(if (request.excludedVat.isNotBlank()) request.excludedVat else request.vat) }
     var datePreset by rememberSaveable { mutableStateOf(request.datePreset) }
+    var shortcutsExpanded by remember { mutableStateOf(false) }
     var from by rememberSaveable { mutableStateOf(request.fromDay) }
     var to by rememberSaveable { mutableStateOf(request.toDay) }
     var pickingFrom by rememberSaveable { mutableStateOf<Boolean?>(null) }
@@ -302,12 +304,25 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
                 }
                 Text(stringResource(R.string.stats_date_hint), style = MaterialTheme.typography.bodySmall)
                 val today = LocalDate.now()
-                Choice(stringResource(R.string.stats_date_shortcuts),
-                    datePreset?.name ?: stringResource(if (from == null && to == null) R.string.stats_choose_period else R.string.stats_custom_period),
-                    StatisticsPreset.entries.map { it.name to stringResource(it.label()) }) { selected ->
-                    val period = request.withPeriod(StatisticsPreset.valueOf(selected), today)
-                    datePreset = period.datePreset
-                    from = period.fromDay; to = period.toDay
+                ExposedDropdownMenuBox(expanded = shortcutsExpanded,
+                    onExpandedChange = { shortcutsExpanded = it }) {
+                    OutlinedTextField(
+                        value = stringResource(datePreset?.label()
+                            ?: if (from == null && to == null) R.string.stats_choose_period else R.string.stats_custom_period),
+                        onValueChange = {}, readOnly = true,
+                        label = { Text(stringResource(R.string.stats_date_shortcuts)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(shortcutsExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
+                    ExposedDropdownMenu(expanded = shortcutsExpanded, onDismissRequest = { shortcutsExpanded = false }) {
+                        StatisticsPreset.entries.forEach { preset ->
+                            DropdownMenuItem(text = { Text(stringResource(preset.label())) }, onClick = {
+                                val period = request.withPeriod(preset, today)
+                                datePreset = period.datePreset
+                                from = period.fromDay; to = period.toDay
+                                shortcutsExpanded = false
+                            })
+                        }
+                    }
                 }
                 OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_from),

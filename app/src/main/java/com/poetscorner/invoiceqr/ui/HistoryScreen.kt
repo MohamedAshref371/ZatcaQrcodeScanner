@@ -1,8 +1,6 @@
 package com.poetscorner.invoiceqr.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -203,6 +201,8 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
     var selectedCategory by rememberSaveable { mutableStateOf(categoryFilter) }
     var annotationTerm by rememberSaveable { mutableStateOf(annotationQuery) }
     var categoryExpanded by remember { mutableStateOf(false) }
+    var periodExpanded by remember { mutableStateOf(false) }
+    var customRangeOpen by rememberSaveable { mutableStateOf(false) }
     var invoiceFrom by rememberSaveable { mutableStateOf(if (dateSource == HistoryDateSource.INVOICE) fromDay else null) }
     var invoiceTo by rememberSaveable { mutableStateOf(if (dateSource == HistoryDateSource.INVOICE) toDay else null) }
     var scanFrom by rememberSaveable { mutableStateOf(if (dateSource == HistoryDateSource.SCAN) fromDay else null) }
@@ -220,6 +220,17 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
         Triple(R.string.stats_this_month, today.withDayOfMonth(1), today),
         Triple(R.string.history_last_month, today.minusMonths(1).withDayOfMonth(1), today.withDayOfMonth(1).minusDays(1))
     )
+    val matchingPreset = presets.firstOrNull { (_, from, to) ->
+        selectedFrom == from.toEpochDay() && selectedTo == to.toEpochDay()
+    }
+    val selectedPeriodLabel = when {
+        customRangeOpen -> R.string.history_custom_range
+        selectedFrom == null && selectedTo == null -> R.string.history_any_period
+        matchingPreset != null -> matchingPreset.first
+        else -> R.string.history_custom_range
+    }
+    val showCustomRange = customRangeOpen ||
+        (selectedFrom != null || selectedTo != null) && matchingPreset == null
     fun setRange(from: Long?, to: Long?) {
         if (source == HistoryDateSource.INVOICE) {
             invoiceFrom = from; invoiceTo = to
@@ -251,36 +262,37 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                         }
                     }
                 }
-                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                  HistoryDateSource.entries.forEach { option ->
-                    val selected = source == option
-                    Surface(shape = MaterialTheme.shapes.medium,
-                        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-                        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)) {
-                      Row(Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton,
-                        onClick = { source = option }).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = selected, onClick = null)
-                        Column(Modifier.padding(start = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(stringResource(if (option == HistoryDateSource.INVOICE) R.string.history_invoice_date else R.string.history_scan_date),
-                                style = MaterialTheme.typography.titleSmall)
-                            Text(stringResource(if (option == HistoryDateSource.INVOICE) R.string.history_invoice_date_help else R.string.history_scan_date_help),
-                                style = MaterialTheme.typography.bodySmall)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    HistoryDateSource.entries.forEachIndexed { index, option ->
+                        SegmentedButton(selected = source == option,
+                            onClick = { source = option; customRangeOpen = false },
+                            shape = SegmentedButtonDefaults.itemShape(index,
+                                HistoryDateSource.entries.size)) {
+                            Text(stringResource(if (option == HistoryDateSource.INVOICE)
+                                R.string.history_invoice_date else R.string.history_scan_date))
                         }
-                      }
                     }
-                  }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ExposedDropdownMenuBox(expanded = periodExpanded,
+                    onExpandedChange = { periodExpanded = it }) {
+                    OutlinedTextField(value = stringResource(selectedPeriodLabel), onValueChange = {},
+                        readOnly = true, label = { Text(stringResource(R.string.history_period)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(periodExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
+                    ExposedDropdownMenu(expanded = periodExpanded, onDismissRequest = { periodExpanded = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.history_any_period)) },
+                            onClick = { setRange(null, null); customRangeOpen = false; periodExpanded = false })
                         presets.forEach { (label, from, to) ->
-                            FilterChip(selected = selectedFrom == from.toEpochDay() && selectedTo == to.toEpochDay(),
-                                onClick = { setRange(from.toEpochDay(), to.toEpochDay()) },
-                                label = { Text(stringResource(label)) })
+                            DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = {
+                                setRange(from.toEpochDay(), to.toEpochDay())
+                                customRangeOpen = false; periodExpanded = false
+                            })
                         }
+                        DropdownMenuItem(text = { Text(stringResource(R.string.history_custom_range)) },
+                            onClick = { customRangeOpen = true; periodExpanded = false })
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.history_custom_range), style = MaterialTheme.typography.titleSmall)
+                if (showCustomRange) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.weight(1f),
                             shape = MaterialTheme.shapes.medium) {
@@ -297,9 +309,6 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                             }
                         }
                     }
-                }
-                TextButton(onClick = { setRange(null, null) }, enabled = selectedFrom != null || selectedTo != null) {
-                    Text(stringResource(R.string.history_clear_dates))
                 }
             }
         },
@@ -318,6 +327,7 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                 } else {
                     if (from) scanFrom = day else scanTo = day
                 }
+                customRangeOpen = true
                 pickingFrom = null
             })
     }
