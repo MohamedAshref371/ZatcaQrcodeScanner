@@ -29,6 +29,7 @@ import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.HistoryPageState
 import com.poetscorner.invoiceqr.data.HistorySummary
 import com.poetscorner.invoiceqr.data.HistoryDateSource
+import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.InvoiceCategories
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.time.Instant
@@ -42,7 +43,8 @@ import java.text.NumberFormat
 internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> Unit,
     onLoadMore: () -> Unit, onRetry: () -> Unit,
     onOpen: (HistorySummary) -> Unit, onDelete: (HistorySummary) -> Unit,
-    actions: (@Composable () -> Unit)? = null, groupTitle: String? = null) {
+    actions: (@Composable () -> Unit)? = null, groupTitle: String? = null,
+    onClearFilters: () -> Unit = {}) {
     val listState = rememberLazyListState()
     var scrollFilter by rememberSaveable { mutableStateOf(state.filter) }
     val locale = LocalConfiguration.current.locales[0]
@@ -90,6 +92,19 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                 trailingIcon = if (query.isNotEmpty()) ({
                     TextButton(onClick = { onQuery("") }) { Text(stringResource(R.string.history_clear_search)) }
                 }) else null)
+        }
+        if (groupTitle == null && (state.filter.category != null || state.filter.annotationQuery.isNotBlank() ||
+                state.filter.fromDay != null || state.filter.toDay != null)) item {
+            val summary = historyActiveFiltersSummary(state.filter)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(summary, modifier = Modifier.weight(1f), maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = onClearFilters) {
+                    Text(stringResource(R.string.history_clear_all_filters))
+                }
+            }
         }
         if (groupTitle == null) item {
             Text(stringResource(R.string.history_export_filtered), style = MaterialTheme.typography.bodySmall,
@@ -173,6 +188,46 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
             TextButton(onClick = onRetry) { Text(stringResource(R.string.history_retry)) }
         }
     }
+}
+
+@Composable
+private fun historyActiveFiltersSummary(filter: HistoryFilter): String {
+    val parts = mutableListOf<String>()
+    filter.category?.let { parts += stringResource(InvoiceCategories.label(it)) }
+    if (filter.fromDay != null || filter.toDay != null) {
+        val today = LocalDate.now()
+        val from = filter.fromDay
+        val to = filter.toDay
+        val preset = when {
+            from == today.toEpochDay() && to == from -> R.string.history_today
+            from == today.minusDays(1).toEpochDay() && to == from -> R.string.history_yesterday
+            from == today.minusDays(6).toEpochDay() && to == today.toEpochDay() -> R.string.history_last_seven_days
+            from == today.withDayOfMonth(1).toEpochDay() && to == today.toEpochDay() -> R.string.stats_this_month
+            from == today.minusMonths(1).withDayOfMonth(1).toEpochDay() &&
+                to == today.withDayOfMonth(1).minusDays(1).toEpochDay() -> R.string.history_last_month
+            else -> null
+        }
+        val locale = LocalConfiguration.current.locales[0]
+        val format = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale) }
+        val range = when {
+            preset != null -> stringResource(preset)
+            from == to -> format.format(LocalDate.ofEpochDay(requireNotNull(from)))
+            from != null && to != null ->
+                "${format.format(LocalDate.ofEpochDay(from))}–${format.format(LocalDate.ofEpochDay(to))}"
+            from != null -> stringResource(R.string.stats_filter_value,
+                stringResource(R.string.history_from), format.format(LocalDate.ofEpochDay(from)))
+            else -> stringResource(R.string.stats_filter_value,
+                stringResource(R.string.history_to), format.format(LocalDate.ofEpochDay(requireNotNull(to))))
+        }
+        parts += if (filter.dateSource == HistoryDateSource.SCAN)
+            stringResource(R.string.stats_filter_value, stringResource(R.string.history_scan_date), range)
+        else range
+    }
+    filter.annotationQuery.trim().takeIf(String::isNotEmpty)?.let {
+        parts += stringResource(R.string.stats_filter_value,
+            stringResource(R.string.history_annotation_filter_label), it)
+    }
+    return parts.joinToString(" · ")
 }
 
 @Composable

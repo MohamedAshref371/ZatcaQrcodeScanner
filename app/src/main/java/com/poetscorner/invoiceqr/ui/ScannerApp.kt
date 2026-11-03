@@ -353,7 +353,12 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                                     AppIcon(R.drawable.ic_delete, description = stringResource(R.string.clear_title))
                                 }
                             }
-                        } })
+                        } }, onClearFilters = {
+                            historyQuery = ""
+                            historyFrom = null; historyTo = null
+                            historyDateSource = HistoryDateSource.INVOICE
+                            historyCategory = null; historyAnnotationQuery = ""
+                        })
                         }
                     }
                     4 -> {
@@ -534,7 +539,11 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
         if (result.scanId != null) item {
             InvoiceAnnotationCard(result.annotation, onSaveAnnotation)
         }
-        item { SectionHeading(stringResource(R.string.invoice_details_heading)) }
+        item {
+            Text(stringResource(R.string.invoice_details_heading),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
         items((1..if (invoice.phase2) 6 else 5).toList()) { tag -> InvoiceField(invoice, tag) }
         if (invoice.phase2) {
             item {
@@ -583,10 +592,7 @@ private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (Invoic
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(stringResource(R.string.invoice_your_data), style = MaterialTheme.typography.titleSmall)
-                if (annotation.invoiceNumber.isBlank() && annotation.category == 0 && annotation.note.isBlank()) {
-                    Text(stringResource(R.string.invoice_details_empty), style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
+                if (annotation.invoiceNumber.isNotBlank() || annotation.category != 0 || annotation.note.isNotBlank()) {
                     val numberText = annotation.invoiceNumber.takeIf { it.isNotBlank() }
                         ?.let { stringResource(R.string.invoice_number) + ": " + it }
                     val categoryText = annotation.category.takeIf { it != 0 }

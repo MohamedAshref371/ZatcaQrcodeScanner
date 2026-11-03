@@ -135,6 +135,8 @@
     <string name="history_any_period">أي فترة</string>
     <string name="history_confirm_filters">موافق</string>
     <string name="history_clear_search">مسح</string>
+    <string name="history_clear_all_filters">مسح الكل</string>
+    <string name="history_annotation_filter_label">رقم/ملاحظة</string>
     <string name="history_from">من</string>
     <string name="history_to">إلى</string>
     <string name="history_any_date">أي تاريخ</string>
@@ -337,7 +339,6 @@
     <string name="invoice_note">ملاحظة</string>
     <string name="invoice_edit_details">تعديل</string>
     <string name="invoice_save_details">حفظ</string>
-    <string name="invoice_details_empty">لم تضف بيانات</string>
     <string name="invoice_details_save_error">تعذّر حفظ بياناتك.</string>
     <string name="invoice_category_none">بدون تصنيف</string>
     <string name="invoice_category_work">مصروفات عمل</string>

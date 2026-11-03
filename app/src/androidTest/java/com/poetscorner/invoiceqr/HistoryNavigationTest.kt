@@ -80,5 +80,14 @@ class HistoryNavigationTest {
         }
         compose.onNodeWithText(text(R.string.history_search)).assertIsDisplayed()
         org.junit.Assert.assertEquals("", vm.historyState.value.filter.query)
+        compose.onNode(hasSetTextAction()).performTextReplacement("Market")
+        compose.waitUntil(5000) { vm.historyState.value.filter.query == "Market" }
+        compose.onNodeWithText(text(R.string.history_clear_all_filters)).performClick()
+        compose.waitUntil(5000) {
+            val filter = vm.historyState.value.filter
+            filter.query.isEmpty() && filter.annotationQuery.isEmpty() && filter.category == null &&
+                filter.fromDay == null && filter.toDay == null
+        }
+        compose.onNodeWithText(text(R.string.history_clear_all_filters)).assertDoesNotExist()
     }
 }
