@@ -20,6 +20,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.selected
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.*
 import java.text.NumberFormat
@@ -186,13 +188,16 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
 private fun CompactStatisticsChoice(description: String, label: String, selected: String,
     values: List<Pair<String, String>>, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    Row(modifier.padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Text(description, modifier = Modifier.width(80.dp),
+    val largeText = LocalDensity.current.fontScale >= 1.5f
+    @Composable fun ChoiceContent(labelModifier: Modifier, boxModifier: Modifier) {
+        Text(description, modifier = labelModifier,
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Box(Modifier.weight(1f)) {
+        Box(boxModifier) {
             OutlinedButton(onClick = { expanded = true },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { contentDescription = description },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics {
+                    contentDescription = description
+                    stateDescription = label
+                },
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 colors = ButtonDefaults.outlinedButtonColors(
@@ -208,10 +213,18 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
                     DropdownMenuItem(text = { Text(text) }, onClick = {
                         expanded = false
                         onChange(key)
-                    }, leadingIcon = if (key == selected) { { AppIcon(R.drawable.ic_check) } } else null)
+                    }, modifier = Modifier.semantics { this.selected = key == selected },
+                        leadingIcon = if (key == selected) { { AppIcon(R.drawable.ic_check) } } else null)
                 }
             }
         }
+    }
+    if (largeText) Column(modifier.padding(vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        ChoiceContent(Modifier.fillMaxWidth(), Modifier.fillMaxWidth())
+    } else Row(modifier.padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        ChoiceContent(Modifier.width(80.dp), Modifier.weight(1f))
     }
 }
 
@@ -322,7 +335,7 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
                                 datePreset = period.datePreset
                                 from = period.fromDay; to = period.toDay
                                 shortcutsExpanded = false
-                            })
+                            }, modifier = Modifier.semantics { selected = datePreset == preset })
                         }
                     }
                 }

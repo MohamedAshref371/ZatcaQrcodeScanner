@@ -157,6 +157,7 @@
     <string name="history_failed">Local checks failed</string>
     <string name="clear_title">Delete history</string>
     <string name="history_delete_invoice_title">Delete invoice?</string>
+    <string name="history_delete_invoice_action">Delete invoice from %1$s</string>
     <string name="history_delete_invoice_body">Delete the invoice from %1$s from history?</string>
     <string name="history_delete_skip_session">Do not show again this session</string>
     <string name="clear_body">Keep scans from the most recent day you scanned and delete the rest, or delete the entire history. The day is based on the check date and the device’s local time.</string>
@@ -347,6 +348,7 @@
     <string name="invoice_category">Category</string>
     <string name="invoice_note">Note</string>
     <string name="invoice_edit_details">Edit</string>
+    <string name="invoice_edit_details_action">Edit your invoice details</string>
     <string name="invoice_save_details">Save</string>
     <string name="invoice_details_save_error">Could not save your details.</string>
     <string name="invoice_category_none">No category</string>

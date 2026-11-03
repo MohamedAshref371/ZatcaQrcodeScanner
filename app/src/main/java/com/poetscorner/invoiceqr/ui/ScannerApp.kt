@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.res.stringResource
 import com.poetscorner.invoiceqr.BuildConfig
 import com.poetscorner.invoiceqr.R
@@ -270,6 +272,7 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
             Text(stringResource(R.string.app_tagline), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = if (screen == 0) 0.88f else 1f))) }, bottomBar = {
+            val compactNavigation = LocalDensity.current.fontScale >= 1.5f
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = if (screen == 0) 0.88f else 1f), shadowElevation = 8.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
             NavigationBar(containerColor = androidx.compose.ui.graphics.Color.Transparent, tonalElevation = 0.dp,
@@ -280,8 +283,10 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                     if (index == 2 && (screen == 0 || screen == 1)) reviewOpportunity++
                     vm.selectTab(index)
                 }, icon = { AppIcon(listOf(R.drawable.ic_scan, R.drawable.ic_receipt,
-                    R.drawable.ic_history, R.drawable.ic_settings, R.drawable.ic_statistics)[index]) },
-                    label = { Text(stringResource(label), style = MaterialTheme.typography.labelMedium) },
+                    R.drawable.ic_history, R.drawable.ic_settings, R.drawable.ic_statistics)[index],
+                    description = if (compactNavigation) stringResource(label) else null) },
+                    label = if (compactNavigation) null else ({ Text(stringResource(label),
+                        style = MaterialTheme.typography.labelMedium) }),
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         selectedTextColor = MaterialTheme.colorScheme.primary,
                         indicatorColor = MaterialTheme.colorScheme.primaryContainer))
@@ -622,10 +627,13 @@ private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (Invoic
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            val editDescription = stringResource(R.string.invoice_edit_details_action)
             TextButton(onClick = {
                 number = annotation.invoiceNumber; category = annotation.category; note = annotation.note
                 editing = true
-            }) { Text(stringResource(R.string.invoice_edit_details)) }
+            }, modifier = Modifier.semantics { contentDescription = editDescription }) {
+                Text(stringResource(R.string.invoice_edit_details))
+            }
         }
     }
     if (editing) AlertDialog(onDismissRequest = { editing = false },
@@ -925,12 +933,27 @@ internal fun Choice(label: String, selected: String, values: List<Pair<String,St
     warningDescription: String? = null,
     onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    val largeText = LocalDensity.current.fontScale >= 1.5f
+    val selectedLabel = values.firstOrNull { it.first == selected }?.second ?: selected
     Box {
         Surface(onClick = { expanded = true }, color = MaterialTheme.colorScheme.surfaceContainerLowest,
-            shape = MaterialTheme.shapes.medium, border = border) {
+            shape = MaterialTheme.shapes.medium, border = border,
+            modifier = Modifier.semantics { stateDescription = selectedLabel }) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (equalWidth) {
+                if (largeText) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(label, style = MaterialTheme.typography.bodyLarge)
+                            if (warningDescription != null) AppIcon(R.drawable.ic_warning,
+                                modifier = Modifier.size(20.dp), description = warningDescription,
+                                tint = Color(0xFFF9A825))
+                        }
+                        Text(selectedLabel, style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
+                } else if (equalWidth) {
                     Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
@@ -965,7 +988,9 @@ internal fun Choice(label: String, selected: String, values: List<Pair<String,St
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            values.forEach { (key, title) -> DropdownMenuItem(text = { Text(title) }, onClick = { onChange(key); expanded = false }) }
+            values.forEach { (key, title) -> DropdownMenuItem(text = { Text(title) },
+                onClick = { onChange(key); expanded = false },
+                modifier = Modifier.semantics { this.selected = key == selected }) }
         }
     }
 }

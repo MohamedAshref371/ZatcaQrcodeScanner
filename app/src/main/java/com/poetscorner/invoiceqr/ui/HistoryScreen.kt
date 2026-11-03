@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -46,6 +47,7 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
     actions: (@Composable () -> Unit)? = null, groupTitle: String? = null,
     onClearFilters: () -> Unit = {}) {
     val listState = rememberLazyListState()
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     var scrollFilter by rememberSaveable { mutableStateOf(state.filter) }
     val locale = LocalConfiguration.current.locales[0]
     val countFormat = remember(locale) { NumberFormat.getIntegerInstance(locale) }
@@ -69,7 +71,10 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
     LazyColumn(Modifier.fillMaxSize().testTag("history_list"), state = listState, contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (groupTitle == null) item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (largeText) Column(Modifier.fillMaxWidth()) {
+                SectionHeading(stringResource(R.string.history_heading), stringResource(R.string.history_subtitle))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { actions?.invoke() }
+            } else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) {
                     SectionHeading(stringResource(R.string.history_heading), stringResource(R.string.history_subtitle))
                 }
@@ -176,7 +181,8 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                         }
                     }
                     if (groupTitle == null) IconButton(onClick = { onDelete(row) }, enabled = !state.loading && !state.failed) {
-                        AppIcon(R.drawable.ic_delete, description = stringResource(R.string.clear),
+                        AppIcon(R.drawable.ic_delete, description = stringResource(R.string.history_delete_invoice_action,
+                            row.seller.ifBlank { stringResource(R.string.unknown_seller) }),
                             tint = MaterialTheme.colorScheme.error)
                     }
                 }
@@ -268,6 +274,7 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
     var scanTo by rememberSaveable { mutableStateOf(if (dateSource == HistoryDateSource.SCAN) toDay else null) }
     var pickingFrom by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val locale = LocalConfiguration.current.locales[0]
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     val dateFormat = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
     val selectedFrom = if (source == HistoryDateSource.INVOICE) invoiceFrom else scanFrom
     val selectedTo = if (source == HistoryDateSource.INVOICE) invoiceTo else scanTo
@@ -314,14 +321,23 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                         modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
                     ExposedDropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.history_all_categories)) },
-                            onClick = { selectedCategory = null; categoryExpanded = false })
+                            onClick = { selectedCategory = null; categoryExpanded = false },
+                            modifier = Modifier.semantics { selected = selectedCategory == null })
                         InvoiceCategories.ids.forEach { id ->
                             DropdownMenuItem(text = { Text(stringResource(InvoiceCategories.label(id))) },
-                                onClick = { selectedCategory = id; categoryExpanded = false })
+                                onClick = { selectedCategory = id; categoryExpanded = false },
+                                modifier = Modifier.semantics { selected = selectedCategory == id })
                         }
                     }
                 }
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                if (largeText) Column(Modifier.fillMaxWidth()) {
+                    HistoryDateSource.entries.forEach { option ->
+                        FilterChip(selected = source == option, onClick = { source = option; customRangeOpen = false },
+                            label = { Text(stringResource(if (option == HistoryDateSource.INVOICE)
+                                R.string.history_invoice_date else R.string.history_scan_date)) },
+                            modifier = Modifier.fillMaxWidth())
+                    }
+                } else SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     HistoryDateSource.entries.forEachIndexed { index, option ->
                         SegmentedButton(selected = source == option,
                             onClick = { source = option; customRangeOpen = false },
@@ -344,7 +360,13 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                             modifier = Modifier.fillMaxWidth()) {
                             setRange(null, null); customRangeOpen = false; periodExpanded = false
                         }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (largeText) presets.take(2).forEach { (label, from, to) ->
+                            HistoryPeriodMenuItem(label, selectedPeriodLabel == label,
+                                modifier = Modifier.fillMaxWidth()) {
+                                setRange(from.toEpochDay(), to.toEpochDay())
+                                customRangeOpen = false; periodExpanded = false
+                            }
+                        } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             presets.take(2).forEach { (label, from, to) ->
                                 HistoryPeriodMenuItem(label, selectedPeriodLabel == label,
                                     modifier = Modifier.weight(1f)) {
@@ -359,7 +381,13 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                             setRange(weekFrom.toEpochDay(), weekTo.toEpochDay())
                             customRangeOpen = false; periodExpanded = false
                         }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (largeText) presets.drop(3).forEach { (label, from, to) ->
+                            HistoryPeriodMenuItem(label, selectedPeriodLabel == label,
+                                modifier = Modifier.fillMaxWidth()) {
+                                setRange(from.toEpochDay(), to.toEpochDay())
+                                customRangeOpen = false; periodExpanded = false
+                            }
+                        } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             presets.drop(3).forEach { (label, from, to) ->
                                 HistoryPeriodMenuItem(label, selectedPeriodLabel == label,
                                     modifier = Modifier.weight(1f)) {
@@ -376,7 +404,20 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                     }
                 }
                 if (showCustomRange) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (largeText) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium) {
+                            Text(stringResource(R.string.history_from) + ": " +
+                                (selectedFrom?.let { dateFormat.format(LocalDate.ofEpochDay(it)) }
+                                    ?: stringResource(R.string.history_any_date)))
+                        }
+                        OutlinedButton(onClick = { pickingFrom = false }, modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium) {
+                            Text(stringResource(R.string.history_to) + ": " +
+                                (selectedTo?.let { dateFormat.format(LocalDate.ofEpochDay(it)) }
+                                    ?: stringResource(R.string.history_any_date)))
+                        }
+                    } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.weight(1f),
                             shape = MaterialTheme.shapes.medium) {
                             Column {

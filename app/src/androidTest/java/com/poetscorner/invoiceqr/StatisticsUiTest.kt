@@ -99,8 +99,11 @@ class StatisticsUiTest {
             StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {})
         } }
         compose.onNodeWithContentDescription(text(R.string.stats_group_by)).performClick()
+        compose.onNode(hasText(text(R.string.tag_seller)) and isSelected()).assertExists()
         compose.onNodeWithText(text(R.string.invoice_category)).performClick()
         compose.runOnIdle { assertEquals(StatisticsGrouping.CATEGORY, request.grouping) }
+        compose.onNodeWithContentDescription(text(R.string.stats_group_by)).assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, text(R.string.invoice_category)))
         compose.onNodeWithContentDescription(text(R.string.stats_group_by)).performClick()
         compose.onNodeWithText(text(R.string.stats_half_year)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.stats_quarter)).performClick()
