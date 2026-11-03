@@ -41,6 +41,7 @@ import java.time.format.FormatStyle
 internal fun StatisticsGrouping.label(): Int = when (this) {
     StatisticsGrouping.SELLER -> R.string.tag_seller
     StatisticsGrouping.VAT -> R.string.tag_vat
+    StatisticsGrouping.CATEGORY -> R.string.invoice_category
     StatisticsGrouping.DAY -> R.string.stats_day
     StatisticsGrouping.MONTH -> R.string.stats_month
     StatisticsGrouping.QUARTER -> R.string.stats_quarter
@@ -110,7 +111,8 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
         item {
             CompactStatisticsChoice(stringResource(R.string.stats_group_by),
                 stringResource(groupSortLabel), request.grouping.name,
-                StatisticsGrouping.entries.map { it.name to stringResource(it.label()) }, modifier = Modifier.fillMaxWidth()) {
+                StatisticsGrouping.entries.filterNot { it == StatisticsGrouping.HALF_YEAR }
+                    .map { it.name to stringResource(it.label()) }, modifier = Modifier.fillMaxWidth()) {
                 onChange(request.copy(grouping = StatisticsGrouping.valueOf(it)))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -1,6 +1,7 @@
 package com.poetscorner.invoiceqr.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -13,10 +14,13 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
@@ -280,16 +284,40 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(periodExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
                     ExposedDropdownMenu(expanded = periodExpanded, onDismissRequest = { periodExpanded = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.history_any_period)) },
-                            onClick = { setRange(null, null); customRangeOpen = false; periodExpanded = false })
-                        presets.forEach { (label, from, to) ->
-                            DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = {
-                                setRange(from.toEpochDay(), to.toEpochDay())
-                                customRangeOpen = false; periodExpanded = false
-                            })
+                        HistoryPeriodMenuItem(R.string.history_any_period,
+                            selectedPeriodLabel == R.string.history_any_period,
+                            modifier = Modifier.fillMaxWidth()) {
+                            setRange(null, null); customRangeOpen = false; periodExpanded = false
                         }
-                        DropdownMenuItem(text = { Text(stringResource(R.string.history_custom_range)) },
-                            onClick = { customRangeOpen = true; periodExpanded = false })
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            presets.take(2).forEach { (label, from, to) ->
+                                HistoryPeriodMenuItem(label, selectedPeriodLabel == label,
+                                    modifier = Modifier.weight(1f)) {
+                                    setRange(from.toEpochDay(), to.toEpochDay())
+                                    customRangeOpen = false; periodExpanded = false
+                                }
+                            }
+                        }
+                        val (weekLabel, weekFrom, weekTo) = presets[2]
+                        HistoryPeriodMenuItem(weekLabel, selectedPeriodLabel == weekLabel,
+                            modifier = Modifier.fillMaxWidth()) {
+                            setRange(weekFrom.toEpochDay(), weekTo.toEpochDay())
+                            customRangeOpen = false; periodExpanded = false
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            presets.drop(3).forEach { (label, from, to) ->
+                                HistoryPeriodMenuItem(label, selectedPeriodLabel == label,
+                                    modifier = Modifier.weight(1f)) {
+                                    setRange(from.toEpochDay(), to.toEpochDay())
+                                    customRangeOpen = false; periodExpanded = false
+                                }
+                            }
+                        }
+                        HistoryPeriodMenuItem(R.string.history_custom_range,
+                            selectedPeriodLabel == R.string.history_custom_range,
+                            modifier = Modifier.fillMaxWidth()) {
+                            customRangeOpen = true; periodExpanded = false
+                        }
                     }
                 }
                 if (showCustomRange) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -331,6 +359,20 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                 pickingFrom = null
             })
     }
+}
+
+@Composable
+private fun HistoryPeriodMenuItem(label: Int, selected: Boolean, modifier: Modifier = Modifier,
+    onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(stringResource(label), maxLines = 2) },
+        onClick = onClick,
+        modifier = modifier.background(
+            if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+            MaterialTheme.shapes.small).semantics { this.selected = selected },
+        colors = MenuDefaults.itemColors(textColor = if (selected)
+            MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface),
+        contentPadding = PaddingValues(horizontal = 8.dp))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

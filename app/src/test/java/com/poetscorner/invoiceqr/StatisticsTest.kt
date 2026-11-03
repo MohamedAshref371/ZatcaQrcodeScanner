@@ -43,6 +43,17 @@ class StatisticsTest {
         assertEquals(listOf(2, 1, 1), vat.map { it.totals.count })
     }
 
+    @Test fun categoryGroupsUseStableIdsAndKeepUncategorizedInvoices() {
+        val groups = calculate(StatisticsRequest(grouping = StatisticsGrouping.CATEGORY),
+            row().copy(category = 2), row().copy(category = 1), row().copy(category = 2), row()).groups
+        assertEquals(listOf("0", "1", "2"), groups.map { it.key.text })
+        assertEquals(listOf(1, 1, 2), groups.map { it.totals.count })
+        assertEquals(BigDecimal("230.00"), groups.last().totals.total)
+        val selected = StatisticsSelection(StatisticsRequest(grouping = StatisticsGrouping.CATEGORY), StatisticsKey(text = "2"))
+        assertTrue(selected.matches("Seller", "3001", null, category = 2))
+        assertFalse(selected.matches("Seller", "3001", null, category = 1))
+    }
+
     @Test fun calendarPeriodsRespectBoundariesAndNeverMixYears() {
         val dates = listOf("2025-12-31", "2026-01-01", "2026-03-31", "2026-04-01", "2026-06-30",
             "2026-07-01", "2026-12-31", "2027-01-01")

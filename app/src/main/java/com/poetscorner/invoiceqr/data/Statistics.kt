@@ -6,7 +6,7 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.Locale
 
-enum class StatisticsGrouping { SELLER, VAT, DAY, MONTH, QUARTER, HALF_YEAR, YEAR }
+enum class StatisticsGrouping { SELLER, VAT, CATEGORY, DAY, MONTH, QUARTER, HALF_YEAR, YEAR }
 enum class StatisticsSort { GROUP, COUNT, TOTAL, TAX }
 enum class StatisticsVatMode { INCLUDE, EXCLUDE }
 data class StatisticsRequest(
@@ -40,13 +40,13 @@ fun StatisticsRequest.resolvePeriod(today: LocalDate = LocalDate.now()): Statist
     datePreset?.let { withPeriod(it, today) } ?: this
 
 data class StatisticsInvoice(val id: Long, val seller: String, val vat: String,
-    val invoiceDay: Long?, val total: String, val tax: String)
+    val invoiceDay: Long?, val total: String, val tax: String, val category: Int = InvoiceCategories.NONE)
 data class StatisticsKey(val text: String? = null, val periodStart: Long? = null) : Serializable {
     val unknown get() = text == null && periodStart == null
 }
 
 data class StatisticsSelection(val request: StatisticsRequest, val key: StatisticsKey) : Serializable
-internal fun StatisticsSelection.matches(seller: String, vat: String, day: Long?): Boolean {
+internal fun StatisticsSelection.matches(seller: String, vat: String, day: Long?, category: Int = InvoiceCategories.NONE): Boolean {
     val vatTerm = request.vat.trim().map { if (it.isDigit()) Character.digit(it, 10).digitToChar() else it }.joinToString("")
     if (!seller.contains(request.seller.trim(), ignoreCase = true) || !vat.contains(vatTerm)) return false
     val excluded = normalizeVatNumber(request.excludedVat)
@@ -56,6 +56,7 @@ internal fun StatisticsSelection.matches(seller: String, vat: String, day: Long?
     return when (request.grouping) {
         StatisticsGrouping.SELLER -> seller.trim().ifEmpty { null } == key.text
         StatisticsGrouping.VAT -> vat.trim().ifEmpty { null } == key.text
+        StatisticsGrouping.CATEGORY -> category.toString() == key.text
         else -> if (key.periodStart == null) day == null else day != null &&
             day >= key.periodStart && day <= request.grouping.periodEnd(LocalDate.ofEpochDay(key.periodStart)).toEpochDay()
     }
@@ -120,7 +121,9 @@ internal fun statisticsConditions(request: StatisticsRequest, key: StatisticsKey
     request.fromDay?.let { clauses += "invoiceDay >= ?"; args += it }
     request.toDay?.let { clauses += "invoiceDay <= ?"; args += it }
     if (key != null) {
-        if (request.grouping == StatisticsGrouping.SELLER || request.grouping == StatisticsGrouping.VAT) {
+        if (request.grouping == StatisticsGrouping.CATEGORY) {
+            clauses += "category = ?"; args += (key.text?.toIntOrNull() ?: InvoiceCategories.NONE)
+        } else if (request.grouping == StatisticsGrouping.SELLER || request.grouping == StatisticsGrouping.VAT) {
             val column = if (request.grouping == StatisticsGrouping.SELLER) "seller" else "vat"
             // Match Kotlin trim() for every Unicode whitespace character, including tabs and NBSP.
             clauses += "trim($column, ?) = ?"
@@ -139,7 +142,7 @@ internal fun statisticsConditions(request: StatisticsRequest, key: StatisticsKey
 fun statisticsQuery(request: StatisticsRequest, afterId: Long = 0): SimpleSQLiteQuery {
     val (clauses, args) = statisticsConditions(request)
     clauses += "id > ?"; args += afterId
-    return SimpleSQLiteQuery("SELECT id, seller, vat, invoiceDay, total, tax FROM scans WHERE " +
+    return SimpleSQLiteQuery("SELECT id, seller, vat, invoiceDay, total, tax, category FROM scans WHERE " +
         clauses.joinToString(" AND ") + " ORDER BY id LIMIT 200", args.toTypedArray())
 }
 
@@ -159,6 +162,7 @@ class StatisticsAccumulator(private val request: StatisticsRequest) {
         val key = when (request.grouping) {
             StatisticsGrouping.SELLER -> StatisticsKey(text = row.seller.trim().takeIf(String::isNotEmpty))
             StatisticsGrouping.VAT -> StatisticsKey(text = row.vat.trim().takeIf(String::isNotEmpty))
+            StatisticsGrouping.CATEGORY -> StatisticsKey(text = row.category.toString())
             else -> {
                 val day = row.invoiceDay?.let(LocalDate::ofEpochDay)
                 val start = day?.let { when (request.grouping) {

@@ -99,6 +99,10 @@ class StatisticsUiTest {
             StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {})
         } }
         compose.onNodeWithContentDescription(text(R.string.stats_group_by)).performClick()
+        compose.onNodeWithText(text(R.string.invoice_category)).performClick()
+        compose.runOnIdle { assertEquals(StatisticsGrouping.CATEGORY, request.grouping) }
+        compose.onNodeWithContentDescription(text(R.string.stats_group_by)).performClick()
+        compose.onNodeWithText(text(R.string.stats_half_year)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.stats_quarter)).performClick()
         compose.runOnIdle { assertEquals(StatisticsGrouping.QUARTER, request.grouping) }
         compose.onNodeWithContentDescription(text(R.string.stats_sort_by)).performClick()

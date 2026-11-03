@@ -19,7 +19,7 @@ data class HistoryFilter(val query: String = "", val fromDay: Long? = null, val 
             val selected = statisticsSelection
             val annotationTerm = annotationQuery.trim()
             rows.filter { entry ->
-                (selected == null || selected.matches(entry.scan.seller, entry.vat, entry.invoiceDay)) &&
+                (selected == null || selected.matches(entry.scan.seller, entry.vat, entry.invoiceDay, entry.scan.category)) &&
                     (category == null || entry.scan.category == category) &&
                     (annotationTerm.isEmpty() || entry.scan.invoiceNumber.contains(annotationTerm, ignoreCase = true) ||
                         entry.scan.note.contains(annotationTerm, ignoreCase = true))

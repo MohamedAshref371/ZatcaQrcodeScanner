@@ -11,8 +11,11 @@ internal fun statisticsGroupTitle(context: Context, grouping: StatisticsGrouping
     if (key.unknown) return context.getString(when (grouping) {
         StatisticsGrouping.SELLER -> R.string.stats_unknown_seller
         StatisticsGrouping.VAT -> R.string.stats_unknown_vat
+        StatisticsGrouping.CATEGORY -> R.string.invoice_category_none
         else -> R.string.stats_unknown_date
     })
+    if (grouping == StatisticsGrouping.CATEGORY) return context.getString(
+        InvoiceCategories.label(key.text?.toIntOrNull() ?: InvoiceCategories.NONE))
     key.text?.let { return it }
     val day = LocalDate.ofEpochDay(requireNotNull(key.periodStart))
     val locale = context.resources.configuration.locales[0]
