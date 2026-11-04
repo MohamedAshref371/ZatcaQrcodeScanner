@@ -596,11 +596,13 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (InvoiceAnnotation) -> Unit) {
     var editing by rememberSaveable { mutableStateOf(false) }
     var number by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableIntStateOf(0) }
+    var categoryExpanded by remember { mutableStateOf(false) }
     var note by rememberSaveable { mutableStateOf("") }
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)) {
@@ -655,12 +657,21 @@ private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (Invoic
                 OutlinedTextField(number, { number = it.take(120) },
                     label = { Text(stringResource(R.string.invoice_number)) },
                     singleLine = true, modifier = Modifier.fillMaxWidth())
-                Text(stringResource(R.string.invoice_category), style = MaterialTheme.typography.titleSmall)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    InvoiceCategories.ids.forEach { id ->
-                        FilterChip(selected = category == id, onClick = { category = id },
-                            label = { Text(stringResource(InvoiceCategories.label(id))) })
+                ExposedDropdownMenuBox(expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = it }) {
+                    OutlinedTextField(value = stringResource(InvoiceCategories.label(category)),
+                        onValueChange = {}, readOnly = true,
+                        label = { Text(stringResource(R.string.invoice_category)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
+                        modifier = Modifier.fillMaxWidth().testTag("invoice_annotation_category")
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
+                    ExposedDropdownMenu(expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false }) {
+                        InvoiceCategories.ids.forEach { id ->
+                            DropdownMenuItem(text = { Text(stringResource(InvoiceCategories.label(id))) },
+                                onClick = { category = id; categoryExpanded = false },
+                                modifier = Modifier.semantics { selected = category == id })
+                        }
                     }
                 }
                 OutlinedTextField(note, { note = it.take(2_000) },

@@ -35,6 +35,7 @@ class InvoiceAnnotationUiTest {
             compose.onNodeWithText(edit).performClick()
             compose.onNode(hasSetTextAction() and hasText(compose.activity.getString(R.string.invoice_number)))
                 .performTextInput("INV-0007")
+            compose.onNodeWithTag("invoice_annotation_category").performClick()
             compose.onNodeWithText(compose.activity.getString(R.string.invoice_category_business_purchases)).performClick()
             compose.onNode(hasSetTextAction() and hasText(compose.activity.getString(R.string.invoice_note)))
                 .performTextInput("Client visit")
