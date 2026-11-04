@@ -103,6 +103,7 @@ fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel
 @Composable
 private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) {
     val historyScreenState = rememberSaveableStateHolder()
+    var cameraZoom by rememberSaveable { mutableFloatStateOf(0f) }
     val settingsListState = rememberLazyListState()
     val previousTab by vm.previousTab.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -304,7 +305,7 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                     style = MaterialTheme.typography.bodySmall) }
                 transfer?.let { TransferProgress(it) }
                 when(screen) {
-                    0 -> ScannerHome(settings, continuousScan, busy, {
+                    0 -> ScannerHome(settings, continuousScan, busy, cameraZoom, { cameraZoom = it }, {
                         invoiceFiles.launch(Intent(Intent.ACTION_GET_CONTENT).apply {
                             addCategory(Intent.CATEGORY_OPENABLE)
                             type = "*/*"
@@ -809,6 +810,9 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
             item { Toggle(stringResource(R.string.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
             item { Toggle(stringResource(R.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
             item { Choice(stringResource(R.string.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(R.string.bin_local), "GLOBAL_HISTOGRAM" to stringResource(R.string.bin_global), "FIXED_THRESHOLD" to stringResource(R.string.bin_fixed), "BOOL_CAST" to stringResource(R.string.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
+            item { Toggle(stringResource(R.string.multi_frame_recovery), s.multiFrameRecovery) { v ->
+                update { it.copy(multiFrameRecovery = v) }
+            } }
         }
         item { Text(stringResource(R.string.camera_settings_note), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }

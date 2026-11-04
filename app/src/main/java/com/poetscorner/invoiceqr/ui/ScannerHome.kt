@@ -12,6 +12,7 @@ import com.poetscorner.invoiceqr.data.ScannerSettings
 
 @Composable
 internal fun ScannerHome(settings: ScannerSettings, state: ContinuousScanState, busy: Boolean,
+    zoom: Float, onZoom: (Float) -> Unit,
     onGallery: () -> Unit, onContinuous: (Boolean) -> Unit,
     onScan: suspend (String) -> Boolean, contentPadding: PaddingValues = PaddingValues(), onTorch: () -> Unit) {
     val controls: @Composable () -> Unit = {
@@ -32,7 +33,7 @@ internal fun ScannerHome(settings: ScannerSettings, state: ContinuousScanState, 
         }
     }
     Box(Modifier.fillMaxSize()) {
-        if (!busy) CameraScanner(settings, state.enabled, onScan, onTorch, contentPadding, controls)
+        if (!busy) CameraScanner(settings, state.enabled, zoom, onZoom, onScan, onTorch, contentPadding, controls)
         else Box(Modifier.padding(contentPadding).padding(12.dp)) { controls() }
     }
 }

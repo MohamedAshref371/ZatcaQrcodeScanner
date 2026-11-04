@@ -224,6 +224,7 @@
     <string name="resolution_uhd_warning">2160p may slow scanning and use more battery</string>
     <string name="scan_frequency">Scan frequency</string>
     <string name="scan_crop">Crop scan area</string>
+    <string name="multi_frame_recovery">Recover QR codes from multiple frames</string>
     <string name="camera_hint_full_frame">Point the camera at the invoice QR code • Tap to focus</string>
     <string name="speed_normal">Normal · every 300 ms</string>
     <string name="speed_fast">Fast · every 100 ms</string>

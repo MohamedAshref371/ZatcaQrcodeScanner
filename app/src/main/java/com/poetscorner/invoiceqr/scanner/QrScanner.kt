@@ -9,10 +9,11 @@ import androidx.exifinterface.media.ExifInterface
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import zxingcpp.BarcodeReader
 
-fun ScannerSettings.reader(maxSymbols: Int = 1) = BarcodeReader(BarcodeReader.Options(
+fun ScannerSettings.reader(maxSymbols: Int = 1, returnErrors: Boolean = false) = BarcodeReader(BarcodeReader.Options(
     formats = setOf(BarcodeReader.Format.QR_CODE), // JNI maps this to ReaderOptions::formats(QRCode).
     tryHarder = harder, tryDenoise = denoise, tryRotate = rotate, tryInvert = inverted,
-    tryDownscale = true, maxNumberOfSymbols = maxSymbols, textMode = BarcodeReader.TextMode.PLAIN,
+    tryDownscale = true, maxNumberOfSymbols = maxSymbols, returnErrors = returnErrors,
+    textMode = BarcodeReader.TextMode.PLAIN,
     binarizer = runCatching { BarcodeReader.Binarizer.valueOf(binarizer) }.getOrDefault(BarcodeReader.Binarizer.LOCAL_AVERAGE)
 ))
 

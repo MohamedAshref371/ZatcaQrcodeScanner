@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.data.ScannerSettings
@@ -155,5 +156,32 @@ class CameraStreamingTest {
         }
         compose.onNodeWithTag("camera_preview").performTouchInput { click(center) }
         waitForStreaming()
+    }
+
+    @Test fun zoomReturnsAfterChangingTabsAndResumingTheApp() {
+        waitForStreaming()
+        val provider = ProcessCameraProvider.getInstance(compose.activity).get(10, TimeUnit.SECONDS)
+        val info = CameraSelector.DEFAULT_BACK_CAMERA.filter(provider.availableCameraInfos).first()
+        val zoomState = compose.runOnIdle { requireNotNull(info.zoomState.value) }
+        assumeTrue("Camera must support zoom", zoomState.maxZoomRatio > zoomState.minZoomRatio)
+        compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)).performTouchInput {
+            click(Offset(center.x * 1.5f, center.y))
+        }
+        compose.waitUntil(10_000) { compose.runOnIdle { (info.zoomState.value?.linearZoom ?: 0f) > 0.1f } }
+        val expectedZoom = compose.runOnIdle { requireNotNull(info.zoomState.value).linearZoom }
+
+        compose.onNodeWithText(compose.activity.getString(R.string.nav_settings)).performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.nav_scanner)).performClick()
+        waitForStreaming()
+        compose.waitUntil(10_000) {
+            compose.runOnIdle { kotlin.math.abs((info.zoomState.value?.linearZoom ?: 0f) - expectedZoom) < 0.02f }
+        }
+
+        compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        waitForStreaming()
+        compose.waitUntil(10_000) {
+            compose.runOnIdle { kotlin.math.abs((info.zoomState.value?.linearZoom ?: 0f) - expectedZoom) < 0.02f }
+        }
     }
 }

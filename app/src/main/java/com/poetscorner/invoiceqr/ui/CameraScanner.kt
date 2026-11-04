@@ -51,10 +51,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.poetscorner.invoiceqr.data.ScannerSettings
+import com.poetscorner.invoiceqr.data.ScanEngine
+import com.poetscorner.invoiceqr.domain.ZatcaParser
 import com.poetscorner.invoiceqr.scanner.decoder
+import com.poetscorner.invoiceqr.scanner.reader
+import com.poetscorner.invoiceqr.scanner.MultiFrameQrRecovery
 import com.poetscorner.invoiceqr.scanner.ScanWindow
 import com.poetscorner.invoiceqr.scanner.scanGuideWindow
 import com.poetscorner.invoiceqr.scanner.previewCropInBuffer
@@ -66,9 +71,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import zxingcpp.BarcodeReader
 
 @Composable
-fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspend (String) -> Boolean, onTorch: () -> Unit,
+fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, onZoom: (Float) -> Unit,
+    onScan: suspend (String) -> Boolean, onTorch: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(), topControls: @Composable () -> Unit = {}) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
@@ -133,7 +140,6 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
         focusIndicator = null
     }
     var error by remember { mutableStateOf<UiText?>(null) }
-    var zoom by remember { mutableFloatStateOf(0f) }
     val currentSettings by rememberUpdatedState(settings)
     val currentOnScan by rememberUpdatedState(onScan)
     val currentContinuous by rememberUpdatedState(continuous)
@@ -143,6 +149,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
     DisposableEffect(owner, settings.resolution, settings.scanEngine) {
         val executor = Executors.newSingleThreadExecutor()
         val decoder = settings.scanEngine.decoder()
+        val recovery = MultiFrameQrRecovery()
         val providerFuture = ProcessCameraProvider.getInstance(context)
         val delivered = AtomicBoolean(false)
         var disposed = false
@@ -191,7 +198,37 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                             } ?: return@setAnalyzer
                             val cropFinished = if (cropStarted != 0L) SystemClock.elapsedRealtimeNanos() else 0L
                             image.setCropRect(crop)
-                            val result = decoder.read(image, currentSettings)
+                            val result = if (currentSettings.multiFrameRecovery &&
+                                currentSettings.scanEngine == ScanEngine.ZXING) {
+                                val observed = currentSettings.reader(maxSymbols = 3, returnErrors = true).read(image)
+                                    .filter { it.format == BarcodeReader.Format.QR_CODE ||
+                                        it.format == BarcodeReader.Format.QR_CODE_MODEL_2 }
+                                val valid = observed.firstOrNull { it.error == null && it.text != null }?.text
+                                if (valid != null) {
+                                    recovery.reset()
+                                    valid
+                                } else if (observed.firstOrNull()?.let { first ->
+                                    observed.any { !recovery.samePosition(first.position, it.position) }
+                                } == true) {
+                                    recovery.reset()
+                                    null
+                                } else {
+                                    val position = observed.firstOrNull()
+                                        ?.takeIf { it.error?.type == BarcodeReader.ErrorType.CHECKSUM ||
+                                            it.error?.type == BarcodeReader.ErrorType.FORMAT }?.position
+                                    runCatching {
+                                        recovery.offer(image, position, now, cropEnabled) { bitmap ->
+                                            currentSettings.reader(maxSymbols = 2).read(bitmap)
+                                                .filter { it.error == null && it.text != null }
+                                                .singleOrNull()?.text
+                                        }
+                                    }.onFailure { recovery.reset() }.getOrNull()
+                                        ?.takeIf { ZatcaParser.parse(it).error == null }
+                                }
+                            } else {
+                                recovery.reset()
+                                decoder.read(image, currentSettings)
+                            }
                             if (cropStarted != 0L) CameraFrameTiming.record(CameraFrameTiming.Sample(
                                 cropEnabled, image.width, image.height,
                                 cropFinished - cropStarted,
@@ -220,7 +257,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                 }
                 camera = p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, pv, a)
                 boundPreview = pv; boundAnalysis = a
-                zoom = 0f; error = null
+                error = null
             } catch (_: Exception) { error = UiText(R.string.camera_start_error) }
         }, ContextCompat.getMainExecutor(context))
         onDispose {
@@ -234,6 +271,12 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
     }
     LaunchedEffect(camera, settings.torch) {
         if (camera?.cameraInfo?.hasFlashUnit() == true) camera?.cameraControl?.enableTorch(settings.torch)
+    }
+    val lifecycleState by owner.lifecycle.currentStateAsState()
+    LaunchedEffect(camera, zoom, lifecycleState) {
+        if (lifecycleState.isAtLeast(Lifecycle.State.RESUMED)) {
+            camera?.cameraControl?.setLinearZoom(zoom.coerceIn(0f, 1f))
+        }
     }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight
@@ -316,7 +359,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, onScan: suspen
                         Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(R.string.zoom), style = MaterialTheme.typography.labelMedium)
-                            Slider(zoom, onValueChange = { zoom = it; camera?.cameraControl?.setLinearZoom(it) },
+                            Slider(zoom, onValueChange = onZoom,
                                 modifier = Modifier.weight(1f), enabled = camera != null)
                             FilledTonalIconButton(onClick = onTorch, enabled = camera?.cameraInfo?.hasFlashUnit() == true) {
                                 AppIcon(R.drawable.ic_flash, description = stringResource(if (settings.torch) R.string.torch_off else R.string.torch))

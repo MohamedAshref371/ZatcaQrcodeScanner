@@ -215,6 +215,7 @@
     <string name="resolution_uhd_warning">قد تبطئ دقة 2160p المسح وتستهلك بطارية أكثر</string>
     <string name="scan_frequency">تردد المسح</string>
     <string name="scan_crop">قص منطقة المسح</string>
+    <string name="multi_frame_recovery">استعادة رموز QR من عدة إطارات</string>
     <string name="camera_hint_full_frame">وجّه الكاميرا إلى رمز QR الفاتورة • اضغط للتركيز</string>
     <string name="speed_normal">عادي · كل 300ms</string>
     <string name="speed_fast">سريع · كل 100ms</string>
