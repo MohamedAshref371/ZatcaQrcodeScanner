@@ -390,7 +390,7 @@ class ScannerViewModel(
                 val raw = withContext(Dispatchers.IO) {
                     val scanSettings = settings.value
                     val bitmap = decodeGallery(getApplication(), uri)
-                    try { scanSettings.scanEngine.decoder().use { it.read(bitmap, scanSettings) } }
+                    try { scanSettings.scanEngine.decoder().use { it.readImportedImage(bitmap, scanSettings) } }
                     finally { bitmap.recycle() }
                 }
                 if (raw == null) message.value = UiText(R.string.gallery_no_qr) else process(raw)
@@ -445,7 +445,7 @@ class ScannerViewModel(
                                 when (type) {
                                     InvoiceFileType.IMAGE -> {
                                         val bitmap = decodeGallery(app, uri)
-                                        val raw = try { decoder.read(bitmap, scanSettings) } finally { bitmap.recycle() }
+                                        val raw = try { decoder.readImportedImage(bitmap, scanSettings) } finally { bitmap.recycle() }
                                         raw?.let(ZatcaParser::parse)
                                     }
                                     InvoiceFileType.PDF -> firstInvoiceInPdf(app, uri) { bitmap ->
