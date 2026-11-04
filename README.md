@@ -4,7 +4,7 @@ English | [العربية](README-ar.md)
 
 An Android app for reading Saudi e-invoice QR codes, viewing invoice details, running local structural checks, and keeping a searchable invoice history. Built with Kotlin, Jetpack Compose, Material 3, CameraX, Room, and DataStore.
 
-Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL), light and dark modes, and an optional gold theme for supporters.
+Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL), light and dark modes, and free default, gold, purple and blue app appearances.
 
 **The app performs local structural checks only. It does not certify tax compliance, verify cryptographic signatures, or establish official invoice acceptance. It is independent of ZATCA.**
 
@@ -20,7 +20,7 @@ Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL)
 - Export matching invoices as JSON or CSV through the system file picker.
 - Use all invoice features for free, without ads or an account.
 
-The optional one-time Google Play supporter purchase adds a gold theme and a supporter badge. Purchasing and restoring require a store connection; invoice features remain free. Product `supporter_pack`, its base price, and the purchase verification key are described in the [publishing guide (Arabic)](publishing/README.md).
+The optional one-time Google Play purchase supports development without unlocking app features or appearances. Purchasing and restoring require a store connection; all appearances and invoice features are free. Product `supporter_pack`, its base price, and the purchase verification key are described in the [publishing guide (Arabic)](publishing/README.md).
 
 ## Offline scanning and engine downloads
 

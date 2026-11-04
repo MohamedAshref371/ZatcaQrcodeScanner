@@ -24,7 +24,7 @@ Arabic and English
 Use Arabic or English with the appropriate layout direction and light, dark or system themes. Requires Android 8 or later. Camera permission is requested for live scanning. Select images through the system picker without granting access to your entire photo library.
 
 Optional developer support
-The app is free and ad-free. All invoice features remain free. An optional one-time supporter purchase adds a gold theme and supporter badge, with a free preview in Settings. Purchasing and restoring use Google Play and require internet access. The local price appears before payment confirmation. There is no subscription.
+The app is free and ad-free. All invoice features and app appearances are available to everyone. You can optionally support development with a one-time purchase that unlocks nothing extra. Purchasing and restoring use Google Play and require internet access. The local price appears before payment confirmation. There is no subscription.
 
 Understand the checks
 The app checks data structure, fields, VAT number format, timestamps and amounts. It labels a scan as a simplified tax invoice when the stamp field is present, or a tax invoice when absent, using the available QR data.

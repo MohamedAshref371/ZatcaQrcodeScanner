@@ -117,11 +117,6 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     val continuousScan by vm.continuousScan.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val support by supporter.state.collectAsStateWithLifecycle()
-    // Preview is presentation state only; it never writes a purchase entitlement.
-    var supporterPreview by rememberSaveable { mutableStateOf(false) }
-    var previewTheme by rememberSaveable { mutableStateOf("GOLD") }
-    val previewActive = supporterPreview && !support.owned
-    LaunchedEffect(support.owned) { if (support.owned) supporterPreview = false }
     val context = LocalContext.current
     val resources = LocalResources.current
     val configuration = LocalConfiguration.current
@@ -177,7 +172,7 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     var historyAnnotationQuery by rememberSaveable { mutableStateOf("") }
     var historyFilterDialog by rememberSaveable { mutableStateOf(false) }
     val lifecycleState by lifecycle.currentStateAsState()
-    val reviewAllowed = reviewOpportunity > 0 && !previewActive && screen == 2 && !busy && !transferLocked && message == null &&
+    val reviewAllowed = reviewOpportunity > 0 && screen == 2 && !busy && !transferLocked && message == null &&
         snackbar.currentSnackbarData == null && !clearDialog && invoiceToDelete == null &&
         !historyFilterDialog && !support.purchasing && lifecycleState == Lifecycle.State.RESUMED
     val reviewStillAllowed by rememberUpdatedState(reviewAllowed)
@@ -250,9 +245,9 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     BackHandler(screen != 0 || (previousTab != null && previousTab != 0)) { vm.backFromResultOrHome() }
     val darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() }
     ZatcaQrcodeScannerTheme(darkTheme = darkTheme,
-        goldenTheme = if (previewActive) previewTheme == "GOLD" else support.owned && settings.supporterTheme == "GOLD",
-        purpleTheme = if (previewActive) previewTheme == "PURPLE" else support.owned && settings.supporterTheme == "PURPLE",
-        blueTheme = if (previewActive) previewTheme == "BLUE" else support.owned && settings.supporterTheme == "BLUE") {
+        goldenTheme = settings.supporterTheme == "GOLD",
+        purpleTheme = settings.supporterTheme == "PURPLE",
+        blueTheme = settings.supporterTheme == "BLUE") {
         SideEffect {
             // Camera reveals the shared title before layout, and leaves it visible for other tabs.
             if (screen == 0) {
@@ -419,9 +414,6 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                     }
                     else -> SettingsScreen(settings, vm::update, support,
                         listState = settingsListState,
-                        preview = previewActive, previewTheme = previewTheme,
-                        onPreview = { active -> supporterPreview = active; if (active) previewTheme = "GOLD" },
-                        onPreviewTheme = { previewTheme = it },
                         transfersEnabled = !transferLocked,
                         onBackup = {
                             pendingFileAction = "backup"
@@ -433,7 +425,7 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                         },
                         mlKitModule = mlKitModule, onDownloadMlKit = vm::downloadMlKit,
                         onEngine = vm::selectScanEngine,
-                        onPurchase = { context.activity()?.let(supporter::purchase) }, onRestore = supporter::refresh,
+                        onPurchase = { context.activity()?.let(supporter::purchase) },
                         onRate = { if (!openAppStore(context)) vm.message.value = UiText(R.string.store_open_error) },
                         onShare = { if (!shareApp(context)) vm.message.value = UiText(R.string.share_error) })
                 }
@@ -773,10 +765,9 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
 private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
     support: SupporterState, mlKitModule: MlKitModuleState,
     listState: LazyListState,
-    preview: Boolean, previewTheme: String, onPreview: (Boolean) -> Unit, onPreviewTheme: (String) -> Unit,
     transfersEnabled: Boolean, onBackup: () -> Unit, onImportBackup: () -> Unit,
     onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
-    onPurchase: () -> Unit, onRestore: () -> Unit, onRate: () -> Unit, onShare: () -> Unit) {
+    onPurchase: () -> Unit, onRate: () -> Unit, onShare: () -> Unit) {
     val portraitLockSupported = portraitLockApplies(true,
         LocalConfiguration.current.smallestScreenWidthDp, LocalContext.current.activity()?.isInMultiWindowMode == true)
     var showAbout by remember { mutableStateOf(false) }
@@ -784,6 +775,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     LazyColumn(Modifier.testTag("settings_list"), state = listState,
         contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SectionHeading(stringResource(R.string.settings_heading), stringResource(R.string.settings_subtitle)) }
+        if (!support.owned) item { SupporterCard(support, onPurchase) }
         item { Text(stringResource(R.string.settings_camera), style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary) }
         item {
@@ -820,6 +812,9 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { Text(stringResource(R.string.settings_app), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { AppLanguagePicker() }
+        item { AppThemePicker(s.supporterTheme) { value ->
+            update { it.copy(supporterTheme = value, goldenTheme = value == "GOLD") }
+        } }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark)), singleLine = true) { v -> update { it.copy(theme = v) } } }
         if (portraitLockSupported) {
             item { Toggle(stringResource(R.string.lock_portrait), s.lockPortrait) { v -> update { it.copy(lockPortrait = v) } } }
@@ -841,26 +836,18 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         }
         item { SettingsAction(stringResource(R.string.privacy_policy), R.drawable.ic_info) { showPrivacy = true } }
         item { SettingsAction(stringResource(R.string.about_app), R.drawable.ic_info) { showAbout = true } }
-        item { SupporterCard(support, if (preview) previewTheme else s.supporterTheme,
-            preview, onPreview, onPurchase, onRestore) { value ->
-            if (preview) onPreviewTheme(value) else update { it.copy(supporterTheme = value, goldenTheme = value == "GOLD") }
-        } }
     }
     if (showPrivacy) PrivacyPolicyDialog { showPrivacy = false }
     if (showAbout) AlertDialog(onDismissRequest = { showAbout = false },
         title = { Text(stringResource(R.string.app_name)) },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME))
-            if (preview) Text(stringResource(R.string.supporter_preview_badge), style = MaterialTheme.typography.labelMedium)
-            if (support.owned || preview) Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
-                Text(stringResource(R.string.supporter_badge), Modifier.padding(10.dp))
-            }
             Text(stringResource(R.string.about_details))
         } }, confirmButton = { TextButton(onClick = { showAbout = false }) { Text(stringResource(R.string.close)) } })
 }
 
 @Composable
-private fun SupporterThemePicker(selected: String, onChange: (String) -> Unit) {
+private fun AppThemePicker(selected: String, onChange: (String) -> Unit) {
     Choice(stringResource(R.string.supporter_theme), selected, listOf(
         "DEFAULT" to stringResource(R.string.default_theme),
         "GOLD" to stringResource(R.string.gold_theme),
@@ -871,70 +858,27 @@ private fun SupporterThemePicker(selected: String, onChange: (String) -> Unit) {
 }
 
 @Composable
-private fun SupporterCard(state: SupporterState, selectedTheme: String, preview: Boolean,
-    onPreview: (Boolean) -> Unit, onPurchase: () -> Unit,
-    onRestore: () -> Unit, onTheme: (String) -> Unit) {
-    var showDetails by rememberSaveable { mutableStateOf(false) }
+private fun SupporterCard(state: SupporterState, onPurchase: () -> Unit) {
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconTile(R.drawable.ic_heart)
-                Text(stringResource(R.string.supporter_pack), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            }
-            if (state.owned) {
-                Text(stringResource(R.string.supporter_active), color = MaterialTheme.colorScheme.primary)
-                SupporterThemePicker(selectedTheme, onTheme)
-            } else {
-                Text(stringResource(R.string.supporter_compact_description), style = MaterialTheme.typography.bodyMedium)
-                Text(stringResource(R.string.supporter_free_note), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = onPurchase,
-                        enabled = state.available && !state.loading && !state.purchasing && !state.pending,
-                        modifier = Modifier.weight(1.2f).heightIn(min = 48.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
-                        Text(when {
-                            state.pending -> stringResource(R.string.purchase_pending)
-                            state.purchasing -> stringResource(R.string.purchase_processing)
-                            state.loading -> stringResource(R.string.store_connecting)
-                            state.price != null -> stringResource(R.string.support_price, state.price.orEmpty())
-                            else -> stringResource(R.string.purchase_unavailable)
-                        })
-                    }
-                    OutlinedButton(onClick = { onPreview(!preview) },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("supporter_preview_toggle"),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
-                        Text(stringResource(if (preview) R.string.supporter_preview_end else R.string.supporter_preview_start))
-                    }
-                }
-                if (preview) SupporterThemePicker(selectedTheme, onTheme)
-            }
-            if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            state.message?.let { Text(it.localized(), style = MaterialTheme.typography.bodySmall) }
-            if (!state.owned) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onRestore, enabled = !state.loading && !state.purchasing) {
-                    Text(stringResource(R.string.restore_retry))
-                }
-                TextButton(onClick = { showDetails = true }) {
-                    Text(stringResource(R.string.supporter_details))
-                }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.supporter_pack), Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Button(onClick = onPurchase,
+                enabled = state.available && !state.loading && !state.purchasing && !state.pending,
+                modifier = Modifier.widthIn(min = 112.dp).heightIn(min = 52.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
+                Text(when {
+                    state.pending -> stringResource(R.string.purchase_pending)
+                    state.purchasing -> stringResource(R.string.purchase_processing)
+                    state.loading -> stringResource(R.string.store_connecting)
+                    state.price != null -> stringResource(R.string.support_price, state.price.orEmpty())
+                    else -> stringResource(R.string.purchase_unavailable)
+                }, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
-    if (showDetails) AlertDialog(onDismissRequest = { showDetails = false },
-        title = { Text(stringResource(R.string.supporter_details)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.supporter_description))
-                Text(stringResource(R.string.supporter_preview_description))
-                Text(stringResource(R.string.billing_connection_note))
-            }
-        },
-        confirmButton = { TextButton(onClick = { showDetails = false }) { Text(stringResource(R.string.close)) } })
 }
 
 private fun Context.activity(): Activity? = when (this) {
