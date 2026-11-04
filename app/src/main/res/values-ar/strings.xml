@@ -229,7 +229,7 @@
     <string name="close">إغلاق</string>
     <string name="supporter_pack">دعم التطبيق</string>
     <string name="supporter_info_action">معلومات عن دعم التطبيق</string>
-    <string name="supporter_info_description">هذا التطبيق مجاني بالكامل وخالٍ من الإعلانات. إذا نال إعجابك وترغب في دعم المطور لاستمرار وتطوير المشروع، يمكنك تقديم دعم مالي اختياري. (الدعم تبرع بحت ولا يمنح أي ميزات إضافية أو محتوى رقمي داخل التطبيق).</string>
+    <string name="supporter_info_description">هذا التطبيق مجاني بالكامل وخالٍ من الإعلانات. إذا نال إعجابك وترغب في دعم المطور لاستمرار وتطوير المشروع، يمكنك تقديم دعم مالي اختياري لمرة واحدة. (الدعم تبرع بحت ولا يمنح أي ميزات إضافية أو محتوى رقمي داخل التطبيق).</string>
     <string name="gold_theme">المظهر الذهبي</string>
     <string name="purchase_pending">قيد الانتظار</string>
     <string name="purchase_processing">جارٍ الشراء</string>
