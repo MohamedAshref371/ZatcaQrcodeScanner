@@ -106,18 +106,18 @@ class HistoryStorageTest {
         val json = StringWriter()
         db.withTransaction {
             HistoryExporter.write(db.scans(), HistoryFilter(), csv, true, names,
-                categoryName = { "Business expense" })
+                categoryName = { "Business purchases" })
             HistoryExporter.write(db.scans(), HistoryFilter(), json, false, names,
-                categoryName = { "Business expense" })
+                categoryName = { "Business purchases" })
         }
         assertTrue(csv.toString().startsWith("\uFEFF\"Invoice number\",\"Seller\""))
-        assertTrue(csv.toString().trimEnd().endsWith("\"Business expense\",\"Business trip\""))
+        assertTrue(csv.toString().trimEnd().endsWith("\"Business purchases\",\"Business trip\""))
         val jsonText = json.toString()
         assertTrue(jsonText.indexOf("\"Invoice number\"") < jsonText.indexOf("\"Seller\""))
         assertTrue(jsonText.indexOf("\"Category\"") > jsonText.indexOf("\"Tax\""))
         val item = JSONArray(jsonText).getJSONObject(0)
         assertEquals("INV-0007", item.getString("Invoice number"))
-        assertEquals("Business expense", item.getString("Category"))
+        assertEquals("Business purchases", item.getString("Category"))
         assertEquals("Business trip", item.getString("Note"))
     }
 }

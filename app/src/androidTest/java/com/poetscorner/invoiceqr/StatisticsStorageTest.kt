@@ -90,10 +90,10 @@ class StatisticsStorageTest {
             historyFixture(2, seller = "Market Branch", date = "2026-05-01T00:00:00+03:00").copy(category = 2),
             historyFixture(3, seller = "\u00a0Market\t", date = "2026-06-30T12:00:00Z").copy(category = 1),
             historyFixture(4, seller = " ", date = "invalid"),
-            historyFixture(5, seller = "Market", date = "2027-04-01T00:00:00Z").copy(category = 5)))
+            historyFixture(5, seller = "Market", date = "2027-04-01T00:00:00Z").copy(category = 99)))
         val stored = db.scans().all().map { HistoryEntry.from(it) }
         val categories = calculate(StatisticsRequest(grouping = StatisticsGrouping.CATEGORY)).groups
-        assertEquals(listOf("0", "1", "2", "5"), categories.map { it.key.text })
+        assertEquals(listOf("0", "1", "2", "99"), categories.map { it.key.text })
         assertEquals(listOf(1, 2, 1, 1), categories.map { it.totals.count })
         for (grouping in StatisticsGrouping.entries) {
             for (sellerFilter in listOf("", "Market")) for (excluded in listOf("", "300000000000023", "0002")) {

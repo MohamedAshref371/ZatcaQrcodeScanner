@@ -37,10 +37,10 @@ class HistoryBackupTest {
 
     @Test fun roundTripAcrossBatchesPreservesOriginalQrDatesAndExistingDuplicates() = runBlocking {
         val rows = (1..235).map { historyFixture(94000 + it, seller = "Backup seller $it")
-            .copy(invoiceNumber = "INV-$it", category = it % 6, note = "Note $it") }
+            .copy(invoiceNumber = "INV-$it", category = InvoiceCategories.ids[it % InvoiceCategories.ids.size], note = "Note $it") }
         source.scans().insertBatch(rows)
         val existing = rows.first().copy(raw = " \n" + rows.first().raw.trimEnd('='),
-            scannedAt = 1234L, invoiceNumber = "LOCAL-1", category = 5, note = "Keep local note")
+            scannedAt = 1234L, invoiceNumber = "LOCAL-1", category = 99, note = "Keep local note")
         target.scans().saveIfNew(existing)
         val progress = mutableListOf<Pair<Int, Int>>()
         val output = StringWriter()
@@ -63,7 +63,7 @@ class HistoryBackupTest {
         assertEquals(existing.raw, restored[existing.payloadKey]?.raw)
         assertEquals(1234L, restored[existing.payloadKey]?.scannedAt)
         assertEquals("LOCAL-1", restored[existing.payloadKey]?.invoiceNumber)
-        assertEquals(5, restored[existing.payloadKey]?.category)
+        assertEquals(99, restored[existing.payloadKey]?.category)
         assertEquals("Keep local note", restored[existing.payloadKey]?.note)
         assertEquals(ImportSummary(0, 235), HistoryBackup.restore(target, StringReader(output.toString())))
         assertEquals(235, target.scans().count())
@@ -106,7 +106,7 @@ class HistoryBackupTest {
         assertEquals(0, restored.category)
         assertEquals("", restored.note)
         val bad = JSONObject(document(listOf(historyFixture(96502)), version = 2))
-        bad.getJSONArray("invoices").getJSONObject(0).put("category", 99)
+        bad.getJSONArray("invoices").getJSONObject(0).put("category", 7)
         try {
             HistoryBackup.restore(target, StringReader(bad.toString()))
             fail("Unknown category must reject the backup")

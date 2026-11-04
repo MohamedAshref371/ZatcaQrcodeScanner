@@ -116,7 +116,7 @@ object HistoryBackup {
                                         "category" -> {
                                             annotated = true
                                             val id = integer(json)
-                                            valid(id in InvoiceCategories.ids.first.toLong()..InvoiceCategories.ids.last.toLong())
+                                            valid(InvoiceCategories.ids.any { it.toLong() == id })
                                             category = id.toInt()
                                         }
                                         "note" -> {

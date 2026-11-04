@@ -71,7 +71,7 @@ class HistoryNavigationTest {
         compose.onNode(hasSetTextAction() and androidx.compose.ui.test.hasText(
             text(R.string.history_annotation_search))).performTextReplacement("INV-007")
         compose.onNodeWithText(text(R.string.history_all_categories)).performClick()
-        compose.onNodeWithText(text(R.string.invoice_category_work)).performClick()
+        compose.onNodeWithText(text(R.string.invoice_category_business_purchases)).performClick()
         compose.onNodeWithText(text(R.string.history_confirm_filters)).performClick()
         val vm = compose.runOnIdle { ViewModelProvider(compose.activity)[ScannerViewModel::class.java] }
         compose.waitUntil(5000) {

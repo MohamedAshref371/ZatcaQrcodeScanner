@@ -45,8 +45,8 @@ class HistoryExporterTest {
 
     @Test fun humanExportsPutInvoiceNumberFirstAndCategoryDescriptionNearTheEnd() {
         val scan = row().copy(invoiceNumber = "INV-007", category = 1, note = "Client visit")
-        val csv = HistoryExporter.csv(listOf(scan), names) { "Business expense" }
+        val csv = HistoryExporter.csv(listOf(scan), names) { "Business purchases" }
         assertTrue(csv.split("\r\n")[1].startsWith("\"INV-007\",\"Customer\""))
-        assertTrue(csv.endsWith("\"Business expense\",\"Client visit\""))
+        assertTrue(csv.endsWith("\"Business purchases\",\"Client visit\""))
     }
 }
