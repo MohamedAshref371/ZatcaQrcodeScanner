@@ -858,12 +858,19 @@ private fun AppThemePicker(selected: String, onChange: (String) -> Unit) {
 
 @Composable
 private fun SupporterCard(state: SupporterState, onPurchase: () -> Unit) {
+    var showInfo by rememberSaveable { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.supporter_pack), Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.supporter_pack), Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                IconButton(onClick = { showInfo = true }, modifier = Modifier.size(48.dp)) {
+                    AppIcon(R.drawable.ic_info, description = stringResource(R.string.supporter_info_action),
+                        tint = MaterialTheme.colorScheme.primary)
+                }
+            }
             Button(onClick = onPurchase,
                 enabled = state.available && !state.loading && !state.purchasing && !state.pending,
                 modifier = Modifier.widthIn(min = 112.dp).heightIn(min = 52.dp),
@@ -878,6 +885,10 @@ private fun SupporterCard(state: SupporterState, onPurchase: () -> Unit) {
             }
         }
     }
+    if (showInfo) AlertDialog(onDismissRequest = { showInfo = false },
+        title = { Text(stringResource(R.string.supporter_pack)) },
+        text = { Text(stringResource(R.string.supporter_info_description)) },
+        confirmButton = { TextButton(onClick = { showInfo = false }) { Text(stringResource(R.string.close)) } })
 }
 
 private fun Context.activity(): Activity? = when (this) {

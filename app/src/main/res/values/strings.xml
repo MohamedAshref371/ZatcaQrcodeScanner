@@ -237,6 +237,8 @@
     <string name="camera_settings_note">Actual resolution depends on your camera. Intensive options and higher resolutions may increase battery use and scan time. Zoom is available below the camera preview.</string>
     <string name="close">Close</string>
     <string name="supporter_pack">Support the app</string>
+    <string name="supporter_info_action">About supporting the app</string>
+    <string name="supporter_info_description">This app is completely free and ad-free. If you enjoy using it and want to support the developer to maintain and improve the project, you can make a voluntary donation. (Donations are purely optional and do not unlock any premium features or digital content).</string>
     <string name="gold_theme">Gold theme</string>
     <string name="purchase_pending">Pending</string>
     <string name="purchase_processing">Processing</string>
