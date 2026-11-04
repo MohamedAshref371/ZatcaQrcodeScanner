@@ -853,8 +853,7 @@ private fun AppThemePicker(selected: String, onChange: (String) -> Unit) {
         "GOLD" to stringResource(R.string.gold_theme),
         "PURPLE" to stringResource(R.string.purple_theme),
         "BLUE" to stringResource(R.string.blue_theme)
-    ), singleLine = true, equalWidth = true,
-        border = ButtonDefaults.outlinedButtonBorder(enabled = true), onChange = onChange)
+    ), singleLine = true, onChange = onChange)
 }
 
 @Composable
