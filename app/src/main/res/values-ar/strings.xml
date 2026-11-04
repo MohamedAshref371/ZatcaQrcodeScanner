@@ -346,9 +346,9 @@
     <string name="invoice_category_business_purchases">مشتريات عمل</string>
     <string name="invoice_category_personal_purchases">مشتريات شخصية</string>
     <string name="invoice_category_purchase_return">مرتجع مشتريات</string>
-    <string name="invoice_category_needs_review">تحتاج مراجعة</string>
     <string name="invoice_category_sales_invoice">فاتورة مبيعات</string>
     <string name="invoice_category_sales_return">مرتجع مبيعات</string>
+    <string name="invoice_category_needs_review">تحتاج مراجعة</string>
     <string name="invoice_category_other">أخرى</string>
     <string name="history_all_categories">كل التصنيفات</string>
     <string name="history_annotation_search">ابحث برقم الفاتورة أو الملاحظة</string>

@@ -355,9 +355,9 @@
     <string name="invoice_category_business_purchases">Business purchases</string>
     <string name="invoice_category_personal_purchases">Personal purchases</string>
     <string name="invoice_category_purchase_return">Purchase return</string>
-    <string name="invoice_category_needs_review">Needs review</string>
     <string name="invoice_category_sales_invoice">Sales invoice</string>
     <string name="invoice_category_sales_return">Sales return</string>
+    <string name="invoice_category_needs_review">Needs review</string>
     <string name="invoice_category_other">Other</string>
     <string name="history_all_categories">All categories</string>
     <string name="history_annotation_search">Search invoice number or note</string>
