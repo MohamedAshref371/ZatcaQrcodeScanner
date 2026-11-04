@@ -1,6 +1,6 @@
 # Invoice QR Reader Privacy Policy
 
-Last updated: 3 November 2026
+Last updated: 4 November 2026
 
 Developer: Mohamed Ashraf (محمد أشرف)
 
@@ -14,7 +14,7 @@ This policy describes how Invoice QR Reader (قارئ فاتورة), package `co
 
 With permission, the app uses the camera to read QR codes. Alternatively, it processes images and PDFs you select through the system picker or share with the app through Android's share menu. File processing takes place on your device. It scans selected files in turn and saves invoice details it can extract to local history, including invoices flagged for review by the local check. Each PDF is scanned until the first parseable invoice QR. The app does not record video, save camera frames or retain copies of selected or shared images. A PDF is temporarily copied to the app's private cache while it is scanned and deleted when processing ends; an interrupted process may leave a cache file until Android clears the cache or app data.
 
-The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. The app does not upload invoice content to a developer or publisher server. Invoice features do not require an app account. The default ZXing scanner works offline immediately. The app contains no advertising and the developer does not operate an analytics backend; the Google services described below have their own technical data practices.
+The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage, along with any invoice number, category or note you add. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. You can manually enter QR content as Base64, which is processed on the device. The app does not upload invoice content to a developer or publisher server. Invoice features do not require an app account. The default ZXing scanner works offline immediately. The app contains no advertising and the developer does not operate an analytics backend; the Google services described below have their own technical data practices.
 
 Statistics filters, including seller names, VAT numbers and selected date ranges, are stored locally. Deleting invoice history does not clear these filters; clearing app data or uninstalling removes them. Statistics and seller name suggestions are computed locally from history, without sending seller names or search requests to a server.
 
@@ -42,11 +42,11 @@ You can export grouped statistics and totals as CSV to a destination you choose;
 
 You can share one invoice’s seller, VAT number, invoice date, total, tax, optional hash and local check result through an app you choose in Android’s share menu. That app handles the shared text under its own privacy practices. The VAT copy action puts only the displayed VAT number on the system clipboard.
 
-Delete scans from the History screen. Clear the app's data in Android settings or uninstall it to remove its local data. Exporting creates a JSON or CSV file at a destination you choose. That destination may be a cloud provider accessed through the system picker, whose own terms and privacy practices apply. Clearing history or uninstalling the app does not delete exported files; remove them separately at their destination.
+Delete scans from the History screen. Clear the app's data in Android settings or uninstall it to remove its local data. The app exports history as CSV, including invoice numbers, categories and notes, to a destination you choose. That destination may be a cloud provider accessed through the system picker, whose own privacy practices apply. Clearing history or uninstalling the app does not delete exported files; remove them separately at their destination.
 
 ## Storage and permissions
 
-The optional manual backup in Settings creates an unencrypted JSON file containing all saved QR payloads and original check times at a destination you choose. Importing a compatible backup merges invoices into local history and skips duplicates. Backups do not include preferences or supporter purchases. Export and import use temporary files in the app’s private cache, removed when each operation completes; an interrupted process may leave cache files until Android clears the cache or the app’s data is cleared. Backup files saved outside the app remain after clearing history or uninstalling and must be deleted separately. A selected cloud destination or source is governed by its provider’s own privacy practices.
+The optional manual backup in Settings creates an unencrypted JSON file containing all saved QR payloads, original check times, invoice numbers, categories and notes at a destination you choose. Importing a compatible backup merges invoices into local history and skips duplicates. Backups do not include preferences or supporter purchases. Export and import use temporary files in the app’s private cache, removed when each operation completes; an interrupted process may leave cache files until Android clears the cache or the app’s data is cleared. Backup files saved outside the app remain after clearing history or uninstalling and must be deleted separately. A selected cloud destination or source is governed by its provider’s own privacy practices.
 
 Data is kept in the app's private storage. The app does not add its own database encryption layer. It does not request general access to your photos or storage. Camera permission can be declined while continuing to select images or PDFs. The app disables automatic backup and explicitly excludes its private data from Android cloud backup and device-transfer rules. System and manufacturer behavior can vary. Manual backups and exports are controlled by your file selections.
 
