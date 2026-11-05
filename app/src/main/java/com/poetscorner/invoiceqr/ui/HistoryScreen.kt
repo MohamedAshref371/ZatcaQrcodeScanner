@@ -30,6 +30,8 @@ import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.HistoryPageState
 import com.poetscorner.invoiceqr.data.HistorySummary
 import com.poetscorner.invoiceqr.data.HistoryDateSource
+import com.poetscorner.invoiceqr.data.HistoryDeletionPeriod
+import com.poetscorner.invoiceqr.data.HistoryDeletionPlan
 import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.InvoiceCategories
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -253,6 +255,110 @@ internal fun InvoiceDeleteDialog(seller: String, onDismiss: () -> Unit, onConfir
         },
         confirmButton = { TextButton(onClick = { onConfirm(skip) }) {
             Text(stringResource(R.string.clear), color = MaterialTheme.colorScheme.error)
+        } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+}
+
+private fun deletionPeriodLabel(period: HistoryDeletionPeriod): Int = when (period) {
+    HistoryDeletionPeriod.ALL -> R.string.delete_all
+    HistoryDeletionPeriod.THREE_DAYS -> R.string.history_delete_three_days
+    HistoryDeletionPeriod.SEVEN_DAYS -> R.string.history_delete_seven_days
+    HistoryDeletionPeriod.ONE_MONTH -> R.string.history_delete_one_month
+    HistoryDeletionPeriod.THREE_MONTHS -> R.string.history_delete_three_months
+    HistoryDeletionPeriod.ONE_YEAR -> R.string.history_delete_one_year
+    HistoryDeletionPeriod.TWO_YEARS -> R.string.history_delete_two_years
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun HistoryDeleteSelectionDialog(onDismiss: () -> Unit,
+    onDelete: (HistoryDateSource, HistoryDeletionPeriod) -> Unit) {
+    var source by rememberSaveable { mutableStateOf(HistoryDateSource.SCAN) }
+    var period by rememberSaveable { mutableStateOf(HistoryDeletionPeriod.TWO_YEARS) }
+    var periodExpanded by remember { mutableStateOf(false) }
+    val largeText = LocalDensity.current.fontScale >= 1.5f
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.clear_title)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(stringResource(R.string.history_delete_scope), style = MaterialTheme.typography.bodySmall)
+                if (period != HistoryDeletionPeriod.ALL) {
+                    Text(stringResource(R.string.history_delete_date_source))
+                    if (largeText) Column(Modifier.fillMaxWidth()) {
+                        listOf(HistoryDateSource.SCAN, HistoryDateSource.INVOICE).forEach { option ->
+                            FilterChip(selected = source == option, onClick = { source = option },
+                                label = { Text(stringResource(if (option == HistoryDateSource.SCAN)
+                                    R.string.history_scan_date else R.string.history_invoice_date)) },
+                                modifier = Modifier.fillMaxWidth())
+                        }
+                    } else SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        listOf(HistoryDateSource.SCAN, HistoryDateSource.INVOICE).forEachIndexed { index, option ->
+                            SegmentedButton(selected = source == option, onClick = { source = option },
+                                shape = SegmentedButtonDefaults.itemShape(index, 2)) {
+                                Text(stringResource(if (option == HistoryDateSource.SCAN)
+                                    R.string.history_scan_date else R.string.history_invoice_date))
+                            }
+                        }
+                    }
+                }
+                ExposedDropdownMenuBox(expanded = periodExpanded,
+                    onExpandedChange = { periodExpanded = it }) {
+                    OutlinedTextField(value = stringResource(deletionPeriodLabel(period)), onValueChange = {},
+                        readOnly = true, label = { Text(stringResource(R.string.history_delete_period)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(periodExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
+                    ExposedDropdownMenu(expanded = periodExpanded,
+                        onDismissRequest = { periodExpanded = false }) {
+                        HistoryDeletionPeriod.entries.forEach { option ->
+                            DropdownMenuItem(text = { Text(stringResource(deletionPeriodLabel(option))) },
+                                onClick = { period = option; periodExpanded = false },
+                                modifier = Modifier.semantics { selected = period == option })
+                        }
+                    }
+                }
+                if (source == HistoryDateSource.INVOICE && period != HistoryDeletionPeriod.ALL)
+                    Text(stringResource(R.string.history_delete_invalid_date_hint),
+                        style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = { TextButton(onClick = { onDelete(source, period) }) {
+            Text(stringResource(R.string.clear), color = MaterialTheme.colorScheme.error)
+        } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+}
+
+@Composable
+internal fun HistoryDeleteConfirmationDialog(plan: HistoryDeletionPlan,
+    countMatching: suspend (HistoryDeletionPlan) -> Int, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    var count by remember(plan) { mutableStateOf<Int?>(null) }
+    var failed by remember(plan) { mutableStateOf(false) }
+    LaunchedEffect(plan) {
+        try { count = countMatching(plan) }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { failed = true }
+    }
+    val source = stringResource(if (plan.source == HistoryDateSource.SCAN)
+        R.string.history_scan_date else R.string.history_invoice_date)
+    val period = stringResource(deletionPeriodLabel(plan.period))
+    val matching = count
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.history_delete_confirm_title)) },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(if (plan.period == HistoryDeletionPeriod.ALL)
+                stringResource(R.string.history_delete_confirm_all)
+            else stringResource(R.string.history_delete_confirm_period, period, source))
+            when {
+                failed -> Text(stringResource(R.string.history_delete_error))
+                matching == null -> CircularProgressIndicator()
+                else -> Text(stringResource(R.string.history_delete_count, matching))
+            }
+            Text(stringResource(R.string.history_delete_irreversible),
+                style = MaterialTheme.typography.bodySmall)
+        } },
+        confirmButton = { TextButton(onClick = onConfirm, enabled = matching != null && matching > 0 && !failed) {
+            Text(stringResource(R.string.history_delete_confirm_action),
+                color = MaterialTheme.colorScheme.error)
         } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }

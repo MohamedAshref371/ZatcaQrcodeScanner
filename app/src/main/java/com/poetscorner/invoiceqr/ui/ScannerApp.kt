@@ -71,6 +71,7 @@ import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.scanner.MlKitModuleState
 import com.poetscorner.invoiceqr.data.HistoryDateSource
+import com.poetscorner.invoiceqr.data.HistoryDeletionPlan
 import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.HistoryPageState
 import com.poetscorner.invoiceqr.data.HistorySummary
@@ -151,6 +152,7 @@ private fun ScannerContent(vm: ScannerViewModel) {
     LaunchedEffect(screen) { if (screen == 3) vm.refreshMlKit() }
     var reviewOpportunity by remember { mutableIntStateOf(0) }
     var clearDialog by remember { mutableStateOf(false) }
+    var pendingDeletePlan by remember { mutableStateOf<HistoryDeletionPlan?>(null) }
     var invoiceToDelete by remember { mutableStateOf<HistorySummary?>(null) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         if (context.activity()?.isChangingConfigurations != true) {
@@ -169,7 +171,7 @@ private fun ScannerContent(vm: ScannerViewModel) {
     var historyFilterDialog by rememberSaveable { mutableStateOf(false) }
     val lifecycleState by lifecycle.currentStateAsState()
     val reviewAllowed = reviewOpportunity > 0 && screen == 2 && !busy && !transferLocked && message == null &&
-        snackbar.currentSnackbarData == null && !clearDialog && invoiceToDelete == null &&
+        snackbar.currentSnackbarData == null && !clearDialog && pendingDeletePlan == null && invoiceToDelete == null &&
         !historyFilterDialog && lifecycleState == Lifecycle.State.RESUMED
     val reviewStillAllowed by rememberUpdatedState(reviewAllowed)
     LaunchedEffect(reviewOpportunity, reviewAllowed) {
@@ -453,22 +455,16 @@ private fun ScannerContent(vm: ScannerViewModel) {
                     })
             }
         }
-        if (clearDialog) AlertDialog(onDismissRequest = { clearDialog = false }, title = { Text(stringResource(R.string.clear_title)) }, text = { Text(stringResource(R.string.clear_body)) },
-            confirmButton = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    TextButton(onClick = { vm.keepLatestDay(); clearDialog = false }) { Text(stringResource(R.string.keep_latest_day)) }
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        TextButton(onClick = { clearDialog = false }) { Text(stringResource(R.string.cancel)) }
-                        TextButton(onClick = { vm.clear(); clearDialog = false }) {
-                            Text(stringResource(R.string.delete_all), color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
+        if (clearDialog) HistoryDeleteSelectionDialog(onDismiss = { clearDialog = false },
+            onDelete = { source, period ->
+                pendingDeletePlan = HistoryDeletionPlan.create(source, period)
+                clearDialog = false
             })
+        pendingDeletePlan?.let { plan ->
+            HistoryDeleteConfirmationDialog(plan, vm::historyDeletionCount,
+                onDismiss = { pendingDeletePlan = null },
+                onConfirm = { vm.deleteHistory(plan); pendingDeletePlan = null })
+        }
     }
 }
 

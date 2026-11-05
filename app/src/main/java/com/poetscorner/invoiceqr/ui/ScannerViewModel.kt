@@ -578,9 +578,11 @@ class ScannerViewModel(
             cache.delete()
         }
     }
-    fun clear() { viewModelScope.launch { runCatching { db.scans().clear() }.onFailure { message.value = UiText(R.string.history_delete_error) } } }
-    fun keepLatestDay() { viewModelScope.launch {
-        runCatching { db.scans().keepLatestDay() }
+    suspend fun historyDeletionCount(plan: HistoryDeletionPlan): Int = withContext(Dispatchers.IO) {
+        db.scans().deletionCount(plan)
+    }
+    fun deleteHistory(plan: HistoryDeletionPlan) { viewModelScope.launch {
+        runCatching { db.scans().deleteSelection(plan) }
             .onFailure { message.value = UiText(R.string.history_delete_error) }
     } }
     // Memory only: navigating within the app keeps this choice; leaving the app resets it.

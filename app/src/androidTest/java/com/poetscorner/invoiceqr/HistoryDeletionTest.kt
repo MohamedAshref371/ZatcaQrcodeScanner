@@ -5,6 +5,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.ScanDatabase
 import com.poetscorner.invoiceqr.data.ScanEntity
+import com.poetscorner.invoiceqr.data.HistoryDateSource
+import com.poetscorner.invoiceqr.data.HistoryDeletionPeriod
+import com.poetscorner.invoiceqr.data.HistoryDeletionPlan
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -37,38 +40,39 @@ class HistoryDeletionTest {
         assertEquals(listOf(2L), db.scans().all().map { it.id })
     }
 
-    @Test fun keepingLatestDayPreservesAllScansFromThatLocalDayEvenOnADstDay() = runBlocking {
+    @Test fun scanDateDeletionUsesLocalDayBoundaryEvenOnADstDay() = runBlocking {
         val zone = ZoneId.of("America/New_York")
-        val today = LocalDate.of(2026, 3, 8)
-        val start = today.atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        listOf(start - 1, start, end - 1).forEachIndexed { index, time ->
+        val today = LocalDate.of(2026, 3, 11)
+        val start = today.minusDays(3).atStartOfDay(zone).toInstant().toEpochMilli()
+        listOf(start - 1, start, start + 1).forEachIndexed { index, time ->
             db.scans().insert(scan(index + 1L, time))
         }
-        db.scans().keepLatestDay(zone)
+        val plan = HistoryDeletionPlan.create(HistoryDateSource.SCAN,
+            HistoryDeletionPeriod.THREE_DAYS, today, zone)
+        assertEquals(1, db.scans().deletionCount(plan))
+        db.scans().deleteSelection(plan)
         assertEquals(listOf(3L, 2L), db.scans().all().map { it.id })
     }
 
-    @Test fun keepingLatestDayPreservesOldScansWhenThereAreNoScansToday() = runBlocking {
-        val zone = ZoneId.of("Asia/Riyadh")
-        val day = LocalDate.of(2020, 1, 15)
-        fun time(date: LocalDate, hour: Int) = date.atTime(hour, 0).atZone(zone).toInstant().toEpochMilli()
-        db.scans().insert(scan(1, time(day.minusDays(1), 23)))
-        db.scans().insert(scan(2, time(day, 0)))
-        db.scans().insert(scan(3, time(day, 23)))
-        db.scans().keepLatestDay(zone)
+    @Test fun invoiceDateDeletionKeepsMissingDatesAndIgnoresScanDate() = runBlocking {
+        val today = LocalDate.of(2026, 11, 5)
+        val cutoff = today.minusYears(2).toEpochDay()
+        db.scans().insert(scan(1, 0).copy(details = scan(1, 0).details.copy(invoiceDay = cutoff - 1)))
+        db.scans().insert(scan(2, 0).copy(details = scan(2, 0).details.copy(invoiceDay = cutoff)))
+        db.scans().insert(scan(3, 0))
+        val plan = HistoryDeletionPlan.create(HistoryDateSource.INVOICE,
+            HistoryDeletionPeriod.TWO_YEARS, today)
+        assertEquals(1, db.scans().deletionCount(plan))
+        db.scans().deleteSelection(plan)
         assertEquals(listOf(3L, 2L), db.scans().all().map { it.id })
-    }
-
-    @Test fun keepingLatestDayWithAnEmptyHistoryDoesNothing() = runBlocking {
-        db.scans().keepLatestDay()
-        assertEquals(emptyList<ScanEntity>(), db.scans().all())
     }
 
     @Test fun deletingAllAlsoDeletesTodaysScans() = runBlocking {
         db.scans().insert(scan(1, System.currentTimeMillis()))
         db.scans().insert(scan(2, 0))
-        db.scans().clear()
+        val plan = HistoryDeletionPlan.create(HistoryDateSource.INVOICE, HistoryDeletionPeriod.ALL)
+        assertEquals(2, db.scans().deletionCount(plan))
+        db.scans().deleteSelection(plan)
         assertEquals(emptyList<ScanEntity>(), db.scans().all())
     }
 }

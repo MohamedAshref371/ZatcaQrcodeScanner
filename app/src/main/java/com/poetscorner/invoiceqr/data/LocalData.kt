@@ -10,8 +10,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
-import java.time.Instant
-import java.time.ZoneId
 import java.math.BigDecimal
 
 enum class ScanEngine {
@@ -102,15 +100,21 @@ interface ScanDao {
     }
     @Query("DELETE FROM scans") suspend fun clear()
     @Query("DELETE FROM scans WHERE id = :id") suspend fun delete(id: Long)
-    @Query("DELETE FROM scans WHERE scannedAt < :startOfDay OR scannedAt >= :startOfNextDay")
-    suspend fun deleteOutsideDay(startOfDay: Long, startOfNextDay: Long)
-    @Query("SELECT MAX(scannedAt) FROM scans") suspend fun latestScanTime(): Long?
-    @Transaction
-    suspend fun keepLatestDay(zone: ZoneId = ZoneId.systemDefault()) {
-        val latest = latestScanTime() ?: return
-        val day = Instant.ofEpochMilli(latest).atZone(zone).toLocalDate()
-        deleteOutsideDay(day.atStartOfDay(zone).toInstant().toEpochMilli(),
-            day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+    @Query("SELECT COUNT(*) FROM scans WHERE scannedAt < :cutoff") suspend fun countBeforeScan(cutoff: Long): Int
+    @Query("SELECT COUNT(*) FROM scans WHERE invoiceDay < :cutoff") suspend fun countBeforeInvoice(cutoff: Long): Int
+    @Query("DELETE FROM scans WHERE scannedAt < :cutoff") suspend fun deleteBeforeScan(cutoff: Long)
+    @Query("DELETE FROM scans WHERE invoiceDay < :cutoff") suspend fun deleteBeforeInvoice(cutoff: Long)
+    suspend fun deletionCount(plan: HistoryDeletionPlan): Int = when {
+        plan.period == HistoryDeletionPeriod.ALL -> count()
+        plan.source == HistoryDateSource.SCAN -> countBeforeScan(requireNotNull(plan.cutoffScanTime))
+        else -> countBeforeInvoice(requireNotNull(plan.cutoffDay))
+    }
+    suspend fun deleteSelection(plan: HistoryDeletionPlan) {
+        when {
+            plan.period == HistoryDeletionPeriod.ALL -> clear()
+            plan.source == HistoryDateSource.SCAN -> deleteBeforeScan(requireNotNull(plan.cutoffScanTime))
+            else -> deleteBeforeInvoice(requireNotNull(plan.cutoffDay))
+        }
     }
 }
 data class SavedScan(val scan: ScanEntity, val alreadyExists: Boolean)
