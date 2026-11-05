@@ -345,25 +345,34 @@ internal fun HistoryDeleteConfirmationDialog(plan: HistoryDeletionPlan,
         R.string.history_scan_date else R.string.history_invoice_date)
     val period = stringResource(deletionPeriodLabel(plan.period))
     val matching = count
+    val empty = matching == 0
     AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.history_delete_confirm_title)) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(if (plan.period == HistoryDeletionPeriod.ALL)
-                stringResource(R.string.history_delete_confirm_all)
-            else stringResource(R.string.history_delete_confirm_period, period, source))
-            when {
-                failed -> Text(stringResource(R.string.history_delete_error))
-                matching == null -> CircularProgressIndicator()
-                else -> Text(stringResource(R.string.history_delete_count, matching))
+        title = { Text(stringResource(if (empty) R.string.history_delete_empty_title
+            else R.string.history_delete_confirm_title)) },
+        text = {
+            if (empty) Text(if (plan.period == HistoryDeletionPeriod.ALL)
+                stringResource(R.string.history_delete_empty_all)
+            else stringResource(R.string.history_delete_empty_period, period, source))
+            else Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(if (plan.period == HistoryDeletionPeriod.ALL)
+                    stringResource(R.string.history_delete_confirm_all)
+                else stringResource(R.string.history_delete_confirm_period, period, source))
+                when {
+                    failed -> Text(stringResource(R.string.history_delete_error))
+                    matching == null -> CircularProgressIndicator()
+                    else -> Text(stringResource(R.string.history_delete_count, matching))
+                }
+                Text(stringResource(R.string.history_delete_irreversible),
+                    style = MaterialTheme.typography.bodySmall)
             }
-            Text(stringResource(R.string.history_delete_irreversible),
-                style = MaterialTheme.typography.bodySmall)
+        },
+        confirmButton = { TextButton(onClick = if (empty) onDismiss else onConfirm,
+            enabled = empty || (matching != null && matching > 0 && !failed)) {
+            Text(stringResource(if (empty) R.string.history_delete_empty_action
+                else R.string.history_delete_confirm_action),
+                color = if (empty) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
         } },
-        confirmButton = { TextButton(onClick = onConfirm, enabled = matching != null && matching > 0 && !failed) {
-            Text(stringResource(R.string.history_delete_confirm_action),
-                color = MaterialTheme.colorScheme.error)
-        } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+        dismissButton = { if (!empty) TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
