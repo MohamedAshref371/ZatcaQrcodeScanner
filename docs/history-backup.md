@@ -14,7 +14,7 @@ The version 1 JSON format is independent of display language and database schema
 }
 ```
 
-Original QR text and check timestamps are retained. Local checks, extracted fields and normalized duplicate keys are rebuilt with the current parser. Imported row IDs are allocated locally; existing duplicate invoices retain their original content, IDs and check times. Preferences and supporter purchases are not transferred. CSV and the existing localized JSON exports remain summary formats, and are rejected by the backup importer.
+Original QR text and check timestamps are retained. Local checks, extracted fields and normalized duplicate keys are rebuilt with the current parser. Imported row IDs are allocated locally; existing duplicate invoices retain their original content, IDs and check times. Preferences are not transferred. CSV and the existing localized JSON exports remain summary formats, and are rejected by the backup importer.
 
 Imports first copy the selected document into private cache, with a 64 MiB file limit. JSON is read one record at a time, with a bounded reader to prevent oversized JSON strings from allocating arbitrarily large buffers. Unsupported versions, duplicate JSON keys, missing fields, wrong types, invalid timestamps, malformed QR payloads, trailing content and truncated JSON are rejected. Parseable invoices whose local field checks fail can still be restored, matching normal scan behavior. The entire restore is one Room transaction, so invalid input or cancellation rolls back newly inserted records.
 

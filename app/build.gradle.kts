@@ -78,12 +78,8 @@ android {
         applicationId = "com.poetscorner.invoiceqr"
         minSdk = 26
         targetSdk = 37
-        versionCode = 22
-        versionName = "1.2.2"
-        val billingPublicKey = providers.gradleProperty("playBillingPublicKey").orElse("").get().trim()
-        require(billingPublicKey.matches(Regex("[A-Za-z0-9+/=]*"))) { "playBillingPublicKey must be a Base64 public key" }
-        buildConfigField("String", "PLAY_BILLING_PUBLIC_KEY", "\"$billingPublicKey\"")
-
+        versionCode = 23
+        versionName = "1.2.3"
         val privacyPolicyUrl = rootProject.file("publishing/privacy-policy-url.txt").readText().trim()
         require(privacyPolicyUrl.matches(Regex("https://[A-Za-z0-9./_-]+"))) { "Invalid privacy policy URL" }
         buildConfigField("String", "PRIVACY_POLICY_URL", "\"$privacyPolicyUrl\"")
@@ -134,7 +130,6 @@ android {
 dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.google.play.review)
-    implementation(libs.google.play.billing)
     implementation(libs.zxing.android)
     implementation(libs.google.mlkit.barcode)
     implementation(libs.google.play.services.base)

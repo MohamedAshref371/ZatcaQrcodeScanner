@@ -8,7 +8,7 @@
 
 # سياسة خصوصية قارئ فاتورة
 
-آخر تحديث: 4 نوفمبر 2026
+آخر تحديث: 5 نوفمبر 2026
 
 المطوّر: محمد أشرف (Mohamed Ashraf)
 
@@ -38,12 +38,6 @@
 
 إذا أرسلت تقييمًا أو مراجعة، يتعامل Google Play مع النجوم ونص المراجعة وظهور بيانات الحساب وفق قواعده. قد تكون المراجعات عامة، أو ظاهرة للمطوّر بشكل خاص في الاختبارات المغلقة. يمكنك إدارة مراجعتك أو حذفها من Google Play أو حساب Google. لا يحدد التطبيق ما إذا كنت أرسلت مراجعة. راجع [ممارسات بيانات تقييمات Google Play](https://developer.android.com/guide/playcore/in-app-review#data-safety).
 
-## باقة الداعم الاختيارية
-
-التطبيق مجاني وبدون إعلانات، وجميع وظائف الفواتير ومظاهر التطبيق مجانية. يمكن دعم التطوير اختياريًا بشراء مرة واحدة عبر Google Play دون الحصول على مزايا إضافية. يحتاج الشراء والاستعادة إلى حساب Google Play واتصال بالإنترنت، وتخضع عملية الدفع لشروط Google وسياسة خصوصيتها. لا يستقبل التطبيق رقم البطاقة أو بيانات وسيلة الدفع. يستقبل بيانات حالة الشراء ومعرّف المنتج ورمز الشراء والتوقيع للتحقق من الملكية وتأكيد الشراء لدى Google Play، ويحفظ محليًا علامة ملكية الشراء. يُحفظ تفضيل المظهر محليًا للجميع باستقلال عن الشراء. لا تُرسل محتويات الفواتير ضمن عملية الشراء، ولا يُرسل الإيصال إلى خادم للمطوّر. استعادة الملكية تعتمد على حساب المتجر الذي اشترى المنتج. حذف بيانات التطبيق لا يلغي عملية الشراء في Google Play؛ إدارة المشتريات وطلبات الاسترداد تتم عبر Google Play.
-
-تضيف مكتبات Google المستخدمة أذونات الإنترنت وحالة الشبكة والشراء. تتصل Google Play Billing بخدمات Google المتعلقة بالفوترة، وقد يتحقق التطبيق من توفر المتجر وملكية المشتريات عند فتحه. تُراجع معالجة بيانات خدمة المتجر وفق [سياسة خصوصية Google](https://policies.google.com/privacy).
-
 ## الحذف والتصدير
 
 يمكن تصدير إحصاءات المجموعات والإجماليات بصيغة CSV إلى وجهة تختارها، وتسري عليها أحكام الملفات المصدرة أدناه.
@@ -54,13 +48,13 @@
 
 ## التخزين والأذونات
 
-تتيح النسخة الاحتياطية اليدوية الاختيارية في الإعدادات حفظ ملف JSON غير مشفر يحتوي على كل رموز QR المحفوظة وأوقات فحصها الأصلية وأرقام الفواتير والتصنيفات والملاحظات في وجهة تختارها. يدمج استيراد نسخة متوافقة الفواتير في السجل المحلي ويتخطى المكرر. لا تشمل النسخة التفضيلات أو مشتريات الدعم. يستخدم التصدير والاستيراد ملفات مؤقتة داخل ذاكرة التخزين المؤقت الخاصة بالتطبيق، وتُحذف عند اكتمال كل عملية؛ قد تبقى بعد إغلاق العملية المفاجئ إلى أن يمسح Android الذاكرة المؤقتة أو تُمسح بيانات التطبيق. تبقى النسخ المحفوظة خارج التطبيق بعد مسح السجل أو إزالة التطبيق وتُحذف بشكل مستقل. تخضع وجهة الحفظ أو مصدر الاستيراد السحابي لسياسة خصوصية مزوّده.
+تتيح النسخة الاحتياطية اليدوية الاختيارية في الإعدادات حفظ ملف JSON غير مشفر يحتوي على كل رموز QR المحفوظة وأوقات فحصها الأصلية وأرقام الفواتير والتصنيفات والملاحظات في وجهة تختارها. يدمج استيراد نسخة متوافقة الفواتير في السجل المحلي ويتخطى المكرر. لا تشمل النسخة التفضيلات. يستخدم التصدير والاستيراد ملفات مؤقتة داخل ذاكرة التخزين المؤقت الخاصة بالتطبيق، وتُحذف عند اكتمال كل عملية؛ قد تبقى بعد إغلاق العملية المفاجئ إلى أن يمسح Android الذاكرة المؤقتة أو تُمسح بيانات التطبيق. تبقى النسخ المحفوظة خارج التطبيق بعد مسح السجل أو إزالة التطبيق وتُحذف بشكل مستقل. تخضع وجهة الحفظ أو مصدر الاستيراد السحابي لسياسة خصوصية مزوّده.
 
 تُخزن البيانات في المساحة الخاصة بالتطبيق على الجهاز. لا توجد طبقة تشفير مستقلة لقاعدة البيانات داخل التطبيق. لا يطلب التطبيق وصولًا عامًا إلى مكتبة الصور أو التخزين، ويمكن رفض إذن الكاميرا واختيار الصور أو ملفات PDF. يعطّل التطبيق النسخ الاحتياطي التلقائي ويستبعد بياناته الخاصة صراحةً من قواعد النسخ السحابي ونقل بيانات الجهاز في Android. قد يختلف سلوك النظام والشركة المصنّعة. تتحكم اختياراتك للملفات في النسخ اليدوي والتصدير.
 
 ## مدة الاحتفاظ والحذف
 
-تبقى الفواتير على الجهاز إلى أن تحذفها أو تزيل بيانات التطبيق المحلية. مسح السجل يزيل الفواتير المحفوظة، لكنه لا يعيد ضبط التفضيلات أو علامة ملكية باقة الداعم أو سجلات توقيت التقييم المحدودة. لمسح كل البيانات الخاصة، بما فيها الملفات المؤقتة، امسح بيانات التطبيق من إعدادات Android أو أزله. حذف السجل لا يسحب الملخصات التي شاركتها ولا يحذف الملفات المصدّرة والنسخ اليدوية خارج التطبيق. تتحكم Google في مدة الاحتفاظ بالبيانات التي تعالجها خدماتها وفق سياساتها؛ الحذف المحلي لا يلغي المشتريات ولا يزيل مراجعات Play.
+تبقى الفواتير على الجهاز إلى أن تحذفها أو تزيل بيانات التطبيق المحلية. مسح السجل يزيل الفواتير المحفوظة، لكنه لا يعيد ضبط التفضيلات أو سجلات توقيت التقييم المحدودة. لمسح كل البيانات الخاصة، بما فيها الملفات المؤقتة، امسح بيانات التطبيق من إعدادات Android أو أزله. حذف السجل لا يسحب الملخصات التي شاركتها ولا يحذف الملفات المصدّرة والنسخ اليدوية خارج التطبيق. تتحكم Google في مدة الاحتفاظ بالبيانات التي تعالجها خدماتها وفق سياساتها؛ الحذف المحلي لا يزيل مراجعات Play.
 
 ## الاستقلال وحدود الخدمة
 
@@ -80,7 +74,7 @@
 
 # Invoice QR Reader Privacy Policy
 
-Last updated: 4 November 2026
+Last updated: 5 November 2026
 
 Developer: Mohamed Ashraf (محمد أشرف)
 
@@ -110,12 +104,6 @@ To choose when to offer an app review, the app stores the first tracked use time
 
 If you submit a rating or review, Google Play handles the rating, review text and associated account presentation under its own rules. Reviews may be public, or privately visible to the developer in a closed test. You can manage or delete your review through Google Play or your Google Account. The app does not determine whether you submitted a review. See [Google Play review data practices](https://developer.android.com/guide/playcore/in-app-review#data-safety).
 
-## Optional supporter purchase
-
-The app is free and ad-free, and all invoice features and appearances are free. An optional one-time Google Play purchase supports development without unlocking anything extra. Purchasing and restoring require a Google Play account and internet access. Payment is handled by Google Play under its own terms and privacy policy. The app does not receive card numbers or payment-method details. It receives purchase status, product ID, purchase token and signature to verify ownership and acknowledge the purchase with Google Play, and keeps a local purchase ownership flag. Appearance preferences are stored locally for everyone independently of purchases. Invoice content is not sent as part of billing, and receipts are not sent to a developer server. Restoration uses the Google Play account that bought the product. Clearing app data does not cancel a Google Play purchase; purchases and refund requests are managed through Google Play.
-
-Google libraries used by the app add internet, network-state and billing permissions. Google Play Billing communicates with Google billing services; the app may check store availability and existing ownership when opened. Refer to [Google Privacy Policy](https://policies.google.com/privacy) for the store service's data practices.
-
 ## Deletion and export
 
 You can export grouped statistics and totals as CSV to a destination you choose; the exported-file practices below also apply.
@@ -126,13 +114,13 @@ Delete scans from the History screen. Clear the app's data in Android settings o
 
 ## Storage and permissions
 
-The optional manual backup in Settings creates an unencrypted JSON file containing all saved QR payloads, original check times, invoice numbers, categories and notes at a destination you choose. Importing a compatible backup merges invoices into local history and skips duplicates. Backups do not include preferences or supporter purchases. Export and import use temporary files in the app’s private cache, removed when each operation completes; an interrupted process may leave cache files until Android clears the cache or the app’s data is cleared. Backup files saved outside the app remain after clearing history or uninstalling and must be deleted separately. A selected cloud destination or source is governed by its provider’s own privacy practices.
+The optional manual backup in Settings creates an unencrypted JSON file containing all saved QR payloads, original check times, invoice numbers, categories and notes at a destination you choose. Importing a compatible backup merges invoices into local history and skips duplicates. Backups do not include preferences. Export and import use temporary files in the app’s private cache, removed when each operation completes; an interrupted process may leave cache files until Android clears the cache or the app’s data is cleared. Backup files saved outside the app remain after clearing history or uninstalling and must be deleted separately. A selected cloud destination or source is governed by its provider’s own privacy practices.
 
 Data is kept in the app's private storage. The app does not add its own database encryption layer. It does not request general access to your photos or storage. Camera permission can be declined while continuing to select images or PDFs. The app disables automatic backup and explicitly excludes its private data from Android cloud backup and device-transfer rules. System and manufacturer behavior can vary. Manual backups and exports are controlled by your file selections.
 
 ## Retention and deletion
 
-Invoice records remain on the device until you delete them or remove the app's local data. Clearing history removes the saved invoice records but does not reset preferences, supporter ownership flags or the limited review-timing records. Clear app data in Android settings or uninstall the app to remove its private local data, including cached files. History deletion cannot withdraw summaries already shared or delete exported files and manual backups saved outside the app. Google controls retention of data processed by its services under its own policies; local deletion does not cancel purchases or remove Play reviews.
+Invoice records remain on the device until you delete them or remove the app's local data. Clearing history removes the saved invoice records but does not reset preferences, the limited review-timing records. Clear app data in Android settings or uninstall the app to remove its private local data, including cached files. History deletion cannot withdraw summaries already shared or delete exported files and manual backups saved outside the app. Google controls retention of data processed by its services under its own policies; local deletion does not remove Play reviews.
 
 ## Independence and service limits
 

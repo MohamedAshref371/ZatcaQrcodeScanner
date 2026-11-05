@@ -69,8 +69,9 @@ class StoreScreenshotCapture {
         }
         suspend fun captureBackup() {
             navigate(3)
-            repeat(3) { swipe(1400, 700) }
-            swipe(1000, 900)
+            repeat(4) { swipe(500, 1500) }
+            repeat(if (arabic) 2 else 3) { swipe(1400, 700) }
+            if (arabic) swipe(1200, 700) else swipe(1000, 850)
             capture("06-backup")
         }
         if (InstrumentationRegistry.getArguments().getString("storeCaptureOnly") == "backup") {

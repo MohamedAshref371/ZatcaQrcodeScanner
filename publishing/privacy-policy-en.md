@@ -1,6 +1,6 @@
 # Invoice QR Reader Privacy Policy
 
-Last updated: 4 November 2026
+Last updated: 5 November 2026
 
 Developer: Mohamed Ashraf (محمد أشرف)
 
@@ -30,12 +30,6 @@ To choose when to offer an app review, the app stores the first tracked use time
 
 If you submit a rating or review, Google Play handles the rating, review text and associated account presentation under its own rules. Reviews may be public, or privately visible to the developer in a closed test. You can manage or delete your review through Google Play or your Google Account. The app does not determine whether you submitted a review. See [Google Play review data practices](https://developer.android.com/guide/playcore/in-app-review#data-safety).
 
-## Optional supporter purchase
-
-The app is free and ad-free, and all invoice features and appearances are free. An optional one-time Google Play purchase supports development without unlocking anything extra. Purchasing and restoring require a Google Play account and internet access. Payment is handled by Google Play under its own terms and privacy policy. The app does not receive card numbers or payment-method details. It receives purchase status, product ID, purchase token and signature to verify ownership and acknowledge the purchase with Google Play, and keeps a local purchase ownership flag. Appearance preferences are stored locally for everyone independently of purchases. Invoice content is not sent as part of billing, and receipts are not sent to a developer server. Restoration uses the Google Play account that bought the product. Clearing app data does not cancel a Google Play purchase; purchases and refund requests are managed through Google Play.
-
-Google libraries used by the app add internet, network-state and billing permissions. Google Play Billing communicates with Google billing services; the app may check store availability and existing ownership when opened. Refer to [Google Privacy Policy](https://policies.google.com/privacy) for the store service's data practices.
-
 ## Deletion and export
 
 You can export grouped statistics and totals as CSV to a destination you choose; the exported-file practices below also apply.
@@ -46,13 +40,13 @@ Delete scans from the History screen. Clear the app's data in Android settings o
 
 ## Storage and permissions
 
-The optional manual backup in Settings creates an unencrypted JSON file containing all saved QR payloads, original check times, invoice numbers, categories and notes at a destination you choose. Importing a compatible backup merges invoices into local history and skips duplicates. Backups do not include preferences or supporter purchases. Export and import use temporary files in the app’s private cache, removed when each operation completes; an interrupted process may leave cache files until Android clears the cache or the app’s data is cleared. Backup files saved outside the app remain after clearing history or uninstalling and must be deleted separately. A selected cloud destination or source is governed by its provider’s own privacy practices.
+The optional manual backup in Settings creates an unencrypted JSON file containing all saved QR payloads, original check times, invoice numbers, categories and notes at a destination you choose. Importing a compatible backup merges invoices into local history and skips duplicates. Backups do not include preferences. Export and import use temporary files in the app’s private cache, removed when each operation completes; an interrupted process may leave cache files until Android clears the cache or the app’s data is cleared. Backup files saved outside the app remain after clearing history or uninstalling and must be deleted separately. A selected cloud destination or source is governed by its provider’s own privacy practices.
 
 Data is kept in the app's private storage. The app does not add its own database encryption layer. It does not request general access to your photos or storage. Camera permission can be declined while continuing to select images or PDFs. The app disables automatic backup and explicitly excludes its private data from Android cloud backup and device-transfer rules. System and manufacturer behavior can vary. Manual backups and exports are controlled by your file selections.
 
 ## Retention and deletion
 
-Invoice records remain on the device until you delete them or remove the app's local data. Clearing history removes the saved invoice records but does not reset preferences, supporter ownership flags or the limited review-timing records. Clear app data in Android settings or uninstall the app to remove its private local data, including cached files. History deletion cannot withdraw summaries already shared or delete exported files and manual backups saved outside the app. Google controls retention of data processed by its services under its own policies; local deletion does not cancel purchases or remove Play reviews.
+Invoice records remain on the device until you delete them or remove the app's local data. Clearing history removes the saved invoice records but does not reset preferences, the limited review-timing records. Clear app data in Android settings or uninstall the app to remove its private local data, including cached files. History deletion cannot withdraw summaries already shared or delete exported files and manual backups saved outside the app. Google controls retention of data processed by its services under its own policies; local deletion does not remove Play reviews.
 
 ## Independence and service limits
 

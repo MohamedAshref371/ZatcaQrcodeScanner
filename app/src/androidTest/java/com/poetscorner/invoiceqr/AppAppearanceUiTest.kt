@@ -21,14 +21,14 @@ class AppAppearanceUiTest {
     @Test fun colorsAreAvailableWithoutPurchaseAndSurviveRecreation() {
         val vm = compose.runOnIdle { ViewModelProvider(compose.activity)[ScannerViewModel::class.java] }
         compose.onNodeWithText(text(R.string.nav_settings)).performClick()
-        settingsItem(R.string.supporter_theme)
-        compose.onNodeWithText(text(R.string.supporter_theme)).performClick()
+        settingsItem(R.string.app_appearance)
+        compose.onNodeWithText(text(R.string.app_appearance)).performClick()
         compose.onNodeWithText(text(R.string.blue_theme)).performClick()
-        compose.waitUntil(5_000) { vm.settings.value.supporterTheme == "BLUE" }
+        compose.waitUntil(5_000) { vm.settings.value.appTheme == "BLUE" }
         compose.activityRule.scenario.recreate()
         settingsItem(R.string.blue_theme)
         compose.onNodeWithText(text(R.string.blue_theme)).assertIsDisplayed()
-        assertEquals("BLUE", vm.settings.value.supporterTheme)
+        assertEquals("BLUE", vm.settings.value.appTheme)
 
         settingsItem(R.string.about_app)
         compose.onNodeWithText(text(R.string.about_app)).performClick()

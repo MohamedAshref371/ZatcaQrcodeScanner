@@ -12,6 +12,11 @@ build/
 # ---- Local config (machine-specific, never commit) ----
 .android/
 local.properties
+.env
+.env.*
+!.env.example
+!.env.sample
+*.local.properties
 
 # ---- Android Studio / IntelliJ ----
 *.iml
@@ -71,13 +76,24 @@ keystore.properties
 secrets.properties
 *.pem
 *.p12
-# google-services.json   # فعّله لو ما تبغى ترفع ملف Firebase
+*.pfx
+*.p8
+*.key
+*.asc
+google-services.json
+GoogleService-Info.plist
+*service-account*.json
+firebase-adminsdk*.json
+client_secret*.json
+credentials*.json
 
 # ---- Logs & temp ----
 *.log
 *.tmp
 *.swp
 *~
+__pycache__/
+*.pyc
 
 # ---- Lint / tests / profiling ----
 lint/intermediates/

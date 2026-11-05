@@ -20,7 +20,6 @@ Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL)
 - Export matching invoices as JSON or CSV through the system file picker.
 - Use all invoice features for free, without ads or an account.
 
-The optional one-time Google Play purchase supports development without unlocking app features or appearances. Purchasing and restoring require a store connection; all appearances and invoice features are free. Product `supporter_pack`, its base price, and the purchase verification key are described in the [publishing guide (Arabic)](publishing/README.md).
 
 ## Offline scanning and engine downloads
 
@@ -53,7 +52,7 @@ Exports include the seller, VAT number, invoice date, total, tax, and hash where
 
 Export shows invoice progress followed by a saving stage. Export, backup and import are mutually exclusive; actions are also disabled while a file picker is open. Output is prepared in a private temporary file before copying it to the selected destination, keeping cloud/provider writes outside the database transaction. Cancellation is propagated rather than reported as a failure, and temporary files are removed when the operation finishes.
 
-**Backup and restore** is in Settings immediately above **Appearance & app**. Create backup saves the complete history, including original QR text and original check times, as a language-independent, versioned JSON document. Import backup merges those records into the current history without deleting existing invoices. Normalized duplicates are skipped, preserving the existing record and check time. Extracted fields and local checks are rebuilt using the current parser; settings, purchases and internal database row IDs are not imported. Ordinary JSON/CSV exports are summaries and cannot restore original QR payloads.
+**Backup and restore** is in Settings immediately above **Appearance & app**. Create backup saves the complete history, including original QR text and original check times, as a language-independent, versioned JSON document. Import backup merges those records into the current history without deleting existing invoices. Normalized duplicates are skipped, preserving the existing record and check time. Extracted fields and local checks are rebuilt using the current parser; settings and internal database row IDs are not imported. Ordinary JSON/CSV exports are summaries and cannot restore original QR payloads.
 
 Import is one transaction: malformed, unsupported, truncated or cancelled backups leave no partially imported rows. The result reports added and duplicate counts. Backup files support up to **64 MiB**; processing streams records and bounds individual JSON values. Selected input is staged in private cache before opening the transaction. Manual backups are unencrypted files at the destination you choose and remain there after uninstalling the app.
 
@@ -61,7 +60,7 @@ Import is one transaction: malformed, unsupported, truncated or cancelled backup
 
 Settings includes a **Privacy policy** link that opens the public bilingual policy in a browser after confirmation; internet access is required. The URL comes from `publishing/privacy-policy-url.txt`, also used for Play Console. Edit the canonical `publishing/privacy-policy-ar.md` and `privacy-policy-en.md` files and run `python tools/prepare_privacy.py` to generate the bilingual `privacy-policy.md`, then update the existing public Gist. Policy content is no longer bundled in the app, so online text updates do not require an app release. The developer is Mohamed Ashraf, the Google Play publisher is vStudio, and the support/privacy email is `afi4test2@gmail.com`. Publication/update instructions are in [publishing/privacy-publishing-ar.md](publishing/privacy-publishing-ar.md). Google SDK technical-data handling and local review-timing records are disclosed separately from invoice processing.
 
-English resources are in `app/src/main/res/values/strings.xml`; Arabic translations are in `values-ar/strings.xml`. `resources.properties` declares English as the default resource language. The interface, camera controls, messages, purchases, field labels, parser errors, and check results use Android string resources.
+English resources are in `app/src/main/res/values/strings.xml`; Arabic translations are in `values-ar/strings.xml`. `resources.properties` declares English as the default resource language. The interface, camera controls, messages, field labels, parser errors, and check results use Android string resources.
 
 The first option under **Settings → Appearance & app** is **App language**, with Device language (default), العربية and English. The choice is saved across restarts on Android 8 and later. On Android 13 and later, it also syncs with **Android Settings → Apps → Invoice QR Reader → Language**. Changing the language updates text and layout direction while keeping the current screen and saved invoices. `generateLocaleConfig` and `localeFilters` declare English and Arabic support.
 
@@ -89,7 +88,7 @@ Release builds:
 ./gradlew.bat :app:assembleRelease :app:bundleRelease
 ```
 
-The project does not configure a release signing key. `assembleRelease` produces `app/build/outputs/apk/release/app-release-unsigned.apk`; release artifacts need appropriate signing before distribution. Store listings, icons, privacy drafts, billing setup, and signing instructions are in [publishing/README.md (Arabic)](publishing/README.md). The current version is `1.0.0`, version code `1`.
+The project does not configure a release signing key. `assembleRelease` produces `app/build/outputs/apk/release/app-release-unsigned.apk`; release artifacts need appropriate signing before distribution. Store listings, icons, privacy drafts, and signing instructions are in [publishing/README.md (Arabic)](publishing/README.md). The current version is `1.0.0`, version code `1`.
 
 ## ZXing native wrapper
 
@@ -177,7 +176,7 @@ Run the local checks:
 python tools/check_localization.py
 ```
 
-Unit coverage includes parsing, dates, Base64/TLV edge cases, scanning gates, search/export rules, purchase signatures, review eligibility, and ML Kit availability/download states. Device tests cover navigation, history paging, continuous scanning, localization, and engine selection. A built device-test APK does not mean those tests have run on a device.
+Unit coverage includes parsing, dates, Base64/TLV edge cases, scanning gates, search/export rules, review eligibility, and ML Kit availability/download states. Device tests cover navigation, history paging, continuous scanning, localization, and engine selection. A built device-test APK does not mean those tests have run on a device.
 
 To run device tests in a separate `.validation` app without replacing the normal installation:
 
@@ -195,7 +194,7 @@ To run only localization tests, add:
 
 Measured history performance and the associated device-test scope are documented in [docs/history-performance.md (Arabic)](docs/history-performance.md). Compose Foundation is pinned to `1.9.2` to keep compile/runtime APIs aligned after a previous `FlowRow` ABI mismatch.
 
-Before distribution, check real camera behavior, printed and screen-displayed QR codes, orientation changes, large fonts, both languages/themes, permission denial, torch/zoom, gallery input, export files, and real ML Kit downloads. Google Play purchases/restores need configured products, a verification key, and test accounts. A live ML Kit download and store payment flow are not established by the simulated-state tests.
+Before distribution, check real camera behavior, printed and screen-displayed QR codes, orientation changes, large fonts, both languages/themes, permission denial, torch/zoom, gallery input, export files, and real ML Kit downloads. A live ML Kit download is not established by the simulated-state tests.
 
 ## References
 

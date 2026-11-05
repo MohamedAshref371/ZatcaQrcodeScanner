@@ -66,8 +66,6 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.text.TextUtils
 import androidx.core.view.WindowCompat
-import com.poetscorner.invoiceqr.billing.SupporterViewModel
-import com.poetscorner.invoiceqr.billing.SupporterState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.data.ScanEngine
@@ -88,20 +86,20 @@ import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun ScannerApp(vm: ScannerViewModel = viewModel(), supporter: SupporterViewModel = viewModel()) {
+fun ScannerApp(vm: ScannerViewModel = viewModel()) {
     // Returning to the system language can update the locale without updating layoutDirection.
     val locale = LocalConfiguration.current.locales[0]
     val direction = if (TextUtils.getLayoutDirectionFromLocale(locale) == android.view.View.LAYOUT_DIRECTION_RTL) {
         LayoutDirection.Rtl
     } else LayoutDirection.Ltr
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
-        ScannerContent(vm, supporter)
+        ScannerContent(vm)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) {
+private fun ScannerContent(vm: ScannerViewModel) {
     val historyScreenState = rememberSaveableStateHolder()
     var cameraZoom by rememberSaveable { mutableFloatStateOf(0f) }
     val settingsListState = rememberLazyListState()
@@ -116,7 +114,6 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     val transferLocked = transfer != null || pendingFileAction != null
     val continuousScan by vm.continuousScan.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
-    val support by supporter.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val resources = LocalResources.current
     val configuration = LocalConfiguration.current
@@ -137,7 +134,6 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
         vm.scanFeedback.collect { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        supporter.refresh()
         vm.recordReviewUse()
         vm.refreshMlKit()
         vm.refreshStatisticsPeriod()
@@ -174,7 +170,7 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     val lifecycleState by lifecycle.currentStateAsState()
     val reviewAllowed = reviewOpportunity > 0 && screen == 2 && !busy && !transferLocked && message == null &&
         snackbar.currentSnackbarData == null && !clearDialog && invoiceToDelete == null &&
-        !historyFilterDialog && !support.purchasing && lifecycleState == Lifecycle.State.RESUMED
+        !historyFilterDialog && lifecycleState == Lifecycle.State.RESUMED
     val reviewStillAllowed by rememberUpdatedState(reviewAllowed)
     LaunchedEffect(reviewOpportunity, reviewAllowed) {
         if (!reviewAllowed) return@LaunchedEffect
@@ -245,9 +241,9 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
     BackHandler(screen != 0 || (previousTab != null && previousTab != 0)) { vm.backFromResultOrHome() }
     val darkTheme = when(settings.theme) { "DARK" -> true; "LIGHT" -> false; else -> isSystemInDarkTheme() }
     ZatcaQrcodeScannerTheme(darkTheme = darkTheme,
-        goldenTheme = settings.supporterTheme == "GOLD",
-        purpleTheme = settings.supporterTheme == "PURPLE",
-        blueTheme = settings.supporterTheme == "BLUE") {
+        goldenTheme = settings.appTheme == "GOLD",
+        purpleTheme = settings.appTheme == "PURPLE",
+        blueTheme = settings.appTheme == "BLUE") {
         SideEffect {
             // Camera reveals the shared title before layout, and leaves it visible for other tabs.
             if (screen == 0) {
@@ -412,7 +408,7 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                             }
                         }
                     }
-                    else -> SettingsScreen(settings, vm::update, support,
+                    else -> SettingsScreen(settings, vm::update,
                         listState = settingsListState,
                         transfersEnabled = !transferLocked,
                         onBackup = {
@@ -425,7 +421,6 @@ private fun ScannerContent(vm: ScannerViewModel, supporter: SupporterViewModel) 
                         },
                         mlKitModule = mlKitModule, onDownloadMlKit = vm::downloadMlKit,
                         onEngine = vm::selectScanEngine,
-                        onPurchase = { context.activity()?.let(supporter::purchase) },
                         onRate = { if (!openAppStore(context)) vm.message.value = UiText(R.string.store_open_error) },
                         onShare = { if (!shareApp(context)) vm.message.value = UiText(R.string.share_error) })
                 }
@@ -763,11 +758,11 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
 
 @Composable
 private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
-    support: SupporterState, mlKitModule: MlKitModuleState,
+    mlKitModule: MlKitModuleState,
     listState: LazyListState,
     transfersEnabled: Boolean, onBackup: () -> Unit, onImportBackup: () -> Unit,
     onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
-    onPurchase: () -> Unit, onRate: () -> Unit, onShare: () -> Unit) {
+    onRate: () -> Unit, onShare: () -> Unit) {
     val portraitLockSupported = portraitLockApplies(true,
         LocalConfiguration.current.smallestScreenWidthDp, LocalContext.current.activity()?.isInMultiWindowMode == true)
     var showAbout by remember { mutableStateOf(false) }
@@ -775,7 +770,6 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     LazyColumn(Modifier.testTag("settings_list"), state = listState,
         contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { SectionHeading(stringResource(R.string.settings_heading), stringResource(R.string.settings_subtitle)) }
-        if (!support.owned) item { SupporterCard(support, onPurchase) }
         item { Text(stringResource(R.string.settings_camera), style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary) }
         item {
@@ -812,8 +806,8 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { Text(stringResource(R.string.settings_app), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { AppLanguagePicker() }
-        item { AppThemePicker(s.supporterTheme) { value ->
-            update { it.copy(supporterTheme = value, goldenTheme = value == "GOLD") }
+        item { AppThemePicker(s.appTheme) { value ->
+            update { it.copy(appTheme = value, goldenTheme = value == "GOLD") }
         } }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark)), singleLine = true) { v -> update { it.copy(theme = v) } } }
         if (portraitLockSupported) {
@@ -848,47 +842,12 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
 
 @Composable
 private fun AppThemePicker(selected: String, onChange: (String) -> Unit) {
-    Choice(stringResource(R.string.supporter_theme), selected, listOf(
+    Choice(stringResource(R.string.app_appearance), selected, listOf(
         "DEFAULT" to stringResource(R.string.default_theme),
         "GOLD" to stringResource(R.string.gold_theme),
         "PURPLE" to stringResource(R.string.purple_theme),
         "BLUE" to stringResource(R.string.blue_theme)
     ), singleLine = true, onChange = onChange)
-}
-
-@Composable
-private fun SupporterCard(state: SupporterState, onPurchase: () -> Unit) {
-    var showInfo by rememberSaveable { mutableStateOf(false) }
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.supporter_pack), Modifier.weight(1f, fill = false),
-                    style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                IconButton(onClick = { showInfo = true }, modifier = Modifier.size(48.dp)) {
-                    AppIcon(R.drawable.ic_info, description = stringResource(R.string.supporter_info_action),
-                        tint = MaterialTheme.colorScheme.primary)
-                }
-            }
-            Button(onClick = onPurchase,
-                enabled = state.available && !state.loading && !state.purchasing && !state.pending,
-                modifier = Modifier.widthIn(min = 112.dp).heightIn(min = 52.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
-                Text(when {
-                    state.pending -> stringResource(R.string.purchase_pending)
-                    state.purchasing -> stringResource(R.string.purchase_processing)
-                    state.loading -> stringResource(R.string.store_connecting)
-                    state.price != null -> stringResource(R.string.support_price, state.price.orEmpty())
-                    else -> stringResource(R.string.purchase_unavailable)
-                }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-    }
-    if (showInfo) AlertDialog(onDismissRequest = { showInfo = false },
-        title = { Text(stringResource(R.string.supporter_pack)) },
-        text = { Text(stringResource(R.string.supporter_info_description)) },
-        confirmButton = { TextButton(onClick = { showInfo = false }) { Text(stringResource(R.string.close)) } })
 }
 
 private fun Context.activity(): Activity? = when (this) {

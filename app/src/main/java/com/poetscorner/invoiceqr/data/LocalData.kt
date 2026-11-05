@@ -138,7 +138,7 @@ data class ScannerSettings(val harder: Boolean = true, val denoise: Boolean = fa
     val resolution: String = "HD", val speed: String = "NORMAL", val torch: Boolean = false,
     val theme: String = "SYSTEM", val goldenTheme: Boolean = false,
     val scanEngine: ScanEngine = ScanEngine.ZXING, val cropEnabled: Boolean = true,
-    val supporterTheme: String = if (goldenTheme) "GOLD" else "DEFAULT",
+    val appTheme: String = if (goldenTheme) "GOLD" else "DEFAULT",
     val lockPortrait: Boolean = false, val multiFrameRecovery: Boolean = false) {
     val intervalMs get() = when (speed) { "FAST" -> 100L; "FASTEST" -> 50L; else -> 300L }
 }
@@ -153,7 +153,8 @@ class SettingsRepository(private val context: Context) {
             p[booleanPreferencesKey("goldenTheme")] ?: false,
             ScanEngine.fromPreference(p[stringPreferencesKey("scan_engine")]),
             p[booleanPreferencesKey("crop_enabled")] ?: true,
-            p[stringPreferencesKey("supporter_theme")] ?: if (p[booleanPreferencesKey("goldenTheme")] == true) "GOLD" else "DEFAULT",
+            p[stringPreferencesKey("app_theme")] ?: p[stringPreferencesKey("supporter_theme")]
+                ?: if (p[booleanPreferencesKey("goldenTheme")] == true) "GOLD" else "DEFAULT",
             p[booleanPreferencesKey("lock_portrait")] ?: false,
             p[booleanPreferencesKey("multi_frame_recovery")] ?: false)
     }
@@ -164,7 +165,8 @@ class SettingsRepository(private val context: Context) {
             "lock_portrait" to s.lockPortrait, "multi_frame_recovery" to s.multiFrameRecovery)
             .forEach { (k,v) -> p[booleanPreferencesKey(k)] = v }
         mapOf("binarizer" to s.binarizer, "resolution" to s.resolution, "speed" to s.speed, "theme" to s.theme,
-            "scan_engine" to s.scanEngine.name, "supporter_theme" to s.supporterTheme)
+            "scan_engine" to s.scanEngine.name, "app_theme" to s.appTheme)
             .forEach { (k,v) -> p[stringPreferencesKey(k)] = v }
+        p.remove(stringPreferencesKey("supporter_theme"))
     } }
 }
