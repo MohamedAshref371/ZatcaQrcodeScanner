@@ -88,7 +88,7 @@ Release builds:
 ./gradlew.bat :app:assembleRelease :app:bundleRelease
 ```
 
-The project does not configure a release signing key. `assembleRelease` produces `app/build/outputs/apk/release/app-release-unsigned.apk`; release artifacts need appropriate signing before distribution. Store listings, icons, privacy drafts, and signing instructions are in [publishing/README.md (Arabic)](publishing/README.md). The current version is `1.0.0`, version code `1`.
+The project does not configure a release signing key. `assembleRelease` produces `app/build/outputs/apk/release/app-release-unsigned.apk`; release artifacts need appropriate signing before distribution. Store listings, icons, privacy drafts, and signing instructions are in [publishing/README.md (Arabic)](publishing/README.md). The current version is `1.2.3`, version code `23`.
 
 ## ZXing native wrapper
 

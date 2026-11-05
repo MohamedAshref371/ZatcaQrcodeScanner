@@ -88,7 +88,7 @@
 ./gradlew.bat :app:assembleRelease :app:bundleRelease
 ```
 
-لا يتضمن المشروع إعداد مفتاح توقيع Release. ينتج `assembleRelease` الملف `app/build/outputs/apk/release/app-release-unsigned.apk`، وتحتاج ملفات الإصدار إلى التوقيع المناسب قبل التوزيع. بيانات المتجر والأيقونات ومسودات الخصوصية والتوقيع في [publishing/README.md](publishing/README.md). الإصدار الحالي `1.0.0` ورقم البناء `1`.
+لا يتضمن المشروع إعداد مفتاح توقيع Release. ينتج `assembleRelease` الملف `app/build/outputs/apk/release/app-release-unsigned.apk`، وتحتاج ملفات الإصدار إلى التوقيع المناسب قبل التوزيع. بيانات المتجر والأيقونات ومسودات الخصوصية والتوقيع في [publishing/README.md](publishing/README.md). الإصدار الحالي `1.2.3` ورقم البناء `23`.
 
 ## غلاف ZXing الأصلي
 

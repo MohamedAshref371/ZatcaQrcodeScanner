@@ -19,26 +19,8 @@ local.properties
 *.local.properties
 
 # ---- Android Studio / IntelliJ ----
+.idea/
 *.iml
-.idea/caches/
-.idea/libraries/
-.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
-.idea/deploymentTargetSelector.xml
-.idea/deploymentTargetDropdown.xml
-.idea/gradle.xml
-.idea/misc.xml
-.idea/other.xml
-.idea/AndroidProjectSystem.xml
-.idea/runConfigurations.xml
-.idea/vcs.xml
-.idea/appInsightsSettings.xml
-.idea/studiobot.xml
-.idea/inspectionProfiles/
-.idea/dictionaries/
-.idea/shelf/
 captures/
 
 # ---- Native build (NDK / CMake) - needed for zxing-cpp ----
@@ -102,3 +84,6 @@ lint/outputs/
 lint/tmp/
 *.hprof
 *.trace
+
+# ---- Generated store upload bundle ----
+publishing/graphics/google-play-images.zip
