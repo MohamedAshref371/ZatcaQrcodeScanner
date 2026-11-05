@@ -80,7 +80,9 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
     val groupSortLabel = request.grouping.label()
     val sortLabels = mapOf(StatisticsSort.GROUP to groupSortLabel, StatisticsSort.COUNT to R.string.stats_count_label,
         StatisticsSort.TOTAL to R.string.stats_total_including_tax, StatisticsSort.TAX to R.string.tag_tax)
-    LazyColumn(Modifier.fillMaxSize().testTag("statistics_list"), state = listState, contentPadding = PaddingValues(16.dp),
+    ScrollToTopContainer(listState) {
+    LazyColumn(Modifier.fillMaxSize().testTag("statistics_list"), state = listState,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 72.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
@@ -178,6 +180,7 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                     onClick = if (state.loading || state.failed) null else ({ onOpenGroup(group.key) }))
             }
         }
+    }
     }
     if (filters) StatisticsFilterDialog(request, sellerSuggestions, onDismiss = { filters = false }, onApply = {
         onChange(it); filters = false

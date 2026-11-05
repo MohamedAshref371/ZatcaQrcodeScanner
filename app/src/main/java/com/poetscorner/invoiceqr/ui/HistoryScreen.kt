@@ -70,7 +70,9 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                 }
         }
     }
-    LazyColumn(Modifier.fillMaxSize().testTag("history_list"), state = listState, contentPadding = PaddingValues(16.dp),
+    ScrollToTopContainer(listState) {
+    LazyColumn(Modifier.fillMaxSize().testTag("history_list"), state = listState,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 72.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (groupTitle == null) item {
             if (largeText) Column(Modifier.fillMaxWidth()) {
@@ -195,6 +197,7 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
             Text(stringResource(R.string.history_load_error))
             TextButton(onClick = onRetry) { Text(stringResource(R.string.history_retry)) }
         }
+    }
     }
 }
 

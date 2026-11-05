@@ -176,6 +176,7 @@
     <string name="history_delete_count">Matching invoices: %1$d</string>
     <string name="history_delete_irreversible">This cannot be undone.</string>
     <string name="history_delete_confirm_action">Confirm deletion</string>
+    <string name="scroll_to_top">Back to top</string>
     <string name="delete_all">Delete all</string>
     <string name="cancel">Cancel</string>
     <string name="result_passed">Local QR checks passed</string>
