@@ -149,13 +149,18 @@ class ScannerViewModel(
         val job = startTransfer(TransferKind.EXPORT) {
             val result = snapshot?.result ?: db.statistics(request)
             val context = ContextCompat.getContextForLanguage(getApplication())
+            val net = request.categoryCalculationActive
             val headers = listOf(request.grouping.label(), R.string.stats_count_label,
-                if (result.summary.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax,
-                if (result.summary.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax,
+                if (net) {
+                    if (result.summary.missingTotal > 0) R.string.stats_available_net_total else R.string.stats_net_total
+                } else if (result.summary.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax,
+                if (net) {
+                    if (result.summary.missingTax > 0) R.string.stats_available_net_tax else R.string.stats_net_tax
+                } else if (result.summary.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax,
                 R.string.stats_missing_total_count, R.string.stats_missing_tax_count).map(context::getString)
             outputDocument(uri) { writer ->
                 StatisticsExporter.write(writer, result, headers, context.getString(R.string.stats_summary)) {
-                    statisticsGroupTitle(context, request.grouping, it)
+                    statisticsGroupTitle(context, request, it)
                 }
             }
             UiText(R.string.stats_export_success)

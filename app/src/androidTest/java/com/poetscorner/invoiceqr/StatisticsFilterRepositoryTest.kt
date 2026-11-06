@@ -57,4 +57,15 @@ class StatisticsFilterRepositoryTest {
         assertEquals("300000000000001", migrated.excludedVat)
         assertEquals("", migrated.vat)
     }
+
+    @Test fun savesCategoryCalculationsAndRestoresDefaultsWhenCleared() {
+        val repository = StatisticsFilterRepository(preferences)
+        val request = StatisticsRequest()
+            .withCategoryCalculation(0, StatisticsCategoryCalculation.IGNORE)
+            .withCategoryCalculation(2, StatisticsCategoryCalculation.SUBTRACT)
+        repository.save(request)
+        assertEquals(request.categoryCalculations, StatisticsFilterRepository(preferences).load().categoryCalculations)
+        repository.save(StatisticsRequest())
+        assertTrue(StatisticsFilterRepository(preferences).load().categoryCalculations.isEmpty())
+    }
 }

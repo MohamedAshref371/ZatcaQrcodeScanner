@@ -19,8 +19,15 @@ internal class StatisticsFilterRepository(private val preferences: SharedPrefere
         var from = preferences.getString("from_day", null)?.toLongOrNull()
         var to = preferences.getString("to_day", null)?.toLongOrNull()
         if (from != null && to != null && from > to) { from = null; to = null }
+        val categoryCalculations = InvoiceCategories.ids.mapNotNull { category ->
+            val calculation = StatisticsCategoryCalculation.entries.firstOrNull {
+                it.name == preferences.getString("category_calculation_$category", null)
+            }
+            if (calculation == null || calculation == StatisticsCategoryCalculation.ADD) null
+            else category to calculation
+        }.toMap()
         return StatisticsRequest(seller = preferences.getString("seller", "").orEmpty(),
-            fromDay = from, toDay = to, datePreset = preset)
+            fromDay = from, toDay = to, datePreset = preset, categoryCalculations = categoryCalculations)
             .withVatFilter(mode, if (mode == StatisticsVatMode.EXCLUDE) excludedVat else includedVat).resolvePeriod(today)
     }
 
@@ -36,6 +43,9 @@ internal class StatisticsFilterRepository(private val preferences: SharedPrefere
             putString("date_preset", request.datePreset?.name)
             putString("from_day", if (request.datePreset == null) request.fromDay?.toString() else null)
             putString("to_day", if (request.datePreset == null) request.toDay?.toString() else null)
+            InvoiceCategories.ids.forEach { category ->
+                putString("category_calculation_$category", request.categoryCalculations[category]?.name)
+            }
         }
     }
 }

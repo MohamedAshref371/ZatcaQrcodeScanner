@@ -2,8 +2,12 @@ package com.poetscorner.invoiceqr.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -24,6 +28,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
@@ -75,6 +80,7 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
     }
     val context = LocalContext.current
     var filters by rememberSaveable { mutableStateOf(false) }
+    var categoryCalculationDialog by rememberSaveable { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
     val dates = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
     val groupSortLabel = request.grouping.label()
@@ -113,11 +119,26 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             }
         }
         item {
-            CompactStatisticsChoice(stringResource(R.string.stats_group_by),
-                stringResource(groupSortLabel), request.grouping.name,
-                StatisticsGrouping.entries.filterNot { it == StatisticsGrouping.HALF_YEAR }
-                    .map { it.name to stringResource(it.label()) }, modifier = Modifier.fillMaxWidth()) {
-                onChange(request.copy(grouping = StatisticsGrouping.valueOf(it)))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                CompactStatisticsChoice(stringResource(R.string.stats_group_by),
+                    stringResource(groupSortLabel), request.grouping.name,
+                    StatisticsGrouping.entries.filterNot { it == StatisticsGrouping.HALF_YEAR }
+                        .map { it.name to stringResource(it.label()) }, modifier = Modifier.weight(1f)) {
+                    onChange(request.copy(grouping = StatisticsGrouping.valueOf(it)))
+                }
+                if (request.grouping != StatisticsGrouping.CATEGORY) {
+                    TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                        tooltip = { PlainTooltip { Text(stringResource(R.string.stats_category_calculation)) } },
+                        state = rememberTooltipState()) {
+                        IconButton(onClick = { categoryCalculationDialog = true }, modifier = Modifier.size(48.dp)) {
+                            BadgedBox(badge = { if (request.categoryCalculations.isNotEmpty()) Badge() }) {
+                                AppIcon(R.drawable.ic_calculator,
+                                    description = stringResource(R.string.stats_category_calculation))
+                            }
+                        }
+                    }
+                }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
@@ -168,15 +189,17 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
         if (state.hasResult) {
             item(key = "statistics_summary") {
                 StatisticsCard(stringResource(R.string.stats_summary_with_groups, state.result.groups.size),
-                    state.result.summary, summary = true)
+                    state.result.summary, summary = true,
+                    net = state.resultRequest.categoryCalculationActive)
             }
             if (!state.loading && !state.failed && state.result.groups.isEmpty()) item {
                 Text(stringResource(if (request.filtered) R.string.stats_empty else R.string.stats_no_invoices))
             }
             itemsIndexed(state.result.groups, key = { index, _ -> "statistics_card_$index" },
                 contentType = { _, _ -> "statistics_card" }) { index, group ->
-                val title = statisticsGroupTitle(context, state.resultRequest.grouping, group.key)
+                val title = statisticsGroupTitle(context, state.resultRequest, group.key)
                 StatisticsCard(title, group.totals, modifier = Modifier.testTag("statistics_card_$index"),
+                    net = state.resultRequest.categoryCalculationActive,
                     onClick = if (state.loading || state.failed) null else ({ onOpenGroup(group.key) }))
             }
         }
@@ -185,6 +208,64 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
     if (filters) StatisticsFilterDialog(request, sellerSuggestions, onDismiss = { filters = false }, onApply = {
         onChange(it); filters = false
     })
+    if (categoryCalculationDialog) StatisticsCategoryCalculationDialog(request,
+        onDismiss = { categoryCalculationDialog = false }, onApply = {
+            onChange(it); categoryCalculationDialog = false
+        })
+}
+
+@Composable
+private fun StatisticsCategoryCalculationDialog(request: StatisticsRequest,
+    onDismiss: () -> Unit, onApply: (StatisticsRequest) -> Unit) {
+    var selections by remember(request) { mutableStateOf(request.categoryCalculations) }
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.stats_category_calculation)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.stats_category_calculation_hint), style = MaterialTheme.typography.bodySmall)
+                InvoiceCategories.ids.forEach { category ->
+                    val categoryName = stringResource(InvoiceCategories.label(category))
+                    Row(Modifier.fillMaxWidth().selectableGroup(),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        StatisticsCategoryCalculation.entries.forEach { calculation ->
+                            val label = stringResource(when (calculation) {
+                                StatisticsCategoryCalculation.ADD -> R.string.stats_calculation_add
+                                StatisticsCategoryCalculation.SUBTRACT -> R.string.stats_calculation_subtract
+                                StatisticsCategoryCalculation.IGNORE -> R.string.stats_calculation_ignore
+                            })
+                            val symbol = when (calculation) {
+                                StatisticsCategoryCalculation.ADD -> "+"
+                                StatisticsCategoryCalculation.SUBTRACT -> "−"
+                                StatisticsCategoryCalculation.IGNORE -> "⊘"
+                            }
+                            val choiceDescription = stringResource(R.string.stats_calculation_choice, categoryName, label)
+                            val selected = (selections[category] ?: StatisticsCategoryCalculation.ADD) == calculation
+                            Box(Modifier.size(44.dp).selectable(selected = selected, role = Role.RadioButton,
+                                onClick = {
+                                    selections = request.copy(categoryCalculations = selections)
+                                        .withCategoryCalculation(category, calculation).categoryCalculations
+                                }).semantics { contentDescription = choiceDescription }, contentAlignment = Alignment.Center) {
+                                Box(Modifier.size(36.dp)
+                                    .background(if (selected) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.surfaceContainerLow, CircleShape)
+                                    .border(1.dp, if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                                    contentAlignment = Alignment.Center) {
+                                    Text(symbol, style = MaterialTheme.typography.titleMedium,
+                                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                            else MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.width(4.dp))
+                        Text(categoryName, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }, confirmButton = { TextButton(onClick = { onApply(request.copy(categoryCalculations = selections)) }) {
+            Text(stringResource(R.string.history_apply_date))
+        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }
 
 @Composable
@@ -233,7 +314,7 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
 
 @Composable
 private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Modifier = Modifier,
-    summary: Boolean = false, onClick: (() -> Unit)? = null) {
+    summary: Boolean = false, net: Boolean = false, onClick: (() -> Unit)? = null) {
     val locale = LocalConfiguration.current.locales[0]
     val money = remember(locale) { NumberFormat.getNumberInstance(locale).apply { minimumFractionDigits = 2; maximumFractionDigits = 2 } }
     val actionLabel = stringResource(R.string.stats_view_invoices)
@@ -250,18 +331,23 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Mo
                 Text(stringResource(R.string.stats_count, totals.count), style = MaterialTheme.typography.bodyMedium,
                     color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
             }
-            val total = if (totals.count > 0 && totals.missingTotal == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.total)
-            val tax = if (totals.count > 0 && totals.missingTax == totals.count) stringResource(R.string.history_total_unavailable) else money.format(totals.tax)
+            val contributingCount = totals.count - totals.ignoredCount
+            val total = if (contributingCount > 0 && totals.missingTotal == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.total)
+            val tax = if (contributingCount > 0 && totals.missingTax == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.tax)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(if (totals.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax),
+                    Text(stringResource(if (net) {
+                        if (totals.missingTotal > 0) R.string.stats_available_net_total else R.string.stats_net_total
+                    } else if (totals.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax),
                         style = MaterialTheme.typography.labelMedium)
                     Text(total, style = MaterialTheme.typography.headlineSmall,
                         color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(if (totals.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax),
+                    Text(stringResource(if (net) {
+                        if (totals.missingTax > 0) R.string.stats_available_net_tax else R.string.stats_net_tax
+                    } else if (totals.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax),
                         style = MaterialTheme.typography.labelMedium)
                     Text(tax, style = MaterialTheme.typography.titleMedium)
                 }

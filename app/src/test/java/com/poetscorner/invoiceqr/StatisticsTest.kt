@@ -54,6 +54,45 @@ class StatisticsTest {
         assertFalse(selected.matches("Seller", "3001", null, category = 1))
     }
 
+    @Test fun categoryCalculationsApplyToBothAmountsWithoutChangingInvoiceCounts() {
+        val rows = arrayOf(
+            row(seller = "A", total = "100.00", tax = "15.00").copy(category = 1),
+            row(seller = "A", total = "40.00", tax = "6.00").copy(category = 2),
+            row(seller = "A", total = "500.00", tax = "75.00").copy(category = 3),
+            row(seller = "B", total = "bad", tax = "bad").copy(category = 3))
+        val request = StatisticsRequest()
+            .withCategoryCalculation(2, StatisticsCategoryCalculation.SUBTRACT)
+            .withCategoryCalculation(3, StatisticsCategoryCalculation.IGNORE)
+        for (grouping in listOf(StatisticsGrouping.SELLER, StatisticsGrouping.MONTH)) {
+            val result = calculate(request.copy(grouping = grouping), *rows)
+            assertTrue(request.copy(grouping = grouping).categoryCalculationActive)
+            assertEquals(4, result.summary.count)
+            assertEquals(2, result.summary.ignoredCount)
+            assertEquals(BigDecimal("60.00"), result.summary.total)
+            assertEquals(BigDecimal("9.00"), result.summary.tax)
+            assertEquals(0, result.summary.missingTotal)
+            assertEquals(0, result.summary.missingTax)
+            assertEquals(result.summary.count, result.groups.sumOf { it.totals.count })
+            assertEquals(result.summary.total, result.groups.fold(BigDecimal.ZERO) { sum, group -> sum + group.totals.total })
+            assertEquals(result.summary.tax, result.groups.fold(BigDecimal.ZERO) { sum, group -> sum + group.totals.tax })
+        }
+        val byCategory = request.copy(grouping = StatisticsGrouping.CATEGORY)
+        assertFalse(byCategory.categoryCalculationActive)
+        val raw = calculate(byCategory, *rows)
+        assertEquals(4, raw.summary.count)
+        assertEquals(0, raw.summary.ignoredCount)
+        assertEquals(BigDecimal("640.00"), raw.summary.total)
+        assertEquals(BigDecimal("96.00"), raw.summary.tax)
+        assertEquals(1, raw.summary.missingTotal)
+        assertEquals(1, raw.summary.missingTax)
+        assertEquals(BigDecimal("40.00"), raw.groups.single { it.key.text == "2" }.totals.total)
+        assertEquals(BigDecimal("500.00"), raw.groups.single { it.key.text == "3" }.totals.total)
+        assertEquals(request.categoryCalculations, byCategory.categoryCalculations)
+        assertEquals(StatisticsCategoryCalculation.ADD, request.calculationFor(1))
+        assertTrue(request.withCategoryCalculation(2, StatisticsCategoryCalculation.ADD)
+            .categoryCalculations[2] == null)
+    }
+
     @Test fun calendarPeriodsRespectBoundariesAndNeverMixYears() {
         val dates = listOf("2025-12-31", "2026-01-01", "2026-03-31", "2026-04-01", "2026-06-30",
             "2026-07-01", "2026-12-31", "2027-01-01")

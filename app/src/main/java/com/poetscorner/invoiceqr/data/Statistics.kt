@@ -9,6 +9,7 @@ import java.util.Locale
 enum class StatisticsGrouping { SELLER, VAT, CATEGORY, DAY, MONTH, QUARTER, HALF_YEAR, YEAR }
 enum class StatisticsSort { GROUP, COUNT, TOTAL, TAX }
 enum class StatisticsVatMode { INCLUDE, EXCLUDE }
+enum class StatisticsCategoryCalculation { ADD, SUBTRACT, IGNORE }
 data class StatisticsRequest(
     val grouping: StatisticsGrouping = StatisticsGrouping.SELLER,
     val sort: StatisticsSort = StatisticsSort.GROUP,
@@ -16,10 +17,22 @@ data class StatisticsRequest(
     val seller: String = "", val vat: String = "",
     val fromDay: Long? = null, val toDay: Long? = null,
     val excludedVat: String = "", val datePreset: StatisticsPreset? = null,
-    val vatMode: StatisticsVatMode = if (excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else StatisticsVatMode.INCLUDE
+    val vatMode: StatisticsVatMode = if (excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else StatisticsVatMode.INCLUDE,
+    val categoryCalculations: Map<Int, StatisticsCategoryCalculation> = emptyMap()
 ) : Serializable {
     init { require(fromDay == null || toDay == null || fromDay <= toDay) }
     val filtered get() = seller.isNotBlank() || vat.isNotBlank() || excludedVat.isNotBlank() || fromDay != null || toDay != null || datePreset != null
+    val categoryCalculationActive get() = grouping != StatisticsGrouping.CATEGORY && categoryCalculations.isNotEmpty()
+}
+
+fun StatisticsRequest.calculationFor(category: Int): StatisticsCategoryCalculation =
+    categoryCalculations[category] ?: StatisticsCategoryCalculation.ADD
+
+fun StatisticsRequest.withCategoryCalculation(category: Int, calculation: StatisticsCategoryCalculation): StatisticsRequest {
+    require(category in InvoiceCategories.ids)
+    return copy(categoryCalculations = categoryCalculations.toMutableMap().apply {
+        if (calculation == StatisticsCategoryCalculation.ADD) remove(category) else put(category, calculation)
+    })
 }
 
 internal fun StatisticsRequest.withVatFilter(mode: StatisticsVatMode, number: String): StatisticsRequest {
@@ -90,7 +103,8 @@ internal fun StatisticsGrouping.periodEnd(start: LocalDate): LocalDate = when (t
     else -> error("Not a calendar grouping")
 }.minusDays(1)
 data class StatisticsTotals(val count: Int = 0, val total: BigDecimal = BigDecimal.ZERO.setScale(2),
-    val tax: BigDecimal = BigDecimal.ZERO.setScale(2), val missingTotal: Int = 0, val missingTax: Int = 0)
+    val tax: BigDecimal = BigDecimal.ZERO.setScale(2), val missingTotal: Int = 0, val missingTax: Int = 0,
+    val ignoredCount: Int = 0)
 data class StatisticsGroup(val key: StatisticsKey, val totals: StatisticsTotals)
 data class StatisticsResult(val summary: StatisticsTotals = StatisticsTotals(), val groups: List<StatisticsGroup> = emptyList())
 data class StatisticsState(val request: StatisticsRequest = StatisticsRequest(),
@@ -155,10 +169,19 @@ class StatisticsAccumulator(private val request: StatisticsRequest) {
     fun add(row: StatisticsInvoice) {
         val total = amount(row.total)
         val tax = amount(row.tax)
+        val calculation = if (request.grouping == StatisticsGrouping.CATEGORY) StatisticsCategoryCalculation.ADD
+            else request.calculationFor(row.category)
+        val multiplier = when (calculation) {
+            StatisticsCategoryCalculation.ADD -> BigDecimal.ONE
+            StatisticsCategoryCalculation.SUBTRACT -> BigDecimal.ONE.negate()
+            StatisticsCategoryCalculation.IGNORE -> BigDecimal.ZERO
+        }
         fun StatisticsTotals.add() = copy(count = count + 1,
-            total = this.total + (total ?: BigDecimal.ZERO), tax = this.tax + (tax ?: BigDecimal.ZERO),
-            missingTotal = missingTotal + if (total == null) 1 else 0,
-            missingTax = missingTax + if (tax == null) 1 else 0)
+            total = this.total + (total ?: BigDecimal.ZERO) * multiplier,
+            tax = this.tax + (tax ?: BigDecimal.ZERO) * multiplier,
+            missingTotal = missingTotal + if (calculation != StatisticsCategoryCalculation.IGNORE && total == null) 1 else 0,
+            missingTax = missingTax + if (calculation != StatisticsCategoryCalculation.IGNORE && tax == null) 1 else 0,
+            ignoredCount = ignoredCount + if (calculation == StatisticsCategoryCalculation.IGNORE) 1 else 0)
         val key = when (request.grouping) {
             StatisticsGrouping.SELLER -> StatisticsKey(text = row.seller.trim().takeIf(String::isNotEmpty))
             StatisticsGrouping.VAT -> StatisticsKey(text = row.vat.trim().takeIf(String::isNotEmpty))

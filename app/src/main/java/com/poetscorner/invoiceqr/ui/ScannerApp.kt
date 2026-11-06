@@ -379,7 +379,7 @@ private fun ScannerContent(vm: ScannerViewModel) {
                             BackHandler { vm.closeStatisticsGroup() }
                             HistoryScreen(invoices, "", {}, vm::loadMoreStatisticsInvoices, vm::retryStatisticsInvoices,
                                 onOpen = { vm.openStatisticsInvoice(it.id) }, onDelete = {},
-                                groupTitle = statisticsGroupTitle(context, selection!!.request.grouping, selection!!.key),
+                                groupTitle = statisticsGroupTitle(context, selection!!.request, selection!!.key),
                                 actions = {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                                         OutlinedButton(onClick = vm::closeStatisticsGroup,

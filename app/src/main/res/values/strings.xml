@@ -50,6 +50,16 @@
     <string name="nav_statistics">Statistics</string>
     <string name="stats_hint">Includes all saved invoices</string>
     <string name="stats_group_by">Group by</string>
+    <string name="stats_category_calculation">Category calculation</string>
+    <string name="stats_category_calculation_hint">Choose how each category affects totals and tax. Invoice counts stay unchanged.</string>
+    <string name="stats_calculation_add">Add</string>
+    <string name="stats_calculation_subtract">Subtract</string>
+    <string name="stats_calculation_ignore">Ignore</string>
+    <string name="stats_calculation_choice">%1$s: %2$s</string>
+    <string name="stats_net_total">Net invoice total</string>
+    <string name="stats_net_tax">Net tax</string>
+    <string name="stats_available_net_total">Available net total</string>
+    <string name="stats_available_net_tax">Available net tax</string>
     <string name="stats_total_including_tax">Invoice totals</string>
     <string name="stats_filters_active">Filters active</string>
     <string name="stats_filters_inactive">No active filters</string>

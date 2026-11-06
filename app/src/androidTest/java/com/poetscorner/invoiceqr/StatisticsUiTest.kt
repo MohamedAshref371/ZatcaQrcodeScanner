@@ -18,7 +18,8 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class StatisticsUiTest {
     @get:Rule val compose = createComposeRule()
-    private fun text(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+    private fun text(id: Int, vararg args: Any) =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(id, *args)
 
     @Test fun typingAndDeletingKeepSuggestionsStableUntilTheNextLookupCompletes() {
         val pendingLookup = kotlinx.coroutines.CompletableDeferred<List<String>>()
@@ -135,5 +136,28 @@ class StatisticsUiTest {
             assertEquals(StatisticsSort.COUNT, request.sort)
             assertTrue(request.descending)
         }
+    }
+
+    @Test fun categoryCalculationCanBeChangedAndItsButtonHidesForCategoryGrouping() {
+        var request by mutableStateOf(StatisticsRequest())
+        compose.setContent { MaterialTheme {
+            StatisticsScreen(StatisticsState(request, loading = false), { request = it }, {})
+        } }
+        compose.onNodeWithContentDescription(text(R.string.stats_category_calculation)).performClick()
+        val categoryName = text(R.string.invoice_category_personal_purchases)
+        val choice = text(R.string.stats_calculation_choice, text(R.string.invoice_category_personal_purchases),
+            text(R.string.stats_calculation_subtract))
+        val labelY = compose.onNodeWithText(categoryName).fetchSemanticsNode().boundsInRoot.center.y
+        val choiceY = compose.onNodeWithContentDescription(choice).fetchSemanticsNode().boundsInRoot.center.y
+        assertEquals(labelY, choiceY, 2f)
+        compose.onNodeWithContentDescription(choice).performClick()
+        compose.runOnIdle { assertTrue(request.categoryCalculations.isEmpty()) }
+        compose.onNodeWithText(text(R.string.history_apply_date)).performClick()
+        compose.runOnIdle { assertEquals(StatisticsCategoryCalculation.SUBTRACT, request.calculationFor(2)) }
+        compose.onNodeWithContentDescription(text(R.string.stats_group_by)).performClick()
+        compose.onNodeWithText(text(R.string.invoice_category)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.stats_category_calculation)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.stats_total_including_tax)).assertExists()
+        compose.onNodeWithText(text(R.string.stats_net_total)).assertDoesNotExist()
     }
 }

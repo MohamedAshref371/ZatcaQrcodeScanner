@@ -7,15 +7,18 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-internal fun statisticsGroupTitle(context: Context, grouping: StatisticsGrouping, key: StatisticsKey): String {
+internal fun statisticsGroupTitle(context: Context, request: StatisticsRequest, key: StatisticsKey): String {
+    val grouping = request.grouping
     if (key.unknown) return context.getString(when (grouping) {
         StatisticsGrouping.SELLER -> R.string.stats_unknown_seller
         StatisticsGrouping.VAT -> R.string.stats_unknown_vat
         StatisticsGrouping.CATEGORY -> R.string.invoice_category_none
         else -> R.string.stats_unknown_date
     })
-    if (grouping == StatisticsGrouping.CATEGORY) return context.getString(
-        InvoiceCategories.label(key.text?.toIntOrNull() ?: InvoiceCategories.NONE))
+    if (grouping == StatisticsGrouping.CATEGORY) {
+        val category = key.text?.toIntOrNull() ?: InvoiceCategories.NONE
+        return context.getString(InvoiceCategories.label(category))
+    }
     key.text?.let { return it }
     val day = LocalDate.ofEpochDay(requireNotNull(key.periodStart))
     val locale = context.resources.configuration.locales[0]

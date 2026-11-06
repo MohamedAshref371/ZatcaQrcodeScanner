@@ -22,8 +22,8 @@ object StatisticsExporter {
             writer.write(columns.joinToString(",", postfix = "\r\n") { quote(values[it]) })
         }
         fun row(label: String, totals: StatisticsTotals) = line(listOf(label, totals.count.toString(),
-            if (totals.count > 0 && totals.count == totals.missingTotal) "" else totals.total.toPlainString(),
-            if (totals.count > 0 && totals.count == totals.missingTax) "" else totals.tax.toPlainString(),
+            if (totals.count > totals.ignoredCount && totals.count - totals.ignoredCount == totals.missingTotal) "" else totals.total.toPlainString(),
+            if (totals.count > totals.ignoredCount && totals.count - totals.ignoredCount == totals.missingTax) "" else totals.tax.toPlainString(),
             totals.missingTotal.toString(), totals.missingTax.toString()))
         writer.write("\uFEFF")
         line(headers)
