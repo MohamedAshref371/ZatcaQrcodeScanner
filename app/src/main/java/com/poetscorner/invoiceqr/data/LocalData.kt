@@ -119,7 +119,7 @@ interface ScanDao {
 }
 data class SavedScan(val scan: ScanEntity, val alreadyExists: Boolean)
 
-@Database(entities = [ScanEntity::class], version = 2, exportSchema = true)
+@Database(entities = [ScanEntity::class], version = 3, exportSchema = true)
 abstract class ScanDatabase : RoomDatabase() {
     abstract fun scans(): ScanDao
 
@@ -131,9 +131,32 @@ abstract class ScanDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE scans ADD COLUMN note TEXT NOT NULL DEFAULT ''")
             }
         }
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                var lastId = 0L
+                while (true) {
+                    val rows = db.query("SELECT id, raw FROM scans WHERE id > ? ORDER BY id LIMIT 500", arrayOf(lastId))
+                        .use { cursor ->
+                            buildList {
+                                while (cursor.moveToNext()) add(cursor.getLong(0) to cursor.getString(1))
+                            }
+                        }
+                    if (rows.isEmpty()) break
+                    for ((id, raw) in rows) {
+                        val invoice = ZatcaParser.parse(raw)
+                        val day = runCatching {
+                            ZatcaParser.parseTimestamp(invoice.value(3)).toLocalDate().toEpochDay()
+                        }.getOrNull()
+                        db.execSQL("UPDATE scans SET passed = ?, invoiceDay = ? WHERE id = ?",
+                            arrayOf(if (invoice.passed) 1 else 0, day, id))
+                    }
+                    lastId = rows.last().first
+                }
+            }
+        }
         fun open(context: Context, name: String = "invoices.db"): ScanDatabase =
             Room.databaseBuilder(context.applicationContext, ScanDatabase::class.java, name)
-                .addMigrations(MIGRATION_1_2).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 }
 

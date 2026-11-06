@@ -292,11 +292,11 @@
     <string name="tag_vat">VAT registration number</string>
     <string name="tag_date">Date</string>
     <string name="invoice_time">Time</string>
-    <string name="invoice_time_gmt">Time (GMT)</string>
-    <string name="invoice_time_makkah">Time (Makkah time)</string>
+    <string name="invoice_time_utc">Time (UTC)</string>
+    <string name="invoice_time_local">Time (local time)</string>
     <string name="invoice_date_time">Date and time</string>
-    <string name="invoice_date_gmt">Date and time (GMT)</string>
-    <string name="invoice_date_makkah">Date and time (Makkah time)</string>
+    <string name="invoice_date_utc">Date and time (UTC)</string>
+    <string name="invoice_date_local">Date and time (local time)</string>
     <string name="tag_total">Invoice total</string>
     <string name="tag_tax">VAT amount</string>
     <string name="tag_hash">Invoice hash</string>
@@ -307,7 +307,7 @@
     <string name="check_present">%1$s is present</string>
     <string name="check_stamp">%1$s is present (required for simplified invoices)</string>
     <string name="check_vat">VAT number: 15 digits starting and ending with 3</string>
-    <string name="check_date">ISO 8601 timestamp</string>
+    <string name="check_date">ISO 8601 timestamp per ZATCA formats</string>
     <string name="check_total">Non-negative total with up to two decimal places</string>
     <string name="check_tax">Non-negative VAT with up to two decimal places</string>
     <string name="check_tax_total">VAT does not exceed the total</string>

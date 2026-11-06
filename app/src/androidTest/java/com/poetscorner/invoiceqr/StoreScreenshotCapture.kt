@@ -90,7 +90,7 @@ class StoreScreenshotCapture {
             else listOf("Sample Store", "Sample Cafe", "Sample Bookshop")
         for (index in (0..5).reversed()) {
             val values = listOf(1 to sellers[index % sellers.size], 2 to "300000000000003",
-                3 to "2026-10-${20 - index}T10:30:00+03:00",
+                3 to "2026-10-${20 - index}T10:30:00",
                 4 to listOf("230.00", "57.50", "115.00")[index % sellers.size],
                 5 to listOf("30.00", "7.50", "15.00")[index % sellers.size])
             val bytes = values.fold(byteArrayOf()) { all, (tag, text) ->

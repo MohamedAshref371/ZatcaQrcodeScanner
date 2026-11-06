@@ -26,9 +26,9 @@ class FilteredHistoryExportTest {
             Instant.parse(scanDate).toEpochMilli(), true, 1))
     }
     private val entries = listOf(
-        entry(1, "Alpha", "2026-10-20T10:00:00+03:00", "2026-10-21T10:00:00Z"),
-        entry(2, "Beta", "2026-10-20T10:00:00+03:00", "2026-10-20T10:00:00Z"),
-        entry(3, "Alpha", "2026-10-19T10:00:00+03:00", "2026-10-20T10:00:00Z"))
+        entry(1, "Alpha", "2026-10-20T10:00:00", "2026-10-21T10:00:00Z"),
+        entry(2, "Beta", "2026-10-20T10:00:00", "2026-10-20T10:00:00Z"),
+        entry(3, "Alpha", "2026-10-19T10:00:00", "2026-10-20T10:00:00Z"))
 
     @Test fun bothExportFormatsRespectTheSearchAndSelectedDateSource() {
         listOf(HistoryDateSource.INVOICE to entries[0], HistoryDateSource.SCAN to entries[2]).forEach { (source, expected) ->

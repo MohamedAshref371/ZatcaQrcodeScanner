@@ -69,4 +69,18 @@ class InvoiceSharingTest {
             assertFalse(failedSummary.contains(ctx.getString(R.string.share_phase_two_passed)))
         }
     }
+
+    @Test fun nonConformingTimestampIsSharedExactlyAsStored() {
+        val rawDate = "2026-10-22T15:45:08+03:00"
+        val invoice = ZatcaParser.parse(historyFixture(101004, seller = "Sharing seller",
+            hash = false, date = rawDate).raw)
+        assertFalse(invoice.passed)
+        for (language in listOf("en", "ar")) {
+            val ctx = context(language)
+            assertEquals(listOf(ctx.getString(R.string.tag_date) to rawDate),
+                invoiceTimestampFields(ctx, invoice.value(3)))
+            assertEquals(ctx.getString(R.string.invoice_date_time), invoiceTimestampTitle(ctx, rawDate))
+            assertTrue(invoiceSummary(ctx, invoice).contains("$rawDate"))
+        }
+    }
 }

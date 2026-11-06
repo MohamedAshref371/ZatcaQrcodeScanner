@@ -64,21 +64,15 @@ object ZatcaParser {
             (e as? InvalidPayload)?.text ?: UiText(R.string.error_payload))
     }
 
-    private val timestampPattern = Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(Z|[+-]\\d{2}:?\\d{2}|\\+03)?")
+    private val timestampPattern = Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z?")
 
     /** Preserve Tag 3 text for display; interpret zone-less timestamps at Saudi UTC+03:00. */
     fun parseTimestamp(value: String): OffsetDateTime {
-        val match = requireNotNull(timestampPattern.matchEntire(value)) { "Invalid ISO 8601 timestamp" }
-        return if (match.groupValues[1].isEmpty()) {
+        require(timestampPattern.matches(value)) { "Invalid invoice timestamp format" }
+        return if (!value.endsWith('Z')) {
             LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atOffset(ZoneOffset.ofHours(3))
         } else {
-            val offset = match.groupValues[1]
-            val normalized = when (offset.length) {
-                3 -> value + ":00"
-                5 -> value.dropLast(5) + offset.take(3) + ":" + offset.takeLast(2)
-                else -> value
-            }
-            OffsetDateTime.parse(normalized, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+            OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
         }
     }
 

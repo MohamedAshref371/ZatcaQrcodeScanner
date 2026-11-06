@@ -103,36 +103,36 @@ class ZatcaParserTest {
     @Test fun saudiLocalTimestampAndUtcRepresentTheSameInstant() {
         val local = ZatcaParser.parseTimestamp("2024-11-29T14:25:00")
         val utc = ZatcaParser.parseTimestamp("2024-11-29T11:25:00Z")
-        val explicit = ZatcaParser.parseTimestamp("2024-11-29T14:25:00+03:00")
         assertEquals(ZoneOffset.ofHours(3), local.offset)
         assertEquals(ZoneOffset.UTC, utc.offset)
         assertEquals(utc.toInstant(), local.toInstant())
-        assertEquals(explicit.toInstant(), local.toInstant())
         val text = "2024-11-29T14:25:00"
-        val invoice = parse(tlv(1, "متجر") + tlv(2, "310123456789013") + tlv(3, text) + tlv(4, "115") + tlv(5, "15"))
+        val invoice = parse(tlv(1, "Seller") + tlv(2, "310123456789013") +
+            tlv(3, text) + tlv(4, "115") + tlv(5, "15"))
         assertTrue(invoice.passed)
         assertEquals(text, invoice.value(3))
     }
-    @Test fun compactOffsetsMatchColonOffsetsWithoutChangingRawInvoiceDate() {
-        for ((compact, colon) in listOf("+0000" to "+00:00", "+03" to "+03:00", "+0300" to "+03:00", "+0530" to "+05:30", "-0400" to "-04:00")) {
-            val value = "2026-10-22T15:45:08.123$compact"
-            assertEquals(ZatcaParser.parseTimestamp("2026-10-22T15:45:08.123$colon"), ZatcaParser.parseTimestamp(value))
-            val dateOnly = parse(tlv(3, value))
-            assertEquals(value, dateOnly.value(3))
+    @Test fun onlyExactLocalAndUtcFormatsPassTheDateCheck() {
+        val base = tlv(1, "Seller") + tlv(2, "310123456789013")
+        val amounts = tlv(4, "115") + tlv(5, "15")
+        for (value in listOf("2024-02-29T14:25:00", "2024-02-29T11:25:00Z")) {
+            assertTrue(value, parse(base + tlv(3, value) + amounts).passed)
         }
-        for (offset in listOf("+0360", "+1900", "+030", "+03000")) {
-            assertTrue(runCatching { ZatcaParser.parseTimestamp("2026-10-22T15:45:08$offset") }.isFailure)
+        for (value in listOf("2024-11-29T14:25:00.123", "2024-11-29T11:25:00.123Z",
+            "2024-11-29T14:25:00+03:00", "2024-11-29T11:25:00+00:00",
+            "2024-11-29T14:25:00+0300", "2024-11-29T14:25:00+03",
+            "2024-11-29T14:25:00z", "2024-11-29T14:25:00 ")) {
+            val invoice = parse(base + tlv(3, value) + amounts)
+            assertEquals(value, invoice.value(3))
+            assertFalse(value, invoice.checks.first { it.label.id == R.string.check_date }.passed)
+            assertFalse(value, invoice.passed)
+            assertTrue(value, runCatching { ZatcaParser.parseTimestamp(value) }.isFailure)
         }
     }
-    @Test fun timestampsAcceptFractionsAndExplicitOffsets() {
-        listOf("2024-11-29T14:25:00.123", "2024-11-29T11:25:00.123Z",
-            "2024-11-29T14:25:00.123+03:00", "2024-11-29T06:25:00-05:00",
-            "2024-02-29T14:25:00").forEach { assertTrue(it, runCatching { ZatcaParser.parseTimestamp(it) }.isSuccess) }
-    }
-    @Test fun zoneLessTimestampsStillRejectInvalidDatesAndTimes() {
+    @Test fun invalidCalendarDatesAndTimesFail() {
         listOf("2024-11-31T14:25:00", "2023-02-29T14:25:00", "2024-11-29T24:25:00",
-            "2024-11-29T14:60:00", "2024-11-29T14:25:60", "2024-11-29", "2024-11-29T14:25",
-            "2024-11-29 14:25:00", "2024-11-29T14:25:00+25:00", "2024-11-29T14:25:00junk")
+            "2024-11-29T14:60:00", "2024-11-29T14:25:60", "2024-11-29",
+            "2024-11-29T14:25", "2024-11-29 14:25:00")
             .forEach { assertTrue(it, runCatching { ZatcaParser.parseTimestamp(it) }.isFailure) }
     }
     @Test fun berLengths81And82() {

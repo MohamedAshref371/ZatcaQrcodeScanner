@@ -51,7 +51,7 @@ class StatisticsStorageTest {
     @Test fun filtersAreAndedLiteralAndInclusiveAndUnknownDatesCannotMatchADateRange() = runBlocking {
         db.scans().insertBatch(listOf(
             historyFixture(1, seller = "North %_", date = "2026-10-01T23:59:59Z"),
-            historyFixture(2, seller = "North %_", date = "2026-10-02T00:00:00+03:00"),
+            historyFixture(2, seller = "North %_", date = "2026-10-02T00:00:00"),
             historyFixture(3, seller = "South", date = "2026-10-02T12:00:00Z"),
             historyFixture(4, seller = "North %_", date = "invalid")))
         assertEquals(2, calculate(StatisticsRequest(fromDay = historyBaseDay, toDay = historyBaseDay + 1, seller = "NORTH")).summary.count)
@@ -87,7 +87,7 @@ class StatisticsStorageTest {
     @Test fun openingEveryGroupReturnsExactlyItsInvoicesIncludingUnknownAndUnicodeTrimmedGroups() = runBlocking {
         db.scans().insertBatch(listOf(
             historyFixture(1, seller = "Market", date = "2026-04-01T23:59:59Z").copy(category = 1),
-            historyFixture(2, seller = "Market Branch", date = "2026-05-01T00:00:00+03:00").copy(category = 2),
+            historyFixture(2, seller = "Market Branch", date = "2026-05-01T00:00:00").copy(category = 2),
             historyFixture(3, seller = "\u00a0Market\t", date = "2026-06-30T12:00:00Z").copy(category = 1),
             historyFixture(4, seller = " ", date = "invalid"),
             historyFixture(5, seller = "Market", date = "2027-04-01T00:00:00Z").copy(category = 99)))

@@ -78,8 +78,8 @@ android {
         applicationId = "com.poetscorner.invoiceqr"
         minSdk = 26
         targetSdk = 37
-        versionCode = 25
-        versionName = "1.2.5"
+        versionCode = 26
+        versionName = "1.2.6"
         val privacyPolicyUrl = rootProject.file("publishing/privacy-policy-url.txt").readText().trim()
         require(privacyPolicyUrl.matches(Regex("https://[A-Za-z0-9./_-]+"))) { "Invalid privacy policy URL" }
         buildConfigField("String", "PRIVACY_POLICY_URL", "\"$privacyPolicyUrl\"")

@@ -32,7 +32,7 @@ class HistoryStorageTest {
     @Test fun databaseFiltersAndKeysetPagesMatchTheExistingSearchSemantics() = runBlocking {
         val fixtures = (1..12).map { i -> historyFixture(i, seller = when (i) {
             1 -> "North Market"; 2 -> "literal %_"; 3 -> "متجر ١٢٣"; else -> "متجر $i"
-        }, date = if (i == 12) "invalid" else "2026-10-${(i + 1).toString().padStart(2, '0')}T00:30:00+03:00",
+        }, date = if (i == 12) "invalid" else "2026-10-${(i + 1).toString().padStart(2, '0')}T00:30:00",
             time = Instant.parse("2026-11-01T04:00:00Z").toEpochMilli() + i * 3600000L)
                 .let { if (i == 4) it.copy(invoiceNumber = "INV-004", category = 3, note = "Client follow-up") else it } }
         db.scans().insertBatch(fixtures)

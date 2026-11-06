@@ -107,9 +107,10 @@ class HistorySearchTest {
             return HistoryEntry.from(ScanEntity(raw = Base64.getEncoder().encodeToString(
                 byteArrayOf(3, bytes.size.toByte()) + bytes), seller = "", passed = false, phase = 1))
         }
-        val invoice = indexed("2026-10-20T00:30:00+03:00")
+        val invoice = indexed("2026-10-20T00:30:00")
         assertEquals(day, invoice.invoiceDay)
-        assertEquals(day, indexed("2026-10-20T00:30:00").invoiceDay)
+        assertEquals(day - 1, indexed("2026-10-19T21:30:00Z").invoiceDay)
+        assertNull(indexed("2026-10-20T00:30:00+03:00").invoiceDay)
         assertNull(indexed("invalid date").invoiceDay)
         assertEquals(listOf(invoice), filterHistory(listOf(invoice), "", day, day,
             ZoneId.of("America/New_York"), HistoryDateSource.INVOICE))

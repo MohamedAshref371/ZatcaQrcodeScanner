@@ -11,11 +11,7 @@ internal data class InvoiceTimestampDisplay(val date: String, val time: String, 
 internal fun formatInvoiceTimestamp(value: String, locale: Locale): InvoiceTimestampDisplay? {
     val timestamp = runCatching { ZatcaParser.parseTimestamp(value) }.getOrNull() ?: return null
     // Format the invoice's own clock time; never convert to the device's time zone.
-    val label = when {
-        value.endsWith("Z") || value.endsWith("+00:00") || value.endsWith("+0000") -> R.string.invoice_date_gmt
-        value.endsWith("+03:00") || value.endsWith("+0300") || value.endsWith("+03") -> R.string.invoice_date_makkah
-        else -> R.string.invoice_date_time
-    }
+    val label = if (value.endsWith('Z')) R.string.invoice_date_utc else R.string.invoice_date_local
     return InvoiceTimestampDisplay(
         timestamp.format(DateTimeFormatter.ofPattern("EEEE d MMMM uuuu", locale)),
         timestamp.format(DateTimeFormatter.ofPattern("h:mm:ss a", locale)),
@@ -30,10 +26,10 @@ internal fun invoiceTimestampTitle(context: Context, value: String): String = co
 
 internal fun invoiceTimestampFields(context: Context, value: String, forSharing: Boolean = false): List<Pair<String, String>> {
     val formatted = formatInvoiceTimestamp(value, context.resources.configuration.locales[0])
-        ?: return listOf(context.getString(R.string.tag_date) to value.ifBlank { context.getString(R.string.missing) })
+        ?: return listOf(context.getString(R.string.tag_date) to value)
     val timeLabel = if (forSharing) when (formatted.titleLabel) {
-        R.string.invoice_date_gmt -> R.string.invoice_time_gmt
-        R.string.invoice_date_makkah -> R.string.invoice_time_makkah
+        R.string.invoice_date_utc -> R.string.invoice_time_utc
+        R.string.invoice_date_local -> R.string.invoice_time_local
         else -> R.string.invoice_time
     } else R.string.invoice_time
     return listOf(

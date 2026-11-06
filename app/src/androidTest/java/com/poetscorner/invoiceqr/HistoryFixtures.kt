@@ -8,7 +8,7 @@ import java.util.Base64
 
 internal val historyBaseDay: Long = LocalDate.of(2026, 10, 1).toEpochDay()
 internal fun historyFixture(index: Int, seller: String = "متجر ${index % 100}",
-    hash: Boolean = index % 2 == 0, date: String = LocalDate.ofEpochDay(historyBaseDay + index % 30).toString() + "T10:00:00+03:00",
+    hash: Boolean = index % 2 == 0, date: String = LocalDate.ofEpochDay(historyBaseDay + index % 30).toString() + "T10:00:00",
     time: Long = LocalDate.ofEpochDay(historyBaseDay).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() + index / 10 * 1000L): ScanEntity {
     fun tlv(tag: Int, bytes: ByteArray) = byteArrayOf(tag.toByte(), bytes.size.toByte()) + bytes
     val values = listOf(1 to seller, 2 to "3" + index.toString().padStart(13, '0') + "3", 3 to date,

@@ -283,11 +283,11 @@
     <string name="tag_vat">الرقم الضريبي</string>
     <string name="tag_date">التاريخ</string>
     <string name="invoice_time">الوقت</string>
-    <string name="invoice_time_gmt">الوقت (بتوقيت جرينتش)</string>
-    <string name="invoice_time_makkah">الوقت (بتوقيت مكة المكرمة)</string>
+    <string name="invoice_time_utc">الوقت (توقيت عالمي)</string>
+    <string name="invoice_time_local">الوقت (توقيت محلي)</string>
     <string name="invoice_date_time">التاريخ والوقت</string>
-    <string name="invoice_date_gmt">التاريخ والوقت (بتوقيت جرينتش)</string>
-    <string name="invoice_date_makkah">التاريخ والوقت (بتوقيت مكة المكرمة)</string>
+    <string name="invoice_date_utc">التاريخ والوقت (توقيت عالمي)</string>
+    <string name="invoice_date_local">التاريخ والوقت (توقيت محلي)</string>
     <string name="tag_total">إجمالي الفاتورة</string>
     <string name="tag_tax">الضريبة</string>
     <string name="tag_hash">Hash الفاتورة</string>
@@ -298,7 +298,7 @@
     <string name="check_present">وجود %1$s</string>
     <string name="check_stamp">وجود %1$s (مطلوب للمبسطة)</string>
     <string name="check_vat">الرقم الضريبي: 15 رقمًا يبدأ وينتهي بـ 3</string>
-    <string name="check_date">التاريخ بصيغة ISO 8601</string>
+    <string name="check_date">التاريخ والوقت ISO 8601 حسب صيغ الهيئة</string>
     <string name="check_total">الإجمالي رقم غير سالب (حتى منزلتين)</string>
     <string name="check_tax">الضريبة رقم غير سالب (حتى منزلتين)</string>
     <string name="check_tax_total">الضريبة لا تتجاوز الإجمالي</string>
