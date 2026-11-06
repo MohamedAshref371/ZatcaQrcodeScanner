@@ -188,6 +188,12 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                         ).joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        else if (row.category != 0) Text(
+                            stringResource(R.string.invoice_category) + ": " +
+                                stringResource(InvoiceCategories.label(row.category)),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(stringResource(R.string.history_invoice_total,
                             row.total.ifBlank { stringResource(R.string.missing) }),
                             style = MaterialTheme.typography.titleSmall)
