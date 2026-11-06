@@ -50,6 +50,7 @@
     <string name="stats_group_by">تجميع حسب</string>
     <string name="stats_category_calculation">حساب التصنيفات</string>
     <string name="stats_breakdown_title">تفاصيل حسبة الصافي</string>
+    <string name="stats_breakdown_category_line">%1$s %2$s · %3$s</string>
     <string name="stats_breakdown_original">الأصل</string>
     <string name="stats_breakdown_contribution">في الصافي</string>
     <string name="stats_breakdown_missing_total">%1$d فواتير بدون إجمالي صالح</string>
@@ -121,7 +122,7 @@
     <string name="image_import_progress">جارٍ قراءة الملف %1$d من %2$d…</string>
     <string name="image_import_title">اكتمل استيراد الملفات</string>
     <string name="image_import_interrupted">توقف استيراد الملفات قبل اكتماله</string>
-    <string name="image_import_summary">المضافة: %1$d\nالموجودة مسبقًا: %2$d\nتحتاج مراجعة: %3$d من الفواتير المضافة\nبلا QR فاتورة صالح: %4$d\nتعذرت قراءة الملف: %5$d\nتعذر حفظ الفاتورة: %6$d</string>
+    <string name="image_import_summary">الفواتير المضافة: %1$d\nفواتير موجودة في السجل: %2$d\nتحتاج مراجعة: %3$d من الفواتير المضافة\nملفات بلا QR فاتورة صالح: %4$d\nملفات تعذرت قراءتها: %5$d\nفواتير تعذر حفظها: %6$d</string>
     <string name="image_import_done">تم</string>
     <string name="image_import_busy">انتظر انتهاء استيراد الملفات الحالي</string>
     <string name="import_unsupported">اختر صورة أو ملف PDF</string>

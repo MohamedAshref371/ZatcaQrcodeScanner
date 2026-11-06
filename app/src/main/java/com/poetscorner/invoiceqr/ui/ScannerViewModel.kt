@@ -451,6 +451,7 @@ class ScannerViewModel(
             }
             mutableImageImportSummary.value = null
             var summary = ImageImportSummary()
+            val seenInImport = mutableSetOf<String>()
             try {
                 settingsLoaded.first { it }
                 val scanSettings = settings.value
@@ -463,14 +464,14 @@ class ScannerViewModel(
                                 summary = summary.copy(unreadable = summary.unreadable + 1)
                                 return@forEachIndexed
                             }
-                            val invoice = try {
+                            val invoices = try {
                                 when (type) {
                                     InvoiceFileType.IMAGE -> {
                                         val bitmap = decodeGallery(app, uri)
                                         val raw = try { decoder.readImportedImage(bitmap, scanSettings) } finally { bitmap.recycle() }
-                                        raw?.let(ZatcaParser::parse)
+                                        raw?.let { listOf(ZatcaParser.parse(it)) }.orEmpty()
                                     }
-                                    InvoiceFileType.PDF -> firstInvoiceInPdf(app, uri) { bitmap ->
+                                    InvoiceFileType.PDF -> invoicesInPdf(app, uri) { bitmap ->
                                         decoder.readAll(bitmap, scanSettings)
                                     }
                                 }
@@ -480,24 +481,32 @@ class ScannerViewModel(
                                 summary = summary.copy(unreadable = summary.unreadable + 1)
                                 return@forEachIndexed
                             }
-                            if (invoice == null || invoice.error != null) {
+                            val validInvoices = invoices.filter { it.error == null }
+                            if (validInvoices.isEmpty()) {
                                 summary = summary.copy(invalidQr = summary.invalidQr + 1)
                                 return@forEachIndexed
                             }
-                            try {
-                                val saved = db.scans().saveIfNew(ScanEntity.from(invoice, System.currentTimeMillis()))
-                                summary = if (saved.alreadyExists) summary.copy(duplicates = summary.duplicates + 1)
-                                else summary.copy(added = summary.added + 1,
-                                    needsReview = summary.needsReview + if (invoice.passed) 0 else 1)
-                                if (!saved.alreadyExists) try {
-                                    reviewRepository.recordSavedInvoice(saved.scan.payloadKey)
+                            for (invoice in validInvoices) {
+                                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                                // A second page, render pass or file in this import is not an existing history entry.
+                                val payloadKey = invoicePayloadKey(invoice.raw)
+                                if (payloadKey in seenInImport) continue
+                                try {
+                                    val saved = db.scans().saveIfNew(ScanEntity.from(invoice, System.currentTimeMillis()))
+                                    seenInImport += payloadKey
+                                    summary = if (saved.alreadyExists) summary.copy(duplicates = summary.duplicates + 1)
+                                    else summary.copy(added = summary.added + 1,
+                                        needsReview = summary.needsReview + if (invoice.passed) 0 else 1)
+                                    if (!saved.alreadyExists) try {
+                                        reviewRepository.recordSavedInvoice(saved.scan.payloadKey)
+                                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) { /* Optional review tracking. */ }
                                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
                                     throw cancelled
-                                } catch (_: Exception) { /* Optional review tracking. */ }
-                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                                throw cancelled
-                            } catch (_: Exception) {
-                                summary = summary.copy(saveFailed = summary.saveFailed + 1)
+                                } catch (_: Exception) {
+                                    summary = summary.copy(saveFailed = summary.saveFailed + 1)
+                                }
                             }
                         }
                     }

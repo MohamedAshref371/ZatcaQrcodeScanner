@@ -31,7 +31,7 @@ private class ZxingDecoder : QrDecoder {
         settings.reader().read(bitmap).firstOrNull { it.error == null && it.text != null }?.text
 
     override fun readAll(bitmap: Bitmap, settings: ScannerSettings): List<String> =
-        settings.reader(maxSymbols = 16).read(bitmap).mapNotNull { result ->
+        settings.reader(maxSymbols = 0xff).read(bitmap).mapNotNull { result ->
             result.text?.takeIf { result.error == null }
         }
 

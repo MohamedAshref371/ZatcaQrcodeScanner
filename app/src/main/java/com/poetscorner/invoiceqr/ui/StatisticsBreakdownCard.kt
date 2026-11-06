@@ -65,8 +65,9 @@ internal fun StatisticsBreakdownCard(breakdown: StatisticsGroupBreakdown) {
                     StatisticsCategoryCalculation.SUBTRACT -> "−"
                     StatisticsCategoryCalculation.IGNORE -> "⊘"
                 }
-                Text("$symbol ${stringResource(InvoiceCategories.label(line.category))} · " +
-                    stringResource(R.string.stats_count, line.original.count),
+                Text(stringResource(R.string.stats_breakdown_category_line, symbol,
+                    stringResource(InvoiceCategories.label(line.category)),
+                    stringResource(R.string.stats_count, line.original.count)),
                     style = MaterialTheme.typography.titleSmall)
                 amountRow(stringResource(R.string.stats_total_including_tax), line.original, line.contribution, tax = false)
                 amountRow(stringResource(R.string.tag_tax), line.original, line.contribution, tax = true)

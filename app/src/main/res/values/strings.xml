@@ -52,6 +52,7 @@
     <string name="stats_group_by">Group by</string>
     <string name="stats_category_calculation">Category calculation</string>
     <string name="stats_breakdown_title">Net calculation details</string>
+    <string name="stats_breakdown_category_line">%1$s %2$s · %3$s</string>
     <string name="stats_breakdown_original">Original</string>
     <string name="stats_breakdown_contribution">In net</string>
     <string name="stats_breakdown_missing_total">%1$d invoices have no valid total</string>
@@ -123,7 +124,7 @@
     <string name="image_import_progress">Reading file %1$d of %2$d…</string>
     <string name="image_import_title">File import complete</string>
     <string name="image_import_interrupted">File import stopped early</string>
-    <string name="image_import_summary">Added: %1$d\nAlready saved: %2$d\nNeeds review: %3$d of the added invoices\nNo valid invoice QR: %4$d\nCould not read file: %5$d\nCould not save invoice: %6$d</string>
+    <string name="image_import_summary">Invoices added: %1$d\nAlready in history: %2$d\nNeeds review: %3$d of the added invoices\nFiles without a valid invoice QR: %4$d\nUnreadable files: %5$d\nInvoices not saved: %6$d</string>
     <string name="image_import_done">Done</string>
     <string name="image_import_busy">Finish the current file import first</string>
     <string name="import_unsupported">Choose an image or PDF file</string>

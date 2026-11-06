@@ -17,18 +17,17 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.scanner.decoder
-import com.poetscorner.invoiceqr.scanner.firstInvoiceInPdf
+import com.poetscorner.invoiceqr.scanner.invoicesInPdf
 import com.poetscorner.invoiceqr.ui.ScannerViewModel
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.Base64
 
 @RunWith(AndroidJUnit4::class)
 class PdfInvoiceImportTest {
@@ -37,6 +36,16 @@ class PdfInvoiceImportTest {
 
     private fun assetBitmap(name: String): Bitmap =
         instrumentation.context.assets.open(name).use { BitmapFactory.decodeStream(it) }
+
+    private fun invoiceRaw(seller: String): String {
+        fun field(tag: Int, value: String): ByteArray {
+            val bytes = value.toByteArray(Charsets.UTF_8)
+            return byteArrayOf(tag.toByte(), bytes.size.toByte()) + bytes
+        }
+        val fields = field(1, seller) + field(2, "310123456789013") +
+            field(3, "2026-10-19T12:30:00Z") + field(4, "115.00") + field(5, "15.00")
+        return Base64.getEncoder().encodeToString(fields)
+    }
 
     private fun pdfWithThreePages(): File {
         val pdf = File.createTempFile("invoiceqr-pages-", ".pdf", app.cacheDir)
@@ -88,22 +97,22 @@ class PdfInvoiceImportTest {
         return pdf
     }
 
-    @Test(timeout = 40_000) fun skipsUnrelatedQrAndStopsAfterFirstInvoicePage() = runBlocking {
+    @Test(timeout = 40_000) fun repeatedInvoiceAcrossPagesAndRenderSizesIsReturnedOnce() = runBlocking {
         val pdf = pdfWithThreePages()
         try {
             val visited = mutableListOf<Int>()
             val settings = ScannerSettings()
             val result = ScanEngine.ZXING.decoder().use { decoder ->
-                firstInvoiceInPdf(app, Uri.fromFile(pdf)) { bitmap ->
+                invoicesInPdf(app, Uri.fromFile(pdf)) { bitmap ->
                     visited += bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
                     decoder.readAll(bitmap, settings)
                 }
             }
-            assertNotNull(result)
-            assertEquals("Store", result!!.value(1))
-            assertEquals("115.00", result.value(4))
-            assertEquals(3, visited.size)
-            assertFalse(visited.contains(Color.RED))
+            assertEquals(1, result.size)
+            assertEquals("Store", result.single().value(1))
+            assertEquals("115.00", result.single().value(4))
+            assertEquals(6, visited.size)
+            assertEquals(2, visited.count { it == Color.RED })
         } finally {
             pdf.delete()
         }
@@ -114,15 +123,33 @@ class PdfInvoiceImportTest {
         try {
             val settings = ScannerSettings()
             val result = ScanEngine.ZXING.decoder().use { decoder ->
-                firstInvoiceInPdf(app, Uri.fromFile(pdf)) { decoder.readAll(it, settings) }
+                invoicesInPdf(app, Uri.fromFile(pdf)) { decoder.readAll(it, settings) }
             }
-            assertEquals("Store", result?.value(1))
+            assertEquals("Store", result.single().value(1))
         } finally {
             pdf.delete()
         }
     }
 
-    @Test(timeout = 40_000) fun mixedPdfAndImageImportCountsEachFileOnce() = runBlocking {
+    @Test(timeout = 40_000) fun collectsDistinctInvoicesAndIgnoresEquivalentQrText() = runBlocking {
+        val pdf = pdfWithThreePages()
+        try {
+            val first = invoiceRaw("First store")
+            val second = invoiceRaw("Second store")
+            val invoices = invoicesInPdf(app, Uri.fromFile(pdf)) { bitmap ->
+                when (bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)) {
+                    Color.BLUE -> listOf("unrelated QR")
+                    Color.GREEN -> listOf(first, first.trimEnd('='), second)
+                    else -> listOf(second, first)
+                }
+            }
+            assertEquals(listOf("First store", "Second store"), invoices.map { it.value(1) })
+        } finally {
+            pdf.delete()
+        }
+    }
+
+    @Test(timeout = 40_000) fun mixedPdfAndImageImportCountsRepeatedInvoiceOnce() = runBlocking {
         val pdf = pdfWithThreePages()
         val image = File.createTempFile("invoiceqr-image-", ".png", app.cacheDir)
         val store = ViewModelStore()
@@ -137,7 +164,7 @@ class PdfInvoiceImportTest {
             })[ScannerViewModel::class.java]
             vm.importInvoiceFiles(listOf(Uri.fromFile(pdf), Uri.fromFile(image)))
             val summary = withTimeout(25_000) { vm.imageImportSummary.filterNotNull().first() }
-            assertEquals(2, summary.added + summary.duplicates)
+            assertEquals(1, summary.added + summary.duplicates)
             assertEquals(0, summary.invalidQr)
             assertEquals(0, summary.unreadable)
             assertEquals(2, withTimeout(5_000) { vm.screen.first { it == 2 } })

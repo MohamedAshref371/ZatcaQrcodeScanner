@@ -7,6 +7,7 @@ import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import androidx.core.graphics.createBitmap
+import com.poetscorner.invoiceqr.data.invoicePayloadKey
 import com.poetscorner.invoiceqr.domain.Invoice
 import com.poetscorner.invoiceqr.domain.ZatcaParser
 import kotlinx.coroutines.currentCoroutineContext
@@ -18,12 +19,12 @@ import kotlin.math.roundToInt
 private const val MAX_PDF_BYTES = 64L * 1024 * 1024
 private val RENDER_SIZES = intArrayOf(1800, 3200)
 
-/** One invoice per file. A malformed or unrelated QR does not stop the page search. */
-internal suspend fun firstInvoiceInPdf(
+/** Read every distinct invoice in page order. Repeated QR codes and render passes count once. */
+internal suspend fun invoicesInPdf(
     context: Context,
     uri: Uri,
     readCodes: (Bitmap) -> List<String>
-): Invoice? {
+): List<Invoice> {
     // Document providers may return a non-seekable descriptor; PdfRenderer requires a file.
     val staged = File.createTempFile("invoiceqr-import-", ".pdf", context.cacheDir)
     try {
@@ -45,6 +46,7 @@ internal suspend fun firstInvoiceInPdf(
         val descriptor = ParcelFileDescriptor.open(staged, ParcelFileDescriptor.MODE_READ_ONLY)
         try {
             PdfRenderer(descriptor).use { renderer ->
+                val invoices = linkedMapOf<String, Invoice>()
                 for (pageIndex in 0 until renderer.pageCount) {
                     currentCoroutineContext().ensureActive()
                     renderer.openPage(pageIndex).use { page ->
@@ -60,7 +62,9 @@ internal suspend fun firstInvoiceInPdf(
                                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                                 for (raw in readCodes(bitmap)) {
                                     val invoice = ZatcaParser.parse(raw)
-                                    if (invoice.error == null) return invoice
+                                    if (invoice.error == null) {
+                                        invoices.putIfAbsent(invoicePayloadKey(raw), invoice)
+                                    }
                                 }
                             } finally {
                                 bitmap.recycle()
@@ -68,12 +72,12 @@ internal suspend fun firstInvoiceInPdf(
                         }
                     }
                 }
+                return invoices.values.toList()
             }
         } catch (error: Exception) {
             descriptor.close()
             throw error
         }
-        return null
     } finally {
         staged.delete()
     }
