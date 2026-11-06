@@ -376,10 +376,13 @@ private fun ScannerContent(vm: ScannerViewModel) {
                         if (selection != null) {
                             historyScreenState.SaveableStateProvider("statistics_invoices") {
                             val invoices by vm.statisticsInvoices.collectAsStateWithLifecycle()
+                            val breakdown by vm.statisticsGroupBreakdown.collectAsStateWithLifecycle()
                             BackHandler { vm.closeStatisticsGroup() }
                             HistoryScreen(invoices, "", {}, vm::loadMoreStatisticsInvoices, vm::retryStatisticsInvoices,
                                 onOpen = { vm.openStatisticsInvoice(it.id) }, onDelete = {},
                                 groupTitle = statisticsGroupTitle(context, selection!!.request, selection!!.key),
+                                groupSelection = selection, groupBreakdown = breakdown,
+                                onBreakdownRetry = vm::retryStatisticsGroupBreakdown,
                                 actions = {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                                         OutlinedButton(onClick = vm::closeStatisticsGroup,

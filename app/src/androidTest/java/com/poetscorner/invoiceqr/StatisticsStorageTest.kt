@@ -107,4 +107,35 @@ class StatisticsStorageTest {
             }
         }
     }
+
+    @Test fun groupBreakdownUsesEveryPageAndReconcilesWithTheDisplayedNet() = runBlocking {
+        val added = (1..201).map { historyFixture(it, seller = "Market").copy(category = 1) }
+        val subtracted = historyFixture(202, seller = "Market").copy(category = 2).let {
+            it.copy(details = it.details.copy(total = "40.00", tax = "6.00"))
+        }
+        val ignored = historyFixture(203, seller = "Market").copy(category = 3).let {
+            it.copy(details = it.details.copy(total = "25.00", tax = "4.00"))
+        }
+        val missing = historyFixture(204, seller = "Market").copy(category = 2).let {
+            it.copy(details = it.details.copy(total = "invalid", tax = "2.00"))
+        }
+        db.scans().insertBatch(added + subtracted + ignored + missing +
+            historyFixture(205, seller = "Other").copy(category = 1))
+        val request = StatisticsRequest(seller = "Market")
+            .withCategoryCalculation(2, StatisticsCategoryCalculation.SUBTRACT)
+            .withCategoryCalculation(3, StatisticsCategoryCalculation.IGNORE)
+        val group = calculate(request).groups.single()
+        val breakdown = db.statisticsBreakdown(StatisticsSelection(request, group.key))
+        assertEquals(group.totals, breakdown.net)
+        assertEquals(204, breakdown.original.count)
+        assertEquals(BigDecimal("23180.00"), breakdown.original.total)
+        assertEquals(BigDecimal("3027.00"), breakdown.original.tax)
+        assertEquals(BigDecimal("23075.00"), breakdown.net.total)
+        assertEquals(BigDecimal("3007.00"), breakdown.net.tax)
+        assertEquals(1, breakdown.net.ignoredCount)
+        assertEquals(1, breakdown.net.missingTotal)
+        assertEquals(listOf(1, 2, 3), breakdown.categories.map { it.category })
+        assertEquals(BigDecimal("-40.00"), breakdown.categories[1].contribution.total)
+        assertEquals(BigDecimal("0.00"), breakdown.categories[2].contribution.total)
+    }
 }

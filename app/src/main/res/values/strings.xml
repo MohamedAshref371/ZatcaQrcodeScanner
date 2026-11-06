@@ -51,6 +51,11 @@
     <string name="stats_hint">Includes all saved invoices</string>
     <string name="stats_group_by">Group by</string>
     <string name="stats_category_calculation">Category calculation</string>
+    <string name="stats_breakdown_title">Net calculation details</string>
+    <string name="stats_breakdown_original">Original</string>
+    <string name="stats_breakdown_contribution">In net</string>
+    <string name="stats_breakdown_missing_total">%1$d invoices have no valid total</string>
+    <string name="stats_breakdown_missing_tax">%1$d invoices have no valid tax amount</string>
     <string name="stats_category_calculation_hint">Choose how each category affects totals and tax. Invoice counts stay unchanged.</string>
     <string name="stats_calculation_add">Add</string>
     <string name="stats_calculation_subtract">Subtract</string>

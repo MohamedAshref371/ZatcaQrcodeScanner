@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.*
+import com.poetscorner.invoiceqr.ui.HistoryScreen
 import com.poetscorner.invoiceqr.ui.StatisticsScreen
 import org.junit.Assert.*
 import org.junit.Rule
@@ -159,5 +160,27 @@ class StatisticsUiTest {
         compose.onNodeWithContentDescription(text(R.string.stats_category_calculation)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.stats_total_including_tax)).assertExists()
         compose.onNodeWithText(text(R.string.stats_net_total)).assertDoesNotExist()
+    }
+
+    @Test fun groupBreakdownAppearsAboveItsInvoicesWhenCalculationIsActive() {
+        val request = StatisticsRequest().withCategoryCalculation(2, StatisticsCategoryCalculation.SUBTRACT)
+        val selection = StatisticsSelection(request, StatisticsKey(text = "Market"))
+        val filter = HistoryFilter(statisticsSelection = selection)
+        val totals = StatisticsTotals(count = 1)
+        val breakdown = StatisticsGroupBreakdown(totals, totals,
+            listOf(StatisticsCategoryContribution(1, StatisticsCategoryCalculation.ADD, totals, totals)))
+        compose.setContent { MaterialTheme {
+            HistoryScreen(HistoryPageState(filter = filter, displayedFilter = filter,
+                entries = listOf(HistorySummary(1, "Market", "300", "100.00", 1L, true, 1)),
+                total = 1, matching = 1, loading = false), "", {}, {}, {}, {}, {},
+                groupTitle = "Market", groupSelection = selection,
+                groupBreakdown = StatisticsGroupBreakdownState(selection, breakdown))
+        } }
+        val details = compose.onNodeWithTag("statistics_breakdown")
+        val invoice = compose.onNodeWithTag("history_card_0")
+        details.assertExists()
+        invoice.assertExists()
+        assertTrue(details.fetchSemanticsNode().boundsInRoot.bottom <= invoice.fetchSemanticsNode().boundsInRoot.top)
+        compose.onNodeWithTag("history_summary").assertDoesNotExist()
     }
 }

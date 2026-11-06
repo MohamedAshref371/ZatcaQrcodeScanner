@@ -34,6 +34,8 @@ import com.poetscorner.invoiceqr.data.HistoryDeletionPeriod
 import com.poetscorner.invoiceqr.data.HistoryDeletionPlan
 import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.InvoiceCategories
+import com.poetscorner.invoiceqr.data.StatisticsSelection
+import com.poetscorner.invoiceqr.data.StatisticsGroupBreakdownState
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.time.Instant
 import java.time.LocalDate
@@ -47,7 +49,8 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
     onLoadMore: () -> Unit, onRetry: () -> Unit,
     onOpen: (HistorySummary) -> Unit, onDelete: (HistorySummary) -> Unit,
     actions: (@Composable () -> Unit)? = null, groupTitle: String? = null,
-    onClearFilters: () -> Unit = {}) {
+    onClearFilters: () -> Unit = {}, groupSelection: StatisticsSelection? = null,
+    groupBreakdown: StatisticsGroupBreakdownState? = null, onBreakdownRetry: () -> Unit = {}) {
     val listState = rememberLazyListState()
     val largeText = LocalDensity.current.fontScale >= 1.5f
     var scrollFilter by rememberSaveable { mutableStateOf(state.filter) }
@@ -56,6 +59,7 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
     val amountFormat = remember(locale) { NumberFormat.getNumberInstance(locale).apply {
         minimumFractionDigits = 2; maximumFractionDigits = 2
     } }
+    val showGroupBreakdown = groupSelection?.request?.categoryCalculationActive == true
     LaunchedEffect(state.filter, state.loading, state.failed) {
         if (!state.loading && !state.failed && scrollFilter != state.filter) {
             listState.scrollToItem(0)
@@ -87,6 +91,17 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
         } else {
             item { SectionHeading(groupTitle, stringResource(R.string.stats_view_invoices)) }
             if (actions != null) item { actions() }
+        }
+        if (showGroupBreakdown) item(key = "statistics_breakdown") {
+            val current = groupBreakdown?.takeIf { it.selection == groupSelection }
+            when {
+                current == null || current.loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                current.failed -> {
+                    Text(stringResource(R.string.history_load_error))
+                    TextButton(onClick = onBreakdownRetry) { Text(stringResource(R.string.history_retry)) }
+                }
+                current.result != null -> StatisticsBreakdownCard(current.result)
+            }
         }
         if (groupTitle == null) item {
             OutlinedTextField(value = query, onValueChange = onQuery,
@@ -124,7 +139,7 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                 if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         }
-        if (state.entries.isNotEmpty() || (!state.loading && !state.failed)) item(key = "history_summary") {
+        if (!showGroupBreakdown && (state.entries.isNotEmpty() || (!state.loading && !state.failed))) item(key = "history_summary") {
             val filtered = state.displayedFilter.query.isNotBlank() || state.displayedFilter.annotationQuery.isNotBlank() ||
                 state.displayedFilter.fromDay != null || state.displayedFilter.toDay != null ||
                 state.displayedFilter.category != null

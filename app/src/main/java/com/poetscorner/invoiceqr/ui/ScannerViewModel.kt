@@ -119,6 +119,23 @@ class ScannerViewModel(
     suspend fun sellerSuggestions(query: String): List<String> =
         db.scans().sellerSuggestions(query.trim().lowercase(java.util.Locale.ROOT))
     val statisticsSelection = savedState.getStateFlow<StatisticsSelection?>("statistics_group", null)
+    private val statisticsBreakdownRevision = MutableStateFlow(0L)
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val statisticsGroupBreakdown = combine(statisticsSelection, statisticsBreakdownRevision) { selection, _ -> selection }
+        .flatMapLatest { selection ->
+            if (selection == null || !selection.request.categoryCalculationActive)
+                flowOf(StatisticsGroupBreakdownState())
+            else db.scans().observeCounts(HistoryQueries(HistoryFilter()).counts()).transformLatest {
+                emit(StatisticsGroupBreakdownState(selection, loading = true))
+                val result = withContext(Dispatchers.IO) { db.statisticsBreakdown(selection) }
+                emit(StatisticsGroupBreakdownState(selection, result))
+            }.onStart { emit(StatisticsGroupBreakdownState(selection, loading = true)) }
+                .catch { error ->
+                    if (error is kotlinx.coroutines.CancellationException) throw error
+                    emit(StatisticsGroupBreakdownState(selection, failed = true))
+                }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsGroupBreakdownState())
+    fun retryStatisticsGroupBreakdown() { statisticsBreakdownRevision.value++ }
     private val statisticsGroupPager by lazy {
         HistoryPager(db.scans(), viewModelScope).also { pager ->
             statisticsSelection.value?.let { pager.setFilter(HistoryFilter(statisticsSelection = it)) }

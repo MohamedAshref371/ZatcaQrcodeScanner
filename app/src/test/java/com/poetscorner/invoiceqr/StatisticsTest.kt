@@ -93,6 +93,28 @@ class StatisticsTest {
             .categoryCalculations[2] == null)
     }
 
+    @Test fun categoryBreakdownReconcilesRawAmountsAndSignedContributions() {
+        val rows = arrayOf(
+            row(total = "100.00", tax = "15.00").copy(category = 1),
+            row(total = "40.00", tax = "6.00").copy(category = 2),
+            row(total = "25.00", tax = "4.00").copy(category = 3),
+            row(total = "invalid", tax = "2.00").copy(category = 2))
+        val request = StatisticsRequest()
+            .withCategoryCalculation(2, StatisticsCategoryCalculation.SUBTRACT)
+            .withCategoryCalculation(3, StatisticsCategoryCalculation.IGNORE)
+        val raw = calculate(request.copy(grouping = StatisticsGrouping.CATEGORY), *rows)
+        val breakdown = raw.toBreakdown(request)
+        assertEquals(calculate(request, *rows).summary, breakdown.net)
+        assertEquals(raw.summary, breakdown.original)
+        assertEquals(listOf(1, 2, 3), breakdown.categories.map { it.category })
+        assertEquals(BigDecimal("-40.00"), breakdown.categories[1].contribution.total)
+        assertEquals(BigDecimal("-8.00"), breakdown.categories[1].contribution.tax)
+        assertEquals(1, breakdown.categories[1].contribution.missingTotal)
+        assertEquals(BigDecimal("25.00"), breakdown.categories[2].original.total)
+        assertEquals(BigDecimal("0.00"), breakdown.categories[2].contribution.total)
+        assertEquals(1, breakdown.categories[2].contribution.ignoredCount)
+    }
+
     @Test fun calendarPeriodsRespectBoundariesAndNeverMixYears() {
         val dates = listOf("2025-12-31", "2026-01-01", "2026-03-31", "2026-04-01", "2026-06-30",
             "2026-07-01", "2026-12-31", "2027-01-01")

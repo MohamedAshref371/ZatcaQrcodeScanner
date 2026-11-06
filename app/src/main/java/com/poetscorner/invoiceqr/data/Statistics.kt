@@ -153,8 +153,8 @@ internal fun statisticsConditions(request: StatisticsRequest, key: StatisticsKey
     return clauses to args
 }
 
-fun statisticsQuery(request: StatisticsRequest, afterId: Long = 0): SimpleSQLiteQuery {
-    val (clauses, args) = statisticsConditions(request)
+fun statisticsQuery(request: StatisticsRequest, afterId: Long = 0, key: StatisticsKey? = null): SimpleSQLiteQuery {
+    val (clauses, args) = statisticsConditions(request, key)
     clauses += "id > ?"; args += afterId
     return SimpleSQLiteQuery("SELECT id, seller, vat, invoiceDay, total, tax, category FROM scans WHERE " +
         clauses.joinToString(" AND ") + " ORDER BY id LIMIT 200", args.toTypedArray())
