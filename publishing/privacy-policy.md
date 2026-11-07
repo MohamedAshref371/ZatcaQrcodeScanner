@@ -8,7 +8,7 @@
 
 # سياسة خصوصية قارئ فاتورة
 
-آخر تحديث: 5 نوفمبر 2026
+آخر تحديث: 7 نوفمبر 2026
 
 المطوّر: محمد أشرف (Mohamed Ashraf)
 
@@ -20,7 +20,7 @@
 
 ## البيانات التي يستخدمها التطبيق
 
-يستخدم التطبيق الكاميرا لقراءة QR عند منح الصلاحية، أو يعالج صورًا وملفات PDF يختارها المستخدم من منتقي النظام أو يشاركها مع التطبيق من تطبيق آخر عبر قائمة المشاركة في Android. تتم معالجة الملفات على الجهاز. يفحص التطبيق الملفات تباعًا ويحفظ بيانات الفواتير التي يمكن استخراجها منها في السجل المحلي، بما فيها الفواتير التي تحتاج إلى مراجعة نتيجة الفحص المحلي. يفحص كل PDF حتى أول QR فاتورة قابل للتحليل. لا يسجل التطبيق فيديو ولا يحفظ إطارات الكاميرا أو نسخًا من الصور المختارة أو المشتركة. يُنسخ PDF مؤقتًا إلى ذاكرة التخزين المؤقت الخاصة بالتطبيق أثناء فحصه ويُحذف عند انتهاء المعالجة؛ وقد يبقى ملف مؤقت بعد إغلاق التطبيق فجأة إلى أن يمسح Android الذاكرة المؤقتة أو تُمسح بيانات التطبيق.
+يستخدم التطبيق الكاميرا لقراءة QR عند منح الصلاحية، أو يعالج صورًا وملفات PDF يختارها المستخدم من منتقي النظام أو يشاركها مع التطبيق من تطبيق آخر عبر قائمة المشاركة في Android. تتم معالجة الملفات على الجهاز. يفحص التطبيق الملفات تباعًا ويحفظ بيانات الفواتير التي يمكن استخراجها منها في السجل المحلي، بما فيها الفواتير التي تحتاج إلى مراجعة نتيجة الفحص المحلي. يفحص جميع صفحات كل PDF ويستخرج الفواتير ذات رموز QR القابلة للتحليل مع تجاهل المكرر منها. لا يسجل التطبيق فيديو ولا يحفظ إطارات الكاميرا أو نسخًا من الصور المختارة أو المشتركة. يُنسخ PDF مؤقتًا إلى ذاكرة التخزين المؤقت الخاصة بالتطبيق أثناء فحصه ويُحذف عند انتهاء المعالجة؛ وقد يبقى ملف مؤقت بعد إغلاق التطبيق فجأة إلى أن يمسح Android الذاكرة المؤقتة أو تُمسح بيانات التطبيق.
 
 يحفظ التطبيق محليًا محتوى QR وبيانات الفاتورة المستخرجة ووقت الفحص ونتيجته ونوع الفاتورة، وأي رقم فاتورة أو تصنيف أو ملاحظة تضيفها، إضافة إلى تفضيلات المسح والمظهر. قد تتضمن بيانات الفاتورة أسماء وأرقامًا ضريبية ومبالغ وتوقيعات. يمكن إدخال محتوى QR يدويًا بصيغة Base64، ويُعالج على الجهاز. لا يرفع التطبيق محتوى الفواتير إلى خادم للمطوّر أو الناشر، ولا تتطلب وظائف الفواتير حسابًا داخل التطبيق. يعمل محرك ZXing الافتراضي دون إنترنت فورًا. لا توجد إعلانات ولا يشغّل المطوّر خادمًا لتحليلات الاستخدام؛ ولخدمات Google الموضحة أدناه ممارساتها الخاصة المتعلقة بالبيانات التقنية.
 
@@ -74,7 +74,7 @@
 
 # Invoice QR Reader Privacy Policy
 
-Last updated: 5 November 2026
+Last updated: 7 November 2026
 
 Developer: Mohamed Ashraf (محمد أشرف)
 
@@ -86,7 +86,7 @@ This policy describes how Invoice QR Reader (قارئ فاتورة), package `co
 
 ## Data handled on your device
 
-With permission, the app uses the camera to read QR codes. Alternatively, it processes images and PDFs you select through the system picker or share with the app through Android's share menu. File processing takes place on your device. It scans selected files in turn and saves invoice details it can extract to local history, including invoices flagged for review by the local check. Each PDF is scanned until the first parseable invoice QR. The app does not record video, save camera frames or retain copies of selected or shared images. A PDF is temporarily copied to the app's private cache while it is scanned and deleted when processing ends; an interrupted process may leave a cache file until Android clears the cache or app data.
+With permission, the app uses the camera to read QR codes. Alternatively, it processes images and PDFs you select through the system picker or share with the app through Android's share menu. File processing takes place on your device. It scans selected files in turn and saves invoice details it can extract to local history, including invoices flagged for review by the local check. The app scans every page of each PDF and extracts distinct parseable invoice QR codes. The app does not record video, save camera frames or retain copies of selected or shared images. A PDF is temporarily copied to the app's private cache while it is scanned and deleted when processing ends; an interrupted process may leave a cache file until Android clears the cache or app data.
 
 The app stores QR content, extracted invoice details, scan times, local check results and invoice classifications in its private local storage, along with any invoice number, category or note you add. It also stores scanner and appearance preferences. Invoice details may contain names, VAT numbers, amounts and signatures. You can manually enter QR content as Base64, which is processed on the device. The app does not upload invoice content to a developer or publisher server. Invoice features do not require an app account. The default ZXing scanner works offline immediately. The app contains no advertising and the developer does not operate an analytics backend; the Google services described below have their own technical data practices.
 

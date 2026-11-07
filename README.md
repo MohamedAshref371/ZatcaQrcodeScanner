@@ -18,7 +18,7 @@ Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL)
 - See separate result levels for QR structure, core fields, phase-two fields, cryptographic authenticity and official acceptance. Expand advanced fields, check details, and the original QR content when needed.
 - Share a single invoice summary from the result header, including the optional hash and local phase-one/phase-two check result, or copy its VAT number using the adjacent icon. Shared field labels follow the app language and original values are preserved.
 - Search saved invoices by seller or VAT number and filter by invoice date or check date.
-- Export matching invoices as JSON or CSV through the system file picker.
+- Export matching invoices as CSV through the system file picker.
 - Use all invoice features for free, without ads or an account.
 
 
@@ -47,13 +47,13 @@ History supports partial seller/VAT searches, including VAT numbers entered with
 
 Search and display fields are stored when an invoice is first saved. SQLite performs filtering, and the UI loads summaries in pages of **50** without loading raw Base64. The complete payload is fetched when an invoice is opened. The history performance report includes a [10,000-invoice device test (Arabic)](docs/history-performance.md).
 
-JSON and CSV export use the same search and date filters as the displayed history. The filter is captured when export starts, including across activity recreation while choosing a destination. With no filters, the entire history is exported. Export buttons are disabled while results are updating or no matching invoices exist.
+CSV export uses the same search and filters as the displayed history. The filter is captured when export starts, including across activity recreation while choosing a destination. With no filters, the entire history is exported. Export is disabled while results are updating or no matching invoices exist.
 
 Exports include the seller, VAT number, invoice date, total, tax, and hash where present. Field names/column headings use the app language; original invoice values are preserved. CSV cells are quoted and protected against spreadsheet formula injection. Export streams batches of **200** rows within one transaction to keep a consistent snapshot, without loading the full history or output file into memory.
 
 Export shows invoice progress followed by a saving stage. Export, backup and import are mutually exclusive; actions are also disabled while a file picker is open. Output is prepared in a private temporary file before copying it to the selected destination, keeping cloud/provider writes outside the database transaction. Cancellation is propagated rather than reported as a failure, and temporary files are removed when the operation finishes.
 
-**Backup and restore** is in Settings immediately above **Appearance & app**. Create backup saves the complete history, including original QR text and original check times, as a language-independent, versioned JSON document. Import backup merges those records into the current history without deleting existing invoices. Normalized duplicates are skipped, preserving the existing record and check time. Extracted fields and local checks are rebuilt using the current parser; settings and internal database row IDs are not imported. Ordinary JSON/CSV exports are summaries and cannot restore original QR payloads.
+**Backup and restore** is in Settings immediately above **Appearance & app**. Create backup saves the complete history, including original QR text and original check times, as a language-independent, versioned JSON document. Import backup merges those records into the current history without deleting existing invoices. Normalized duplicates are skipped, preserving the existing record and check time. Extracted fields and local checks are rebuilt using the current parser; settings and internal database row IDs are not imported. CSV export is a summary and cannot restore original QR payloads.
 
 Import is one transaction: malformed, unsupported, truncated or cancelled backups leave no partially imported rows. The result reports added and duplicate counts. Backup files support up to **64 MiB**; processing streams records and bounds individual JSON values. Selected input is staged in private cache before opening the transaction. Manual backups are unencrypted files at the destination you choose and remain there after uninstalling the app.
 
@@ -130,7 +130,7 @@ app/src/main/java/com/poetscorner/invoiceqr/
   scanner/GoogleMlKitModuleInstaller.kt    # Google Play services module installation
   scanner/MlKitModuleController.kt         # Availability and download state
   data/LocalData.kt                        # Room and settings DataStore
-  data/HistoryExporter.kt                  # Streaming JSON/CSV export
+  data/HistoryExporter.kt                  # Streaming history CSV export
   data/ReviewRepository.kt                 # Local usage and one-time review eligibility
   ui/ScannerViewModel.kt                   # App state and background operations
   ui/CameraScanner.kt                      # CameraX, permission and camera controls
