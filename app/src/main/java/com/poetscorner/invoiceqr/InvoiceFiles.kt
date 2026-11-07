@@ -38,6 +38,16 @@ internal fun Intent.selectedInvoiceUris(): List<Uri> {
 
 internal enum class InvoiceFileType { IMAGE, PDF }
 
+internal fun Context.invoiceFileDisplayName(uri: Uri): String {
+    val fromProvider = runCatching {
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    }.getOrNull()
+    return (fromProvider?.takeIf(String::isNotBlank) ?: uri.lastPathSegment?.substringAfterLast('/')
+        ?.takeIf(String::isNotBlank) ?: getString(R.string.image_import_unknown_file)).take(120)
+}
+
 /** Resolve each item independently because a mixed share has a general MIME type. */
 internal fun Context.invoiceFileType(uri: Uri): InvoiceFileType? {
     val mime = runCatching { contentResolver.getType(uri)?.lowercase(Locale.ROOT) }.getOrNull()

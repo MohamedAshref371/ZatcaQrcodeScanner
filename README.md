@@ -11,6 +11,7 @@ Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL)
 ## Features
 
 - Read invoice QR codes with the camera, choose images and PDFs together through the same import button, receive images and PDFs shared by other apps, or paste Base64 manually. A single image opens its result; multiple files are saved automatically with an import summary. Each PDF is scanned for all distinct invoice QR codes across its pages.
+- Batch imports show the current file and PDF page. Cancelling keeps completed files in history and leaves the unfinished file unsaved; each file is saved in one database transaction.
 - Use ZXing by default, or download the optional Google ML Kit scanning component.
 - Scan individual invoices or enable continuous scanning with a session counter and result notifications.
 - View seller, VAT number, timestamp, total including VAT, tax, and phase-two fields when present.

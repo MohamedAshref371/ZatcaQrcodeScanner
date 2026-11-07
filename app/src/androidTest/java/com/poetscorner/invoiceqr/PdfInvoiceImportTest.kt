@@ -18,12 +18,16 @@ import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.scanner.decoder
 import com.poetscorner.invoiceqr.scanner.invoicesInPdf
+import com.poetscorner.invoiceqr.ui.ImageImportPhase
 import com.poetscorner.invoiceqr.ui.ScannerViewModel
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -97,13 +101,32 @@ class PdfInvoiceImportTest {
         return pdf
     }
 
+    private fun pdfWithRepeatedPages(count: Int): File {
+        val pdf = File.createTempFile("invoiceqr-long-", ".pdf", app.cacheDir)
+        val invoice = assetBitmap("valid-invoice-qr.png")
+        try {
+            val document = PdfDocument()
+            try {
+                repeat(count) { index ->
+                    val page = document.startPage(PdfDocument.PageInfo.Builder(600, 800, index + 1).create())
+                    page.canvas.drawColor(Color.WHITE)
+                    page.canvas.drawBitmap(invoice, null, Rect(40, 40, 300, 300), Paint())
+                    document.finishPage(page)
+                }
+                pdf.outputStream().use { document.writeTo(it) }
+            } finally { document.close() }
+        } finally { invoice.recycle() }
+        return pdf
+    }
+
     @Test(timeout = 40_000) fun repeatedInvoiceAcrossPagesAndRenderSizesIsReturnedOnce() = runBlocking {
         val pdf = pdfWithThreePages()
         try {
             val visited = mutableListOf<Int>()
+            val pages = mutableListOf<Pair<Int, Int>>()
             val settings = ScannerSettings()
             val result = ScanEngine.ZXING.decoder().use { decoder ->
-                invoicesInPdf(app, Uri.fromFile(pdf)) { bitmap ->
+                invoicesInPdf(app, Uri.fromFile(pdf), onPage = { page, total -> pages += page to total }) { bitmap ->
                     visited += bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
                     decoder.readAll(bitmap, settings)
                 }
@@ -113,9 +136,27 @@ class PdfInvoiceImportTest {
             assertEquals("115.00", result.single().value(4))
             assertEquals(6, visited.size)
             assertEquals(2, visited.count { it == Color.RED })
+            assertEquals(listOf(1 to 3, 2 to 3, 3 to 3), pages)
         } finally {
             pdf.delete()
         }
+    }
+
+    @Test(timeout = 40_000) fun cancellationDuringPdfReadDoesNotReturnPartialInvoices() = runBlocking {
+        val pdf = pdfWithThreePages()
+        val stagedBefore = app.cacheDir.listFiles()?.count { it.name.startsWith("invoiceqr-import-") } ?: 0
+        try {
+            var reachedThirdPage = false
+            try {
+                invoicesInPdf(app, Uri.fromFile(pdf), onPage = { page, _ ->
+                    if (page == 3) { reachedThirdPage = true; throw CancellationException("cancel test") }
+                }) { listOf(invoiceRaw("First store")) }
+                fail("Cancelled PDF returned partial invoices")
+            } catch (_: CancellationException) { }
+            assertTrue(reachedThirdPage)
+            assertEquals(stagedBefore,
+                app.cacheDir.listFiles()?.count { it.name.startsWith("invoiceqr-import-") } ?: 0)
+        } finally { pdf.delete() }
     }
 
     @Test(timeout = 40_000) fun findsInvoiceWhenSamePageAlsoContainsUnrelatedQr() = runBlocking {
@@ -165,6 +206,8 @@ class PdfInvoiceImportTest {
             vm.importInvoiceFiles(listOf(Uri.fromFile(pdf), Uri.fromFile(image)))
             val summary = withTimeout(25_000) { vm.imageImportSummary.filterNotNull().first() }
             assertEquals(1, summary.added + summary.duplicates)
+            assertEquals(2, summary.processedFiles)
+            assertEquals(2, summary.totalFiles)
             assertEquals(0, summary.invalidQr)
             assertEquals(0, summary.unreadable)
             assertEquals(2, withTimeout(5_000) { vm.screen.first { it == 2 } })
@@ -172,6 +215,42 @@ class PdfInvoiceImportTest {
             store.clear()
             pdf.delete()
             image.delete()
+        }
+    }
+
+    @Test(timeout = 75_000) fun cancellingSecondFileKeepsFirstFileAndSkipsThird() = runBlocking {
+        val first = File.createTempFile("invoiceqr-first-", ".png", app.cacheDir)
+        val third = File.createTempFile("invoiceqr-third-", ".png", app.cacheDir)
+        val pdf = pdfWithRepeatedPages(30)
+        val store = ViewModelStore()
+        try {
+            for (image in listOf(first, third)) {
+                instrumentation.context.assets.open("valid-invoice-qr.png").use { input ->
+                    image.outputStream().use(input::copyTo)
+                }
+            }
+            val vm = ViewModelProvider(store, object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    ScannerViewModel(app, SavedStateHandle()) as T
+            })[ScannerViewModel::class.java]
+            vm.importInvoiceFiles(listOf(Uri.fromFile(first), Uri.fromFile(pdf), Uri.fromFile(third)))
+            val progress = withTimeout(35_000) { vm.imageImport.filterNotNull().first {
+                it.current == 2 && it.phase == ImageImportPhase.READING_PAGE
+            } }
+            assertEquals(30, progress.pageCount)
+            vm.cancelFileImport()
+            val summary = withTimeout(15_000) { vm.imageImportSummary.filterNotNull().first() }
+            assertTrue(summary.cancelled)
+            assertTrue(summary.interrupted)
+            assertEquals(1, summary.processedFiles)
+            assertEquals(3, summary.totalFiles)
+            assertEquals(1, summary.added + summary.duplicates)
+        } finally {
+            store.clear()
+            first.delete()
+            third.delete()
+            pdf.delete()
         }
     }
 }

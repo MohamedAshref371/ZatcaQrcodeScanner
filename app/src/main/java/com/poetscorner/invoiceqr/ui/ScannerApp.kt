@@ -261,7 +261,7 @@ private fun ScannerContent(vm: ScannerViewModel) {
         }
         val safeWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
         Scaffold(contentWindowInsets = safeWindowInsets,
-            topBar = { TopAppBar(modifier = Modifier.testTag("app_title_bar"),
+            topBar = { Column { TopAppBar(modifier = Modifier.testTag("app_title_bar"),
             windowInsets = safeWindowInsets.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
             scrollBehavior = if (screen == 0) null else titleScrollBehavior, navigationIcon = {
             IconTile(R.drawable.ic_scan, Modifier.padding(start = 16.dp, end = 8.dp))
@@ -269,7 +269,39 @@ private fun ScannerContent(vm: ScannerViewModel) {
             Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.app_tagline), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = if (screen == 0) 0.88f else 1f))) }, bottomBar = {
+        } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = if (screen == 0) 0.88f else 1f)))
+            val pageProgress = imageImport?.takeIf {
+                it.phase == ImageImportPhase.READING_PAGE && it.pageCount > 0
+            }
+            if (pageProgress != null)
+                LinearProgressIndicator(progress = {
+                    (pageProgress.page - 1f) / pageProgress.pageCount
+                }, modifier = Modifier.fillMaxWidth())
+            else if (busy || restoringResult) LinearProgressIndicator(Modifier.fillMaxWidth())
+            imageImport?.let { progress ->
+                Surface(color = MaterialTheme.colorScheme.surface) {
+                    Row(Modifier.fillMaxWidth().testTag("file_import_progress")
+                        .padding(start = 16.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        val label = when (progress.phase) {
+                            ImageImportPhase.OPENING -> stringResource(R.string.image_import_progress,
+                                progress.current, progress.total, progress.fileName)
+                            ImageImportPhase.READING_PAGE -> stringResource(R.string.image_import_page_progress,
+                                progress.current, progress.total, progress.fileName, progress.page, progress.pageCount)
+                            ImageImportPhase.SAVING -> stringResource(R.string.image_import_saving,
+                                progress.current, progress.total, progress.fileName)
+                        }
+                        Text(label, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = vm::cancelFileImport, enabled = !progress.cancelling,
+                            modifier = Modifier.testTag("file_import_cancel")) {
+                            Text(stringResource(if (progress.cancelling) R.string.image_import_stopping
+                                else R.string.image_import_cancel))
+                        }
+                    }
+                }
+            }
+        } }, bottomBar = {
             val compactNavigation = LocalDensity.current.fontScale >= 1.5f
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = if (screen == 0) 0.88f else 1f), shadowElevation = 8.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
@@ -292,10 +324,6 @@ private fun ScannerContent(vm: ScannerViewModel) {
         } } }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
             Column(Modifier.then(if (screen == 0) Modifier else Modifier.padding(padding)).consumeWindowInsets(padding).imePadding().fillMaxSize()
                 .then(if (screen == 0) Modifier else Modifier.nestedScroll(titleScrollBehavior.nestedScrollConnection))) {
-                if (busy || restoringResult) LinearProgressIndicator(Modifier.fillMaxWidth())
-                imageImport?.let { Text(stringResource(R.string.image_import_progress, it.current, it.total),
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.bodySmall) }
                 transfer?.let { TransferProgress(it) }
                 when(screen) {
                     0 -> ScannerHome(settings, continuousScan, busy, cameraZoom, { cameraZoom = it }, {
@@ -440,11 +468,19 @@ private fun ScannerContent(vm: ScannerViewModel) {
             })
         imageImportSummary?.let { summary ->
             AlertDialog(onDismissRequest = vm::dismissImageImportSummary,
-                title = { Text(stringResource(if (summary.interrupted) R.string.image_import_interrupted
-                    else R.string.image_import_title)) },
-                text = { Text(stringResource(R.string.image_import_summary, summary.added,
-                    summary.duplicates, summary.needsReview, summary.invalidQr,
-                    summary.unreadable, summary.saveFailed)) },
+                title = { Text(stringResource(when {
+                    summary.cancelled -> R.string.image_import_cancelled
+                    summary.interrupted -> R.string.image_import_interrupted
+                    else -> R.string.image_import_title
+                })) },
+                text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (summary.interrupted) Text(stringResource(R.string.image_import_processed_files,
+                        summary.processedFiles, summary.totalFiles))
+                    Text(stringResource(R.string.image_import_summary, summary.added,
+                        summary.duplicates, summary.needsReview, summary.invalidQr,
+                        summary.unreadable, summary.saveFailed))
+                    if (summary.cancelled) Text(stringResource(R.string.image_import_cancelled_hint))
+                } },
                 confirmButton = { TextButton(onClick = vm::dismissImageImportSummary) {
                     Text(stringResource(R.string.image_import_done))
                 } })

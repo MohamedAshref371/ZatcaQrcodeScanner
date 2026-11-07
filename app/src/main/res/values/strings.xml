@@ -121,7 +121,15 @@
     <string name="stats_any_date">Any date</string>
     <string name="scan_local">Offline scanning • QR only</string>
     <string name="gallery_pick_multiple">Choose images or PDFs</string>
-    <string name="image_import_progress">Reading file %1$d of %2$d…</string>
+    <string name="image_import_progress">File %1$d of %2$d: Opening %3$s…</string>
+    <string name="image_import_page_progress">File %1$d of %2$d: %3$s · Page %4$d of %5$d</string>
+    <string name="image_import_saving">File %1$d of %2$d: Saving invoices from %3$s…</string>
+    <string name="image_import_unknown_file">Selected file</string>
+    <string name="image_import_cancel">Cancel</string>
+    <string name="image_import_stopping">Stopping…</string>
+    <string name="image_import_cancelled">Import cancelled</string>
+    <string name="image_import_processed_files">Files processed: %1$d of %2$d</string>
+    <string name="image_import_cancelled_hint">Completed files remain in history. Unprocessed files were skipped.</string>
     <string name="image_import_title">File import complete</string>
     <string name="image_import_interrupted">File import stopped early</string>
     <string name="image_import_summary">Invoices added: %1$d\nAlready in history: %2$d\nNeeds review: %3$d of the added invoices\nFiles without a valid invoice QR: %4$d\nUnreadable files: %5$d\nInvoices not saved: %6$d</string>

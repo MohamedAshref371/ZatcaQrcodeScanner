@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.core.content.ContextCompat
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.InvoiceFileType
+import com.poetscorner.invoiceqr.invoiceFileDisplayName
 import com.poetscorner.invoiceqr.invoiceFileType
 import com.poetscorner.invoiceqr.ui.text.UiText
 import android.net.Uri
@@ -28,10 +29,14 @@ import java.io.Writer
 
 data class ScanResult(val invoice: Invoice, val checkedAt: Long, val scanId: Long? = null,
     val annotation: InvoiceAnnotation = InvoiceAnnotation())
-data class ImageImportProgress(val current: Int, val total: Int)
+enum class ImageImportPhase { OPENING, READING_PAGE, SAVING }
+data class ImageImportProgress(val current: Int, val total: Int, val fileName: String,
+    val phase: ImageImportPhase = ImageImportPhase.OPENING, val page: Int = 0, val pageCount: Int = 0,
+    val cancelling: Boolean = false)
 data class ImageImportSummary(val added: Int = 0, val duplicates: Int = 0, val needsReview: Int = 0,
     val invalidQr: Int = 0, val unreadable: Int = 0, val saveFailed: Int = 0,
-    val interrupted: Boolean = false)
+    val interrupted: Boolean = false, val cancelled: Boolean = false,
+    val processedFiles: Int = 0, val totalFiles: Int = 0)
 
 class ScannerViewModel(
     app: Application,
@@ -197,6 +202,13 @@ class ScannerViewModel(
     val busy = MutableStateFlow(false)
     private val mutableImageImport = MutableStateFlow<ImageImportProgress?>(null)
     val imageImport = mutableImageImport.asStateFlow()
+    private var fileImportJob: Job? = null
+    fun cancelFileImport() {
+        val job = fileImportJob ?: return
+        if (!job.isActive) return
+        mutableImageImport.update { it?.copy(cancelling = true) }
+        job.cancel()
+    }
     private val mutableImageImportSummary = MutableStateFlow<ImageImportSummary?>(null)
     val imageImportSummary = mutableImageImportSummary.asStateFlow()
     fun dismissImageImportSummary() { mutableImageImportSummary.value = null }
@@ -425,11 +437,12 @@ class ScannerViewModel(
         if (uris.isEmpty()) return
         if (busy.value) { message.value = UiText(R.string.image_import_busy); return }
         busy.value = true
-        viewModelScope.launch {
+        mutableImageImportSummary.value = null
+        val job = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             val app = getApplication<Application>()
             val files = try {
                 withContext(Dispatchers.IO) {
-                    uris.distinct().map { uri -> uri to app.invoiceFileType(uri) }
+                    uris.distinct().map { uri -> Triple(uri, app.invoiceFileType(uri), app.invoiceFileDisplayName(uri)) }
                 }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 busy.value = false
@@ -449,19 +462,19 @@ class ScannerViewModel(
                 gallery(files.single().first)
                 return@launch
             }
-            mutableImageImportSummary.value = null
-            var summary = ImageImportSummary()
+            mutableImageImport.value = ImageImportProgress(1, files.size, files.first().third)
+            var summary = ImageImportSummary(totalFiles = files.size)
             val seenInImport = mutableSetOf<String>()
             try {
                 settingsLoaded.first { it }
                 val scanSettings = settings.value
                 withContext(Dispatchers.IO) {
                     scanSettings.scanEngine.decoder().use { decoder ->
-                        files.forEachIndexed { index, (uri, type) ->
+                        files.forEachIndexed { index, (uri, type, fileName) ->
                             kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                            mutableImageImport.value = ImageImportProgress(index + 1, files.size)
+                            mutableImageImport.value = ImageImportProgress(index + 1, files.size, fileName)
                             if (type == null) {
-                                summary = summary.copy(unreadable = summary.unreadable + 1)
+                                summary = summary.copy(unreadable = summary.unreadable + 1, processedFiles = index + 1)
                                 return@forEachIndexed
                             }
                             val invoices = try {
@@ -471,42 +484,56 @@ class ScannerViewModel(
                                         val raw = try { decoder.readImportedImage(bitmap, scanSettings) } finally { bitmap.recycle() }
                                         raw?.let { listOf(ZatcaParser.parse(it)) }.orEmpty()
                                     }
-                                    InvoiceFileType.PDF -> invoicesInPdf(app, uri) { bitmap ->
+                                    InvoiceFileType.PDF -> invoicesInPdf(app, uri, onPage = { page, count ->
+                                        mutableImageImport.update { it?.copy(phase = ImageImportPhase.READING_PAGE,
+                                            page = page, pageCount = count) }
+                                    }) { bitmap ->
                                         decoder.readAll(bitmap, scanSettings)
                                     }
                                 }
                             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                                 throw cancelled
                             } catch (_: Exception) {
-                                summary = summary.copy(unreadable = summary.unreadable + 1)
+                                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                                summary = summary.copy(unreadable = summary.unreadable + 1, processedFiles = index + 1)
                                 return@forEachIndexed
                             }
                             val validInvoices = invoices.filter { it.error == null }
                             if (validInvoices.isEmpty()) {
-                                summary = summary.copy(invalidQr = summary.invalidQr + 1)
+                                summary = summary.copy(invalidQr = summary.invalidQr + 1, processedFiles = index + 1)
                                 return@forEachIndexed
                             }
-                            for (invoice in validInvoices) {
+                            // Repeated QR codes in this batch do not count as invoices already in history.
+                            val pending = validInvoices.map { invoicePayloadKey(it.raw) to it }
+                                .distinctBy { it.first }.filterNot { it.first in seenInImport }
+                            mutableImageImport.update { it?.copy(phase = ImageImportPhase.SAVING, page = 0, pageCount = 0) }
+                            val saved = try {
+                                db.withTransaction {
+                                    pending.map { (key, invoice) ->
+                                        key to db.scans().saveIfNew(ScanEntity.from(invoice, System.currentTimeMillis()))
+                                    }
+                                }
+                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
                                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                                // A second page, render pass or file in this import is not an existing history entry.
-                                val payloadKey = invoicePayloadKey(invoice.raw)
-                                if (payloadKey in seenInImport) continue
-                                try {
-                                    val saved = db.scans().saveIfNew(ScanEntity.from(invoice, System.currentTimeMillis()))
-                                    seenInImport += payloadKey
-                                    summary = if (saved.alreadyExists) summary.copy(duplicates = summary.duplicates + 1)
-                                    else summary.copy(added = summary.added + 1,
-                                        needsReview = summary.needsReview + if (invoice.passed) 0 else 1)
-                                    if (!saved.alreadyExists) try {
-                                        reviewRepository.recordSavedInvoice(saved.scan.payloadKey)
-                                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                                        throw cancelled
-                                    } catch (_: Exception) { /* Optional review tracking. */ }
+                                summary = summary.copy(saveFailed = summary.saveFailed + pending.size,
+                                    processedFiles = index + 1)
+                                return@forEachIndexed
+                            }
+                            seenInImport.addAll(saved.map { it.first })
+                            summary = summary.copy(
+                                added = summary.added + saved.count { !it.second.alreadyExists },
+                                duplicates = summary.duplicates + saved.count { it.second.alreadyExists },
+                                needsReview = summary.needsReview + saved.count {
+                                    !it.second.alreadyExists && !it.second.scan.passed
+                                }, processedFiles = index + 1)
+                            for ((_, result) in saved) {
+                                if (!result.alreadyExists) try {
+                                    reviewRepository.recordSavedInvoice(result.scan.payloadKey)
                                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
                                     throw cancelled
-                                } catch (_: Exception) {
-                                    summary = summary.copy(saveFailed = summary.saveFailed + 1)
-                                }
+                                } catch (_: Exception) { /* Optional review tracking. */ }
                             }
                         }
                     }
@@ -514,7 +541,10 @@ class ScannerViewModel(
                 mutableImageImportSummary.value = summary
                 navigate(2)
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
+                if (mutableImageImport.value?.cancelling != true) throw cancelled
+                mutableImageImportSummary.value = if (summary.processedFiles == files.size) summary
+                    else summary.copy(interrupted = true, cancelled = true)
+                navigate(2)
             } catch (_: Exception) {
                 mutableImageImportSummary.value = summary.copy(interrupted = true)
                 navigate(2)
@@ -523,6 +553,9 @@ class ScannerViewModel(
                 busy.value = false
             }
         }
+        fileImportJob = job
+        job.invokeOnCompletion { if (fileImportJob === job) fileImportJob = null }
+        job.start()
     }
     fun export(uri: Uri, csv: Boolean, filter: HistoryFilter): Job? = startTransfer(TransferKind.EXPORT) {
         val names = mapOf(1 to R.string.tag_seller, 2 to R.string.tag_vat,

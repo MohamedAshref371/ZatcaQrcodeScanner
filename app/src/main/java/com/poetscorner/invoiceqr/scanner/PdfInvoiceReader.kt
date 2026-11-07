@@ -23,6 +23,7 @@ private val RENDER_SIZES = intArrayOf(1800, 3200)
 internal suspend fun invoicesInPdf(
     context: Context,
     uri: Uri,
+    onPage: (Int, Int) -> Unit = { _, _ -> },
     readCodes: (Bitmap) -> List<String>
 ): List<Invoice> {
     // Document providers may return a non-seekable descriptor; PdfRenderer requires a file.
@@ -49,6 +50,7 @@ internal suspend fun invoicesInPdf(
                 val invoices = linkedMapOf<String, Invoice>()
                 for (pageIndex in 0 until renderer.pageCount) {
                     currentCoroutineContext().ensureActive()
+                    onPage(pageIndex + 1, renderer.pageCount)
                     renderer.openPage(pageIndex).use { page ->
                         if (page.width <= 0 || page.height <= 0) throw IOException("Invalid PDF page size")
                         for (longEdge in RENDER_SIZES) {
@@ -72,6 +74,7 @@ internal suspend fun invoicesInPdf(
                         }
                     }
                 }
+                currentCoroutineContext().ensureActive()
                 return invoices.values.toList()
             }
         } catch (error: Exception) {
