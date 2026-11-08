@@ -20,7 +20,7 @@ Statistics filters, including seller names, VAT numbers and selected date ranges
 
 ## Google ML Kit and Play services
 
-Google ML Kit is an optional scanning engine. It may require an internet connection to download its component through Google Play services; invoice image analysis then takes place on the device. The app initializes an ML Kit client and checks component availability when opened, including while ZXing is selected. Availability checks and Google service initialization may involve network communication, independently of a scan or download request.
+Google ML Kit is an optional scanning engine. It may require an internet connection to download its component through Google Play services; invoice image analysis then takes place on the device. The app checks component availability when you open scan engine settings, or when the app resumes if ML Kit is the selected engine. Availability checks and Google service initialization may involve network communication, independently of a scan or download request.
 
 Google documents technical data processing by ML Kit for diagnostics and usage analytics, including device and app information, device or installation identifiers, configuration, performance measurements, event types and error codes. These data practices apply separately from locally processed invoice content. Google states that the technical data listed in its disclosure are encrypted in transit using HTTPS. See [ML Kit data disclosure](https://developers.google.com/ml-kit/android-data-disclosure) and [Google Privacy Policy](https://policies.google.com/privacy).
 

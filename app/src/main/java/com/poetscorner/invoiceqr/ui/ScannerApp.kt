@@ -136,7 +136,7 @@ private fun ScannerContent(vm: ScannerViewModel) {
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         vm.recordReviewUse()
-        vm.refreshMlKit()
+        vm.refreshMlKitOnResume()
         vm.refreshStatisticsPeriod()
     }
     val screen by vm.screen.collectAsStateWithLifecycle()
@@ -149,7 +149,6 @@ private fun ScannerContent(vm: ScannerViewModel) {
     val titleScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(titleBarState,
         canScroll = { titleCanScroll })
     val restoringResult by vm.restoringResult.collectAsStateWithLifecycle()
-    LaunchedEffect(screen) { if (screen == 3) vm.refreshMlKit() }
     var reviewOpportunity by remember { mutableIntStateOf(0) }
     var clearDialog by remember { mutableStateOf(false) }
     var pendingDeletePlan by remember { mutableStateOf<HistoryDeletionPlan?>(null) }

@@ -46,7 +46,17 @@ class ScannerViewModel(
     private val repository = SettingsRepository(app)
     private val mlKitController = MlKitModuleController(GoogleMlKitModuleInstaller(app), viewModelScope)
     val mlKitModule = mlKitController.state
-    fun refreshMlKit() = mlKitController.refresh()
+    fun refreshMlKitOnResume() {
+        if (screen.value == 3) {
+            mlKitController.refresh()
+            return
+        }
+        viewModelScope.launch {
+            if (repository.settings.first().scanEngine == ScanEngine.ML_KIT && screen.value != 3) {
+                mlKitController.refresh()
+            }
+        }
+    }
     fun downloadMlKit() = mlKitController.download()
     fun selectScanEngine(engine: ScanEngine) {
         if (engine == ScanEngine.ML_KIT && !mlKitModule.value.ready) return
@@ -230,6 +240,7 @@ class ScannerViewModel(
     }
 
     private fun moveTo(screen: Int, clearCameraResult: Boolean = true) {
+        if (screen == 3) mlKitController.refresh()
         if (screen == 4) refreshStatisticsPeriod()
         if (screen != 1) savedState["result_return_screen"] = 0
         if (screen == 0 && clearCameraResult) clearResult()
