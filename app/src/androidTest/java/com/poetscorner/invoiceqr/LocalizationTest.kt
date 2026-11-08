@@ -27,11 +27,11 @@ class LocalizationTest {
     @Test fun languageControlsNamesDirectionAndFallback() {
         val ar = context("ar-SA")
         val en = context("en-US")
-        assertEquals("قارئ فاتورة", ar.getString(R.string.app_name))
-        assertEquals("Invoice QR Reader", en.getString(R.string.app_name))
+        assertEquals("الماسح", ar.getString(R.string.nav_scanner))
+        assertEquals("Scanner", en.getString(R.string.nav_scanner))
         assertEquals(View.LAYOUT_DIRECTION_RTL, ar.resources.configuration.layoutDirection)
         assertEquals(View.LAYOUT_DIRECTION_LTR, en.resources.configuration.layoutDirection)
-        assertEquals("Invoice QR Reader", context("fr-FR").getString(R.string.app_name))
+        assertEquals("Scanner", context("fr-FR").getString(R.string.nav_scanner))
     }
 
     @Test fun retainedChecksAndErrorsResolveInTheCurrentLanguage() {

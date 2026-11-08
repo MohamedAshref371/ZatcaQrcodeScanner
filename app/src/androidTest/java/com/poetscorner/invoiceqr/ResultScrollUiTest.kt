@@ -26,6 +26,8 @@ class ResultScrollUiTest {
     private val secondSeller = "Result scroll second ${System.nanoTime()}"
 
     private fun text(id: Int) = compose.activity.getString(id)
+    private fun tab(id: Int) = compose.onNode(
+        (hasText(text(id)) or hasContentDescription(text(id))) and hasClickAction())
     private fun position() = compose.onNodeWithTag("result_list").fetchSemanticsNode()
         .config[SemanticsProperties.VerticalScrollAxisRange].value()
     private fun titleHeight() = compose.onNodeWithTag("app_title_bar").fetchSemanticsNode().boundsInRoot.height
@@ -65,8 +67,8 @@ class ResultScrollUiTest {
         val savedTitleHeight = titleHeight()
         assertTrue(savedPosition > 0f)
 
-        compose.onNodeWithText(text(R.string.nav_settings)).performClick()
-        compose.onNodeWithText(text(R.string.nav_result)).performClick()
+        tab(R.string.nav_settings).performClick()
+        tab(R.string.nav_result).performClick()
         assertEquals("Result scroll should survive tab navigation", savedPosition, position(), 0.01f)
         assertEquals("Result title should keep its position", savedTitleHeight, titleHeight(), 1f)
         compose.onNodeWithTag("result_list").performScrollToNode(hasText(text(R.string.result_hide_checks)))
@@ -76,7 +78,7 @@ class ResultScrollUiTest {
     @Test fun openingAnotherHistoryCardStartsResultAtTop() {
         compose.onNodeWithTag("result_list").performTouchInput { swipeUp() }
         assertTrue(position() > 0f)
-        compose.onNodeWithText(text(R.string.nav_history)).performClick()
+        tab(R.string.nav_history).performClick()
         compose.waitUntil(10_000) {
             !vm.historyState.value.loading && vm.historyState.value.entries.any { it.id == ids.last() }
         }

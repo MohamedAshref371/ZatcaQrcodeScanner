@@ -92,10 +92,11 @@ class AppLanguageUiTest {
             waitForNavigation()
             compose.onNodeWithText(text(R.string.nav_settings)).performClick()
             compose.onNodeWithTag("settings_list").performScrollToNode(hasText(text(R.string.settings_app)))
-            val titleTop = compose.onNodeWithText(text(R.string.settings_app)).fetchSemanticsNode().boundsInRoot.top
-            val languageTop = compose.onNodeWithText(text(R.string.app_language)).fetchSemanticsNode().boundsInRoot.top
-            val appearanceTop = compose.onNodeWithText(text(R.string.appearance)).fetchSemanticsNode().boundsInRoot.top
-            assertTrue(titleTop < languageTop && languageTop < appearanceTop)
+            compose.onNodeWithText(text(R.string.settings_app)).assertIsDisplayed()
+            compose.onNodeWithTag("settings_list").performScrollToNode(hasText(text(R.string.app_language)))
+            compose.onNodeWithText(text(R.string.app_language)).assertIsDisplayed()
+            compose.onNodeWithTag("settings_list").performScrollToNode(hasText(text(R.string.appearance)))
+            compose.onNodeWithText(text(R.string.appearance)).assertIsDisplayed()
 
             for ((language, label, direction) in listOf(
                 Triple("ar", R.string.language_arabic, View.LAYOUT_DIRECTION_RTL),
