@@ -1,6 +1,6 @@
 # Invoice QR Reader Privacy Policy
 
-Last updated: 7 November 2026
+Last updated: 8 November 2026
 
 Developer: Mohamed Ashraf (محمد أشرف)
 

@@ -8,7 +8,7 @@
 
 # سياسة خصوصية قارئ فاتورة
 
-آخر تحديث: 7 نوفمبر 2026
+آخر تحديث: 8 نوفمبر 2026
 
 المطوّر: محمد أشرف (Mohamed Ashraf)
 
@@ -74,7 +74,7 @@
 
 # Invoice QR Reader Privacy Policy
 
-Last updated: 7 November 2026
+Last updated: 8 November 2026
 
 Developer: Mohamed Ashraf (محمد أشرف)
 
