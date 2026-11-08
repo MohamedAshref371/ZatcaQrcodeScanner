@@ -30,10 +30,19 @@ class StoreScreenshotCapture {
         while (!condition()) delay(100)
     }
 
-    // This publishing tool is intentionally calibrated to its documented 1080x1920 emulator.
+    // Coordinates are based on the original 1080x1920 capture and scaled for tablet AVDs.
+    private fun screenSize(): Pair<Int, Int> {
+        val metrics = instrumentation.targetContext.resources.displayMetrics
+        return metrics.widthPixels to metrics.heightPixels
+    }
+
     private suspend fun swipe(fromY: Int, toY: Int) {
+        val (width, height) = screenSize()
+        val x = width / 2
+        val start = fromY * height / 1920
+        val end = toY * height / 1920
         AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(
-            "input swipe 540 $fromY 540 $toY 800")).use { it.readBytes() }
+            "input swipe $x $start $x $end 800")).use { it.readBytes() }
         delay(400)
     }
 
@@ -52,10 +61,7 @@ class StoreScreenshotCapture {
         val language = if (arabic) "ar" else "en"
         val output = File(activity.getExternalFilesDir(null), "store-captures/$language").apply { mkdirs() }
         suspend fun navigate(screen: Int) {
-            val index = listOf(0, 1, 2, 4, 3).indexOf(screen)
-            val x = if (arabic) 972 - index * 216 else 108 + index * 216
-            AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(
-                "input tap $x 1755")).use { it.readBytes() }
+            withContext(Dispatchers.Main) { vm.selectTab(screen) }
             delay(600)
         }
         suspend fun capture(name: String) {

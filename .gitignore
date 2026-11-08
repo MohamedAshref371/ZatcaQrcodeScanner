@@ -86,4 +86,4 @@ lint/tmp/
 *.trace
 
 # ---- Generated store upload bundle ----
-publishing/graphics/google-play-images.zip
+*.zip
