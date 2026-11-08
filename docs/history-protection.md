@@ -1,6 +1,6 @@
 # History preservation and result restoration
 
-The current experimental database schema is version 1, exported to `app/schemas/com.poetscorner.invoiceqr.data.ScanDatabase/1.json`. There are no migrations for older internal builds. Clear app data before testing an incompatible installation.
+At the time of this validation, the database schema was version 1, exported to `app/schemas/com.poetscorner.invoiceqr.data.ScanDatabase/1.json`. This paragraph records that earlier test state; consult the root README for the current schema and migrations.
 
 Current device tests:
 

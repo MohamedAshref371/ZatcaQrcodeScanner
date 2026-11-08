@@ -51,7 +51,7 @@ CSV export uses the same search and filters as the displayed history. The filter
 
 Exports include the seller, VAT number, invoice date, total, tax, and hash where present. Field names/column headings use the app language; original invoice values are preserved. CSV cells are quoted and protected against spreadsheet formula injection. Export streams batches of **200** rows within one transaction to keep a consistent snapshot, without loading the full history or output file into memory.
 
-Export shows invoice progress followed by a saving stage. Export, backup and import are mutually exclusive; actions are also disabled while a file picker is open. Output is prepared in a private temporary file before copying it to the selected destination, keeping cloud/provider writes outside the database transaction. Cancellation is propagated rather than reported as a failure, and temporary files are removed when the operation finishes.
+Export shows invoice progress followed by a saving stage. Export, backup and import are mutually exclusive; actions are also disabled while a file picker is open. Output is prepared in a private temporary file before copying it to the selected destination, keeping cloud/provider writes outside the database transaction. Cancellation is propagated rather than reported as a failure, and temporary files are removed when the operation finishes. Any PDF import or history transfer cache files left by an interrupted process are removed at the next app start.
 
 **Backup and restore** is in Settings immediately above **Appearance & app**. Create backup saves the complete history, including original QR text and original check times, as a language-independent, versioned JSON document. Import backup merges those records into the current history without deleting existing invoices. Normalized duplicates are skipped, preserving the existing record and check time. Extracted fields and local checks are rebuilt using the current parser; settings and internal database row IDs are not imported. CSV export is a summary and cannot restore original QR payloads.
 
@@ -69,11 +69,13 @@ Layout direction follows the language, while Base64 and numeric values remain re
 
 ## Open and run the project
 
-1. Open the repository in **Android Studio Rabbit 1 (2026.2.1) or newer**, with support for **Android Gradle Plugin 9.4.1** and the project's **Gradle 9.8.2 Wrapper**. Use the bundled JBR 25, matching the project's Gradle daemon criteria.
+1. Open the repository in an Android Studio version that supports the Android Gradle Plugin pinned in `gradle/libs.versions.toml` and the project's **Gradle 9.8.2 Wrapper**. Use JBR 25, matching the project's Gradle daemon criteria.
 2. Install Android SDK Platform **37** and the required Build Tools. Set `sdk.dir` in your local `local.properties` file. The app targets API **37** with minimum API **26**.
 3. Sync Gradle. Downloading build dependencies initially requires internet access.
 4. Run the `app` module on a device and grant camera permission. Gallery input remains available without camera access.
 5. Adjust the scanning engine and camera settings. ZXing's Try harder option and HD resolution are enabled by default. CameraX chooses an actual resolution supported by the device.
+
+Every build updates the active README and publishing guide with the version code, version name, Room schema version, and declared migrations. To check without changing files, run `python tools/sync_project_metadata.py --check`.
 
 From PowerShell:
 
@@ -89,7 +91,7 @@ Release builds:
 ./gradlew.bat :app:assembleRelease :app:bundleRelease
 ```
 
-The project does not configure a release signing key. `assembleRelease` produces `app/build/outputs/apk/release/app-release-unsigned.apk`; release artifacts need appropriate signing before distribution. Store listings, icons, privacy drafts, and signing instructions are in [publishing/README.md (Arabic)](publishing/README.md). The current version is `1.2.3`, version code `23`.
+The project does not configure a release signing key. `assembleRelease` produces `app/build/outputs/apk/release/app-release-unsigned.apk`; release artifacts need appropriate signing before distribution. Store listings, icons, privacy drafts, and signing instructions are in [publishing/README.md (Arabic)](publishing/README.md). The current version is `1.2.7`, version code `27`.
 
 ## ZXing native wrapper
 
@@ -152,7 +154,7 @@ Image and PDF decoding, parsing, and export run off the UI thread. Images are co
 - Tags 6 and 7 preserve their existing Base64 text; they are not encoded a second time. Binary values in tags 8 and 9 are converted to Base64 for display.
 - The app classifies an invoice as simplified when tag 9 exists and standard otherwise. This is a stamp-based heuristic, not an XML document-type lookup. An incomplete code can therefore be classified as standard. An empty tag 9 still counts as present but fails its content check.
 - Any tag from 6–9 makes the code a phase-two candidate and requires tags 6, 7, and 8. Without these tags, it is treated as phase one; an entirely missing phase-two section cannot reveal the intended phase. Only checks relevant to the inferred phase are displayed.
-- Checks include required values, a nonblank seller, a 15-digit ASCII VAT number beginning and ending with `3`, and a valid ISO 8601 timestamp. A tag 3 timestamp without a timezone is interpreted as Saudi time (`UTC+03:00`); `Z` and explicit offsets are accepted. Up to nine fractional-second digits are supported. Original timestamp text is retained. For example, `2024-11-29T14:25:00` and `2024-11-29T11:25:00Z` describe the same instant.
+- Checks include required values, a nonblank seller, a 15-digit ASCII VAT number beginning and ending with `3`, and a valid timestamp in exactly `yyyy-MM-dd'T'HH:mm:ss` or `yyyy-MM-dd'T'HH:mm:ss'Z'` format. A tag 3 timestamp without `Z` is interpreted as Saudi time (`UTC+03:00`); `Z` means UTC. Fractional seconds and explicit numeric offsets are rejected. Original timestamp text is retained. For example, `2024-11-29T14:25:00` and `2024-11-29T11:25:00Z` describe the same instant.
 - Amounts must be nonnegative decimals with at most two fractional digits, and tax must not exceed the total. No fixed VAT rate is assumed.
 - The parser tries original one-byte TLV lengths first, then extended BER `0x81`/`0x82` lengths if complete parsing fails. Original lengths take precedence in ambiguous cases. Truncated/out-of-bounds values, duplicate or unsupported tags outside 1–9, and invalid UTF-8 in textual tags 1–7 are rejected. Input is limited to 100,000 characters.
 - Checks on tags 6–9 confirm data presence and structure, not signature authenticity, hash correctness, or certificate trust.
@@ -160,9 +162,9 @@ Image and PDF decoding, parsing, and export run off the UI thread. Images are co
 
 ## Local data and review requests
 
-Room stores invoice history in the app's private storage. Database-level encryption is not implemented. Backup is disabled, export is manual through the system picker, and broad storage permission is not required. Uninstalling the app removes its local history.
+Room stores invoice history in the app's private storage. Database-level encryption is not implemented. Automatic system backup is disabled; manual backup and export use the system file picker, and broad storage permission is not required. Uninstalling the app removes its local history.
 
-The current experimental database schema is version **1**. It has no migration code. To test an older internal build against this schema, clear the app's data first. Settings and review usage are stored independently from history.
+The current database schema is version **3**. Migrations from 1 to 2, 2 to 3 are implemented. Settings and review usage are stored independently from history.
 
 The current result's database row ID and selected tab are saved through `SavedStateHandle`. When Android recreates a background-killed process, the invoice is loaded from Room with its original check time, without inserting another row or switching away from the restored tab. Returning to the scanner clears the result reference. Deleted invoices are not recreated; results that failed to save cannot be restored. This is task restoration, not persistence across force-stop or dismissal from Recents.
 

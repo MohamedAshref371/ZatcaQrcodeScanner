@@ -127,6 +127,20 @@ android {
     }
 }
 
+val syncProjectDocs = tasks.register<Exec>("syncProjectDocs") {
+    description = "Update the active guides from the Gradle version and Room schema."
+    commandLine("python", rootProject.file("tools/sync_project_metadata.py"))
+}
+
+tasks.named("preBuild") {
+    dependsOn(syncProjectDocs)
+}
+
+tasks.register<Exec>("checkProjectDocs") {
+    description = "Check that project and publishing guides match the Gradle version and Room schema."
+    commandLine("python", rootProject.file("tools/sync_project_metadata.py"), "--check")
+}
+
 dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.google.play.review)
