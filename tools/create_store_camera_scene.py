@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     seller = "متجر تجريبي" if args.language == "ar" else "Sample Store"
-    values = [(1, seller), (2, "300000000000003"), (3, "2026-10-20T10:30:00+03:00"),
+    values = [(1, seller), (2, "300000000000003"), (3, "2026-10-20T10:30:00"),
               (4, "230.00"), (5, "30.00")]
     payload = b"".join(bytes((tag, len(data))) + data
                        for tag, value in values for data in [value.encode("utf-8")])
