@@ -87,3 +87,4 @@ lint/tmp/
 
 # ---- Generated store upload bundle ----
 *.zip
+*.mp4
