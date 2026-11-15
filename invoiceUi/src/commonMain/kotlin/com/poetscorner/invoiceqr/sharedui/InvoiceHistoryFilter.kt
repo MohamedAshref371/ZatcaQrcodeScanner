@@ -79,7 +79,7 @@ private fun parseFilterDate(text: String): LocalDate? {
 
 @Composable
 internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: () -> Unit,
-    onApply: (InvoiceHistoryFilter) -> Unit) {
+    invoiceOnly: Boolean = false, onApply: (InvoiceHistoryFilter) -> Unit) {
     var source by remember { mutableStateOf(filter.dateSource) }
     var from by remember { mutableStateOf(filter.from?.toString().orEmpty()) }
     var to by remember { mutableStateOf(filter.to?.toString().orEmpty()) }
@@ -93,7 +93,7 @@ internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: (
         title = { Text("تصفية بالتاريخ") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                HistoryDateSource.entries.forEach { choice ->
+                if (!invoiceOnly) HistoryDateSource.entries.forEach { choice ->
                     Row(
                         Modifier.fillMaxWidth().selectable(
                             selected = source == choice, onClick = { source = choice }, role = Role.RadioButton

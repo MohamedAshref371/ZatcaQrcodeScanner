@@ -1,6 +1,12 @@
 package com.poetscorner.invoiceqr.data
 
 import androidx.sqlite.db.SimpleSQLiteQuery
+import com.poetscorner.invoiceqr.shared.InvoiceStatisticsAccumulator
+import com.poetscorner.invoiceqr.shared.InvoiceStatisticsOptions
+import com.poetscorner.invoiceqr.shared.InvoiceStatisticsTotals
+import com.poetscorner.invoiceqr.shared.StatisticsCategoryCalculation as SharedCategoryCalculation
+import com.poetscorner.invoiceqr.shared.StatisticsGrouping as SharedGrouping
+import com.poetscorner.invoiceqr.shared.StatisticsSort as SharedSort
 import java.io.Serializable
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -160,64 +166,23 @@ fun statisticsQuery(request: StatisticsRequest, afterId: Long = 0, key: Statisti
         clauses.joinToString(" AND ") + " ORDER BY id LIMIT 200", args.toTypedArray())
 }
 
-/** Exact decimal accumulation; only grouped summaries and one input page are retained. */
-class StatisticsAccumulator(private val request: StatisticsRequest) {
-    private val groups = mutableMapOf<StatisticsKey, StatisticsTotals>()
-    private var summary = StatisticsTotals()
-    private val amountPattern = Regex("[0-9]+(\\.[0-9]{1,2})?")
-    private fun amount(value: String) = value.takeIf(amountPattern::matches)?.toBigDecimalOrNull()
-    fun add(row: StatisticsInvoice) {
-        val total = amount(row.total)
-        val tax = amount(row.tax)
-        val calculation = if (request.grouping == StatisticsGrouping.CATEGORY) StatisticsCategoryCalculation.ADD
-            else request.calculationFor(row.category)
-        val multiplier = when (calculation) {
-            StatisticsCategoryCalculation.ADD -> BigDecimal.ONE
-            StatisticsCategoryCalculation.SUBTRACT -> BigDecimal.ONE.negate()
-            StatisticsCategoryCalculation.IGNORE -> BigDecimal.ZERO
-        }
-        fun StatisticsTotals.add() = copy(count = count + 1,
-            total = this.total + (total ?: BigDecimal.ZERO) * multiplier,
-            tax = this.tax + (tax ?: BigDecimal.ZERO) * multiplier,
-            missingTotal = missingTotal + if (calculation != StatisticsCategoryCalculation.IGNORE && total == null) 1 else 0,
-            missingTax = missingTax + if (calculation != StatisticsCategoryCalculation.IGNORE && tax == null) 1 else 0,
-            ignoredCount = ignoredCount + if (calculation == StatisticsCategoryCalculation.IGNORE) 1 else 0)
-        val key = when (request.grouping) {
-            StatisticsGrouping.SELLER -> StatisticsKey(text = row.seller.trim().takeIf(String::isNotEmpty))
-            StatisticsGrouping.VAT -> StatisticsKey(text = row.vat.trim().takeIf(String::isNotEmpty))
-            StatisticsGrouping.CATEGORY -> StatisticsKey(text = row.category.toString())
-            else -> {
-                val day = row.invoiceDay?.let(LocalDate::ofEpochDay)
-                val start = day?.let { when (request.grouping) {
-                    StatisticsGrouping.DAY -> it
-                    StatisticsGrouping.MONTH -> it.withDayOfMonth(1)
-                    StatisticsGrouping.QUARTER -> LocalDate.of(it.year, ((it.monthValue - 1) / 3) * 3 + 1, 1)
-                    StatisticsGrouping.HALF_YEAR -> LocalDate.of(it.year, if (it.monthValue <= 6) 1 else 7, 1)
-                    else -> it.withDayOfYear(1)
-                } }
-                StatisticsKey(periodStart = start?.toEpochDay())
-            }
-        }
-        groups[key] = (groups[key] ?: StatisticsTotals()).add()
-        summary = summary.add()
-    }
+/** Android retains its BigDecimal result model for formatting, breakdowns and exports. */
+class StatisticsAccumulator(request: StatisticsRequest) {
+    private val accumulator = InvoiceStatisticsAccumulator(InvoiceStatisticsOptions(
+        SharedGrouping.valueOf(request.grouping.name), SharedSort.valueOf(request.sort.name), request.descending,
+        request.categoryCalculations.mapValues { SharedCategoryCalculation.valueOf(it.value.name) },
+    ))
+
+    fun add(row: StatisticsInvoice) = accumulator.add(row.seller, row.vat, row.invoiceDay, row.total, row.tax, row.category)
+
     fun finish(): StatisticsResult {
-        val byKey = Comparator<StatisticsGroup> { a, b ->
-            when {
-                a.key.periodStart != null && b.key.periodStart != null -> a.key.periodStart.compareTo(b.key.periodStart)
-                else -> String.CASE_INSENSITIVE_ORDER.compare(a.key.text.orEmpty(), b.key.text.orEmpty())
-            }
-        }
-        val selected = when (request.sort) {
-            StatisticsSort.GROUP -> byKey
-            StatisticsSort.COUNT -> compareBy<StatisticsGroup> { it.totals.count }
-            StatisticsSort.TOTAL -> compareBy { it.totals.total }
-            StatisticsSort.TAX -> compareBy { it.totals.tax }
-        }
-        val direction = if (request.descending) selected.reversed() else selected
-        val comparator = if (request.sort == StatisticsSort.GROUP)
-            compareBy<StatisticsGroup> { it.key.unknown }.then(direction)
-        else direction.then(byKey)
-        return StatisticsResult(summary, groups.map { StatisticsGroup(it.key, it.value) }.sortedWith(comparator))
+        val result = accumulator.finish()
+        return StatisticsResult(result.summary.toAndroid(), result.groups.map {
+            StatisticsGroup(StatisticsKey(it.key.text, it.key.periodStart), it.totals.toAndroid())
+        })
     }
+
+    private fun InvoiceStatisticsTotals.toAndroid() = StatisticsTotals(
+        count, BigDecimal(total.toPlainString()), BigDecimal(tax.toPlainString()), missingTotal, missingTax, ignoredCount,
+    )
 }

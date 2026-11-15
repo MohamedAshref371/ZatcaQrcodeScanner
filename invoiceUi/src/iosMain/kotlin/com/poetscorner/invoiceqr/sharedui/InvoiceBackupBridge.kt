@@ -20,6 +20,7 @@ data class InvoiceBackupRecord(
     val seller: String,
     val vat: String,
     val total: String,
+    val tax: String,
     val invoiceDay: String,
 )
 
@@ -44,6 +45,7 @@ class InvoiceBackupReader(input: InvoiceBackupInput) {
         val (raw, checkedAt, number, category, note) = decoded.record
         val invoice = decoded.invoice
         return InvoiceBackupRecord(InvoiceBackupRow(raw, checkedAt, number, category, note),
-            normalizedInvoicePayload(raw), invoice.value(1), invoice.value(2), invoice.value(4), invoiceHistoryDay(invoice))
+            normalizedInvoicePayload(raw), invoice.value(1), invoice.value(2), invoice.value(4), invoice.value(5),
+            invoiceHistoryDay(invoice))
     }
 }

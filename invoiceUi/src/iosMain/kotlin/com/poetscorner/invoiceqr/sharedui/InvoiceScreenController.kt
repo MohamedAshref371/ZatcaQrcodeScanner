@@ -6,7 +6,7 @@ import androidx.compose.ui.viewinterop.UIKitViewController
 import androidx.compose.ui.window.ComposeUIViewController
 import platform.UIKit.UIViewController
 
-interface InvoiceScannerHost : InvoiceBackupActions {
+interface InvoiceScannerHost : InvoiceBackupActions, InvoiceStatisticsSource {
     fun makeCamera(detection: InvoiceDetection): UIViewController
     fun releaseCamera(controller: UIViewController)
     fun selectPhoto(detection: InvoiceDetection)
@@ -26,5 +26,6 @@ fun invoiceScreenController(host: InvoiceScannerHost, history: InvoiceHistorySto
         selectPhoto = host::selectPhoto,
         shareInvoice = host::shareInvoice,
         backupActions = host,
+        statisticsSource = host,
     )
 }

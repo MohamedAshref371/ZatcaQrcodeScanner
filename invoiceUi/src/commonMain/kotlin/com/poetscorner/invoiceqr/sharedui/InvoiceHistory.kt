@@ -58,14 +58,19 @@ data class InvoiceHistoryQuery(
 )
 
 interface InvoiceHistoryStore {
-    fun save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String,
+    fun save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String, tax: String,
         invoiceDay: String, checkedAt: Long): InvoiceHistoryEntry?
     fun page(beforeId: Long, limit: Int, filter: InvoiceHistoryQuery): InvoiceHistoryPage?
     fun entry(id: Long): InvoiceHistoryEntry?
     fun updateAnnotation(id: Long, annotation: InvoiceAnnotationFields): Boolean
 }
 
-fun invoiceHistoryDay(raw: String): String = invoiceHistoryDay(ZatcaInvoiceParser.parse(raw))
+data class InvoiceHistoryDerivedFields(val day: String, val tax: String)
+
+fun invoiceHistoryDerivedFields(raw: String): InvoiceHistoryDerivedFields {
+    val invoice = ZatcaInvoiceParser.parse(raw)
+    return InvoiceHistoryDerivedFields(invoiceHistoryDay(invoice), invoice.value(5))
+}
 
 internal fun invoiceHistoryDay(invoice: ParsedInvoice): String =
     runCatching { ZatcaInvoiceParser.parseTimestamp(invoice.value(3)).date.toString() }.getOrDefault("")

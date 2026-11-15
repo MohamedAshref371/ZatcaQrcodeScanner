@@ -38,7 +38,6 @@ object ZatcaInvoiceParser {
     private const val base64Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     private val optionalPadding = Base64.withPadding(Base64.PaddingOption.PRESENT_OPTIONAL)
     private val base64Pattern = Regex("[A-Za-z0-9+/]*={0,2}")
-    private val amountPattern = Regex("[0-9]+(\\.[0-9]{1,2})?")
     private val vatPattern = Regex("3[0-9]{13}3")
     private val timestampPattern = Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z?")
 
@@ -84,8 +83,8 @@ object ZatcaInvoiceParser {
     private fun checkFields(fields: List<InvoiceField>): List<InvoiceCheck> = buildList {
         fun value(tag: Int) = fields.firstOrNull { it.tag == tag }?.value.orEmpty()
 
-        val total = amountInCents(value(4))
-        val tax = amountInCents(value(5))
+        val total = invoiceAmountCents(value(4))
+        val tax = invoiceAmountCents(value(5))
         add(InvoiceCheck(InvoiceCheckKind.STRUCTURE, true))
         // Keep each tag's presence and value checks together regardless of TLV input order.
         for (tag in 1..9) {
@@ -105,15 +104,6 @@ object ZatcaInvoiceParser {
                 }
             }
         }
-    }
-
-    // Compare cent strings by length, then lexicographically, without rounding or overflow.
-    private fun amountInCents(value: String): String? {
-        if (!amountPattern.matches(value)) return null
-
-        val whole = value.substringBefore('.')
-        val fraction = value.substringAfter('.', "").padEnd(2, '0')
-        return (whole + fraction).trimStart('0').ifEmpty { "0" }
     }
 
     /** Returns the date and time as written in tag 3. A Z suffix indicates UTC. */

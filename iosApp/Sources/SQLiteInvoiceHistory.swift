@@ -15,12 +15,12 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         if let database { sqlite3_close(database) }
     }
 
-    func save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String,
+    func save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String, tax: String = "",
               invoiceDay: String, checkedAt: Int64) -> InvoiceHistoryEntry? {
         let key = payloadKey(normalizedPayload)
         return try? withDatabase { db in
             let row = InvoiceBackupRow(raw: raw, checkedAt: checkedAt, invoiceNumber: "", category: 0, note: "")
-            let inserted = try insert(row, key: key, seller: seller, vat: vat, total: total, invoiceDay: invoiceDay, into: db)
+            let inserted = try insert(row, key: key, seller: seller, vat: vat, total: total, tax: tax, invoiceDay: invoiceDay, into: db)
             if inserted {
                 return InvoiceHistoryEntry(id: sqlite3_last_insert_rowid(db), raw: raw, checkedAt: checkedAt,
                     alreadySaved: false, annotation: InvoiceAnnotationFields(number: "", category: 0, note: ""))
@@ -39,11 +39,11 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
     }
 
     private func insert(_ row: InvoiceBackupRow, key: String, seller: String, vat: String,
-                        total: String, invoiceDay: String, into db: OpaquePointer) throws -> Bool {
+                        total: String, tax: String, invoiceDay: String, into db: OpaquePointer) throws -> Bool {
         try statement(db, """
             INSERT INTO invoices(payload_key, raw, seller, vat, total, checked_at, seller_search, invoice_day,
-                                 invoice_number, category, note)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(payload_key) DO NOTHING
+                                 invoice_number, category, note, tax)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(payload_key) DO NOTHING
             """) { query in
             try bind(key, to: query, at: 1)
             try bind(row.raw, to: query, at: 2)
@@ -56,6 +56,7 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
             try bind(row.invoiceNumber, to: query, at: 9)
             try requireOK(sqlite3_bind_int(query, 10, row.category))
             try bind(row.note, to: query, at: 11)
+            try bind(tax, to: query, at: 12)
             guard sqlite3_step(query) == SQLITE_DONE else { throw StorageError.sqlite }
             return sqlite3_changes(db) == 1
         }
@@ -114,7 +115,8 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                     if let failure = input.failure { throw failure }
                     guard let record else { break }
                     let inserted = try insert(record.row, key: payloadKey(record.normalizedPayload), seller: record.seller,
-                                              vat: record.vat, total: record.total, invoiceDay: record.invoiceDay, into: db)
+                                              vat: record.vat, total: record.total, tax: record.tax,
+                                              invoiceDay: record.invoiceDay, into: db)
                     if inserted { added += 1 } else { duplicates += 1 }
                 }
                 return InvoiceBackupResult(status: .imported, added: added, duplicates: duplicates)
@@ -201,6 +203,30 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         }) ?? false
     }
 
+    func statistics(_ query: InvoiceStatisticsQuery) throws -> InvoiceStatisticsSnapshot {
+        try withDatabase { db in
+            let builder = InvoiceStatisticsBuilder(query: query)
+            return try statement(db, """
+                SELECT seller, vat, invoice_day, total, tax, category FROM invoices
+                WHERE ((?1 = '' AND ?2 = '') OR (invoice_day <> ''
+                    AND (?1 = '' OR invoice_day >= ?1) AND (?2 = '' OR invoice_day <= ?2)))
+                ORDER BY id
+                """) { statement in
+                try bind(query.from, to: statement, at: 1)
+                try bind(query.to, to: statement, at: 2)
+                var status = sqlite3_step(statement)
+                while status == SQLITE_ROW {
+                    builder.add(seller: columnText(statement, at: 0), vat: columnText(statement, at: 1),
+                                invoiceDay: columnText(statement, at: 2), total: columnText(statement, at: 3),
+                                tax: columnText(statement, at: 4), category: sqlite3_column_int(statement, 5))
+                    status = sqlite3_step(statement)
+                }
+                guard status == SQLITE_DONE else { throw StorageError.sqlite }
+                return builder.finish()
+            }
+        }
+    }
+
     private enum StorageError: Error { case sqlite }
 
     private func withDatabase<T>(_ action: (OpaquePointer) throws -> T) throws -> T {
@@ -260,20 +286,23 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                     ALTER TABLE invoices ADD COLUMN seller_search TEXT NOT NULL DEFAULT '';
                     ALTER TABLE invoices ADD COLUMN invoice_day TEXT NOT NULL DEFAULT '';
                     """, nil, nil, nil))
-                try backfillSearchFields(db)
             }
             if version < 2 {
                 try requireOK(sqlite3_exec(db, """
                     ALTER TABLE invoices ADD COLUMN invoice_number TEXT NOT NULL DEFAULT '';
                     ALTER TABLE invoices ADD COLUMN category INTEGER NOT NULL DEFAULT 0;
                     ALTER TABLE invoices ADD COLUMN note TEXT NOT NULL DEFAULT '';
-                    PRAGMA user_version = 2;
                     """, nil, nil, nil))
+            }
+            if version < 3 {
+                try requireOK(sqlite3_exec(db, "ALTER TABLE invoices ADD COLUMN tax TEXT NOT NULL DEFAULT ''", nil, nil, nil))
+                try backfillDerivedFields(db)
+                try requireOK(sqlite3_exec(db, "PRAGMA user_version = 3", nil, nil, nil))
             }
         }
     }
 
-    private func backfillSearchFields(_ db: OpaquePointer) throws {
+    private func backfillDerivedFields(_ db: OpaquePointer) throws {
         var afterId: Int64 = 0
         while true {
             let rows = try statement(db, """
@@ -290,11 +319,13 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                 return rows
             }
             guard let last = rows.last else { return }
-            try statement(db, "UPDATE invoices SET seller_search = ?, invoice_day = ? WHERE id = ?") { query in
+            try statement(db, "UPDATE invoices SET seller_search = ?, invoice_day = ?, tax = ? WHERE id = ?") { query in
                 for row in rows {
+                    let derived = InvoiceHistoryKt.invoiceHistoryDerivedFields(raw: row.raw)
                     try bind(row.seller.lowercased(), to: query, at: 1)
-                    try bind(InvoiceHistoryKt.invoiceHistoryDay(raw: row.raw), to: query, at: 2)
-                    try requireOK(sqlite3_bind_int64(query, 3, row.id))
+                    try bind(derived.day, to: query, at: 2)
+                    try bind(derived.tax, to: query, at: 3)
+                    try requireOK(sqlite3_bind_int64(query, 4, row.id))
                     guard sqlite3_step(query) == SQLITE_DONE else { throw StorageError.sqlite }
                     try requireOK(sqlite3_reset(query))
                 }

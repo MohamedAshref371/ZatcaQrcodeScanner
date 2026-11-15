@@ -53,6 +53,7 @@ fun InvoiceCheckScreen(
     selectPhoto: ((InvoiceDetection) -> Unit)? = null,
     shareInvoice: ((String) -> Boolean)? = null,
     backupActions: InvoiceBackupActions? = null,
+    statisticsSource: InvoiceStatisticsSource? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -61,6 +62,7 @@ fun InvoiceCheckScreen(
     var result by remember { mutableStateOf<ParsedInvoice?>(null) }
     var savedEntry by remember { mutableStateOf<InvoiceHistoryEntry?>(null) }
     var historyFilter by remember { mutableStateOf(InvoiceHistoryFilter()) }
+    var statisticsSettings by remember { mutableStateOf(InvoiceStatisticsSettings()) }
     var backupBusy by remember { mutableStateOf(false) }
 
     fun showMessage(message: String) {
@@ -90,7 +92,7 @@ fun InvoiceCheckScreen(
         if (parsed.error != null) return InvoiceDetectionResult.INVALID
 
         val normalized = normalizedInvoicePayload(raw)
-        val saved = history.save(raw, normalized, parsed.value(1), parsed.value(2), parsed.value(4),
+        val saved = history.save(raw, normalized, parsed.value(1), parsed.value(2), parsed.value(4), parsed.value(5),
             invoiceHistoryDay(parsed), Clock.System.now().toEpochMilliseconds())
         if (saved == null) {
             showMessage("تعذّر حفظ الفاتورة. حاول مرة أخرى.")
@@ -145,7 +147,9 @@ fun InvoiceCheckScreen(
                     )
                 },
                 bottomBar = {
-                    InvoiceResultNavigation(tab, camera != null, backupActions != null, backupBusy) { tab = it }
+                    InvoiceResultNavigation(tab, camera != null, backupActions != null, statisticsSource != null, backupBusy) {
+                        tab = it
+                    }
                 },
                 snackbarHost = { SnackbarHost(snackbar, Modifier.testTag("invoice-error")) },
             ) { padding ->
@@ -156,6 +160,8 @@ fun InvoiceCheckScreen(
                         InvoiceBackupSettings(backupBusy,
                             onExport = { transferBackup(backupActions::exportBackup) },
                             onImport = { transferBackup(backupActions::importBackup) })
+                    } else if (tab == InvoiceTab.STATISTICS && statisticsSource != null) {
+                        InvoiceStatisticsScreen(statisticsSource, statisticsSettings) { statisticsSettings = it }
                     } else if (tab == InvoiceTab.HISTORY) {
                         InvoiceHistoryScreen(history, historyFilter, { historyFilter = it }, ::openSavedInvoice)
                     } else if (tab == InvoiceTab.SCANNER && camera != null) {
@@ -221,7 +227,7 @@ private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (()
 }
 
 @Composable
-private fun InvoiceResultNavigation(tab: InvoiceTab, hasScanner: Boolean, hasSettings: Boolean, busy: Boolean,
+private fun InvoiceResultNavigation(tab: InvoiceTab, hasScanner: Boolean, hasSettings: Boolean, hasStatistics: Boolean, busy: Boolean,
     select: (InvoiceTab) -> Unit) {
     val items = listOf(
         "الماسح" to ScanIcon, "النتيجة" to ReceiptIcon, "السجل" to HistoryIcon,
@@ -254,12 +260,13 @@ private fun InvoiceResultNavigation(tab: InvoiceTab, hasScanner: Boolean, hasSet
                             InvoiceTab.SCANNER -> hasScanner
                             InvoiceTab.RESULT, InvoiceTab.HISTORY -> true
                             InvoiceTab.SETTINGS -> hasSettings
-                            InvoiceTab.STATISTICS -> false
+                            InvoiceTab.STATISTICS -> hasStatistics
                         },
                         modifier = when (itemTab) {
                             InvoiceTab.SCANNER -> Modifier.testTag("invoice-scanner-tab")
                             InvoiceTab.RESULT -> Modifier.testTag("invoice-result-tab")
                             InvoiceTab.HISTORY -> Modifier.testTag("invoice-history-tab")
+                            InvoiceTab.STATISTICS -> Modifier.testTag("invoice-statistics-tab")
                             InvoiceTab.SETTINGS -> Modifier.testTag("invoice-settings-tab")
                             else -> Modifier
                         },

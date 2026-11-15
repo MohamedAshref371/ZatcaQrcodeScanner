@@ -12,6 +12,7 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
     weak var presenter: UIViewController?
     private var photoDetection: InvoiceDetection?
     private let backupDocuments = InvoiceBackupDocuments()
+    private let statisticsQueue = DispatchQueue(label: "com.poetscorner.invoiceqr.statistics", qos: .userInitiated)
     private static let photoLog = Logger(subsystem: "com.poetscorner.invoiceqr.preview", category: "photo-scan")
 
     func makeCamera(detection: InvoiceDetection) -> UIViewController {
@@ -28,6 +29,13 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
 
     func importBackup(observer: InvoiceBackupObserver) {
         backupDocuments.importBackup(from: presenter, observer: observer)
+    }
+
+    func loadStatistics(query: InvoiceStatisticsQuery, observer: InvoiceStatisticsObserver) {
+        statisticsQueue.async {
+            let result = try? SQLiteInvoiceHistory().statistics(query)
+            DispatchQueue.main.async { observer.complete(snapshot: result) }
+        }
     }
 
     func shareInvoice(summary: String) -> Bool {

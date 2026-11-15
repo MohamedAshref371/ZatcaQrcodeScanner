@@ -187,6 +187,19 @@ final class InvoicePreviewUITests: XCTestCase {
         XCTAssertEqual(saved.label, "رقم الفاتورة: INV-21")
     }
 
+    func testStatisticsDisplaysZeroTaxAsAnAmount() {
+        continueAfterFailure = false
+        let app = isolatedApp()
+        app.launch()
+        submit(base64(["Seller", "300000000000003", "2026-10-20T10:30:00", "230.00", "0"]), in: app)
+        XCTAssertTrue(element("invoice-status", in: app).waitForExistence(timeout: 15))
+        element("invoice-statistics-tab", in: app).tap()
+        XCTAssertTrue(element("invoice-statistics-summary", in: app).waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["عدد الفواتير: 1"].firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["230.00"].firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["0.00"].firstMatch.exists)
+    }
+
     private func scrollTo(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         let target = element(identifier, in: app)
         let viewport = element("invoice-result-list", in: app).frame.insetBy(dx: 0, dy: 24)
