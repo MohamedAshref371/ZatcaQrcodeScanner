@@ -1,0 +1,44 @@
+name: KMP invoice core
+
+on:
+  push:
+    branches:
+      - kmp-invoice-core
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Ensure Android SDK 37 is installed
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+      - name: Test app integration and shared parser
+        run: bash ./gradlew --stacktrace :app:testDebugUnitTest :invoiceCore:testAndroidHostTest
+
+  ios:
+    name: iOS simulator tests and framework
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Verify the iOS simulator toolchain
+        run: |
+          test "$(uname -m)" = arm64
+          xcodebuild -version
+          xcrun simctl list devices available
+      - name: Run shared tests and link both frameworks
+        run: >
+          bash ./gradlew --stacktrace
+          :invoiceCore:iosSimulatorArm64Test
+          :invoiceCore:linkDebugFrameworkIosSimulatorArm64
+          :invoiceCore:linkDebugFrameworkIosArm64
