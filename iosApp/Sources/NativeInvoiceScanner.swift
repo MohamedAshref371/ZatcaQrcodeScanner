@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreImage
 import InvoiceUI
 import ImageIO
 import os
@@ -59,6 +60,9 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
     private static func readQRs(data: Data) -> [String] {
         let request = VNDetectBarcodesRequest()
         request.symbologies = [.qr]
+        #if targetEnvironment(simulator)
+        request.usesCPUOnly = true
+        #endif
         let source = CGImageSourceCreateWithData(data as CFData, nil)
         let properties = source.flatMap { CGImageSourceCopyPropertiesAtIndex($0, 0, nil) } as? [CFString: Any]
         let orientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)
@@ -66,10 +70,23 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         let handler = VNImageRequestHandler(data: data, orientation: orientation, options: [:])
         do {
             try handler.perform([request])
-            return request.results?.compactMap(\.payloadStringValue) ?? []
+            let codes = request.results?.compactMap(\.payloadStringValue) ?? []
+            if !codes.isEmpty { return codes }
         } catch {
-            return []
+            let failure = error as NSError
+            Self.photoLog.info("Vision QR detection failed: \(failure.domain, privacy: .public) \(failure.code).")
         }
+
+        // Use the software QR detector when Vision cannot decode an image.
+        guard let image = CIImage(data: data, options: [.applyOrientationProperty: true]),
+              let detector = CIDetector(
+                ofType: CIDetectorTypeQRCode,
+                context: CIContext(options: [.useSoftwareRenderer: true]),
+                options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]
+              ) else { return [] }
+        let codes = detector.features(in: image).compactMap { ($0 as? CIQRCodeFeature)?.messageString }
+        Self.photoLog.info("Core Image fallback QR codes: \(codes.count).")
+        return codes
     }
 }
 
