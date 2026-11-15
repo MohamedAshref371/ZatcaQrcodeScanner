@@ -66,7 +66,12 @@ final class InvoicePreviewUITests: XCTestCase {
         // The workflow adds a recent QR image, ahead of the simulator's sample photos.
         let photo = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
         XCTAssertTrue(photo.waitForExistence(timeout: 15), app.debugDescription)
-        photo.tap()
+        // Photos is hosted by a system process; tap the exposed thumbnail's center.
+        let frame = photo.frame
+        let origin = app.frame.origin
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX - origin.x, dy: frame.midY - origin.y))
+            .tap()
 
         let status = element("invoice-status", in: app)
         XCTAssertTrue(status.waitForExistence(timeout: 20), app.debugDescription)
