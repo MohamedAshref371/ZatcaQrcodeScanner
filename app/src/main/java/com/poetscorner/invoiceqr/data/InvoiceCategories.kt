@@ -1,12 +1,12 @@
 package com.poetscorner.invoiceqr.data
 
 import com.poetscorner.invoiceqr.R
-import com.poetscorner.invoiceqr.shared.HistoryBackupCodec
+import com.poetscorner.invoiceqr.shared.InvoiceAnnotationRules
 
 /** Explicit category IDs used in saved invoices and backups. */
 object InvoiceCategories {
-    const val NONE = 0
-    val ids = HistoryBackupCodec.categoryIds
+    const val NONE = InvoiceAnnotationRules.NO_CATEGORY
+    val ids = InvoiceAnnotationRules.categoryIds
 
     fun label(id: Int): Int = when (id) {
         1 -> R.string.invoice_category_business_purchases

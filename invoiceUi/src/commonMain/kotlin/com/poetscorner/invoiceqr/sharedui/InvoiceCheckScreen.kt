@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.shared.ParsedInvoice
+import com.poetscorner.invoiceqr.shared.InvoiceAnnotationRules
 import com.poetscorner.invoiceqr.shared.ZatcaInvoiceParser
 import com.poetscorner.invoiceqr.shared.normalizedInvoicePayload
 import kotlinx.coroutines.launch
@@ -58,7 +59,7 @@ fun InvoiceCheckScreen(
     val startTab = if (camera == null) InvoiceTab.RESULT else InvoiceTab.SCANNER
     var tab by remember { mutableStateOf(startTab) }
     var result by remember { mutableStateOf<ParsedInvoice?>(null) }
-    var checkedAt by remember { mutableStateOf(0L) }
+    var savedEntry by remember { mutableStateOf<InvoiceHistoryEntry?>(null) }
     var historyFilter by remember { mutableStateOf(InvoiceHistoryFilter()) }
     var backupBusy by remember { mutableStateOf(false) }
 
@@ -79,7 +80,7 @@ fun InvoiceCheckScreen(
 
     fun showResult(parsed: ParsedInvoice, saved: InvoiceHistoryEntry) {
         snackbar.currentSnackbarData?.dismiss()
-        checkedAt = saved.checkedAt
+        savedEntry = saved
         result = parsed
         tab = InvoiceTab.RESULT
     }
@@ -150,6 +151,7 @@ fun InvoiceCheckScreen(
             ) { padding ->
                 Box(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
                     val invoice = result
+                    val entry = savedEntry
                     if (tab == InvoiceTab.SETTINGS && backupActions != null) {
                         InvoiceBackupSettings(backupBusy,
                             onExport = { transferBackup(backupActions::exportBackup) },
@@ -161,7 +163,7 @@ fun InvoiceCheckScreen(
                             camera = { camera(detection) },
                             selectPhoto = selectPhoto?.let { action -> { action(detection) } },
                         )
-                    } else if (invoice == null) {
+                    } else if (invoice == null || entry == null) {
                         InvoiceManualEntry(
                             busy = false,
                             title = "لم تُقرأ فاتورة بعد",
@@ -178,8 +180,14 @@ fun InvoiceCheckScreen(
                                 if (!action(invoiceShareSummary(invoice))) showMessage("تعذّرت مشاركة الفاتورة")
                             }
                         }
-                        InvoiceResult(invoice, formatInvoiceCheckTime(checkedAt), share) {
+                        InvoiceResult(invoice, entry, share, onSaveAnnotation = { fields ->
+                            val saved = InvoiceAnnotationRules.isValid(fields.number, fields.category, fields.note) &&
+                                history.updateAnnotation(entry.id, fields)
+                            if (saved) savedEntry = entry.copy(annotation = fields)
+                            saved
+                        }) {
                             result = null
+                            savedEntry = null
                             tab = startTab
                         }
                     }
@@ -283,7 +291,8 @@ private fun InvoiceIconTile(
 }
 
 @Composable
-private fun InvoiceResult(invoice: ParsedInvoice, checkedAt: String, onShare: (() -> Unit)?, onAgain: () -> Unit) {
+private fun InvoiceResult(invoice: ParsedInvoice, entry: InvoiceHistoryEntry, onShare: (() -> Unit)?,
+    onSaveAnnotation: (InvoiceAnnotationFields) -> Boolean, onAgain: () -> Unit) {
     val phase = if (invoice.phase2) "المرحلة الثانية" else "المرحلة الأولى"
     val type = if (invoice.isSimplified) "فاتورة ضريبية مبسطة" else "فاتورة ضريبية"
     val colors = MaterialTheme.colorScheme
@@ -314,7 +323,8 @@ private fun InvoiceResult(invoice: ParsedInvoice, checkedAt: String, onShare: ((
             invoice.relevantChecks().filterNot { it.passed }.forEach { check ->
                 Text("✕ ${invoiceCheckLabel(check)}", style = MaterialTheme.typography.bodySmall)
             }
-            Text("تاريخ الفحص: $checkedAt", Modifier.testTag("invoice-checked-at"), style = MaterialTheme.typography.bodySmall)
+            Text("تاريخ الفحص: ${formatInvoiceCheckTime(entry.checkedAt)}",
+                Modifier.testTag("invoice-checked-at"), style = MaterialTheme.typography.bodySmall)
         }
         Text(
             "يفحص التطبيق بنية QR وحقول الفاتورة محليًا، ولا يتحقق من صحة التوقيع أو اعتماد الفاتورة رسميًا.",
@@ -331,6 +341,7 @@ private fun InvoiceResult(invoice: ParsedInvoice, checkedAt: String, onShare: ((
             if (tag == 3) InvoiceDateCard(invoice.value(tag))
             else InvoiceValueCard(tag, invoiceFieldName(tag), invoice.value(tag))
         }
+        IosInvoiceAnnotations(entry, onSaveAnnotation)
         if (invoice.phase2) {
             OutlinedButton(onClick = { advanced = !advanced },
                 modifier = Modifier.fillMaxWidth().testTag("invoice-advanced")) {

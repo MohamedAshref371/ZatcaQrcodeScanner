@@ -41,6 +41,9 @@ import androidx.compose.ui.res.stringResource
 import com.poetscorner.invoiceqr.BuildConfig
 import com.poetscorner.invoiceqr.selectedInvoiceUris
 import com.poetscorner.invoiceqr.R
+import com.poetscorner.invoiceqr.sharedui.InvoiceAnnotationDialog
+import com.poetscorner.invoiceqr.sharedui.InvoiceAnnotationFields
+import com.poetscorner.invoiceqr.sharedui.InvoiceAnnotationLabels
 import com.poetscorner.invoiceqr.sharedui.InvoiceFieldCard
 import com.poetscorner.invoiceqr.sharedui.InvoiceManualEntry
 import com.poetscorner.invoiceqr.sharedui.InvoiceSummaryCard
@@ -599,14 +602,9 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (InvoiceAnnotation) -> Unit) {
     var editing by rememberSaveable { mutableStateOf(false) }
-    var number by rememberSaveable { mutableStateOf("") }
-    var category by rememberSaveable { mutableIntStateOf(0) }
-    var categoryExpanded by remember { mutableStateOf(false) }
-    var note by rememberSaveable { mutableStateOf("") }
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
@@ -644,49 +642,26 @@ private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (Invoic
                 }
             }
             val editDescription = stringResource(R.string.invoice_edit_details_action)
-            TextButton(onClick = {
-                number = annotation.invoiceNumber; category = annotation.category; note = annotation.note
-                editing = true
-            }, modifier = Modifier.semantics { contentDescription = editDescription }) {
+            TextButton(onClick = { editing = true },
+                modifier = Modifier.semantics { contentDescription = editDescription }) {
                 Text(stringResource(R.string.invoice_edit_details))
             }
         }
     }
-    if (editing) AlertDialog(onDismissRequest = { editing = false },
-        title = { Text(stringResource(R.string.invoice_your_data)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(number, { number = it.take(120) },
-                    label = { Text(stringResource(R.string.invoice_number)) },
-                    singleLine = true, modifier = Modifier.fillMaxWidth())
-                ExposedDropdownMenuBox(expanded = categoryExpanded,
-                    onExpandedChange = { categoryExpanded = it }) {
-                    OutlinedTextField(value = stringResource(InvoiceCategories.label(category)),
-                        onValueChange = {}, readOnly = true,
-                        label = { Text(stringResource(R.string.invoice_category)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
-                        modifier = Modifier.fillMaxWidth().testTag("invoice_annotation_category")
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
-                    ExposedDropdownMenu(expanded = categoryExpanded,
-                        onDismissRequest = { categoryExpanded = false }) {
-                        InvoiceCategories.ids.forEach { id ->
-                            DropdownMenuItem(text = { Text(stringResource(InvoiceCategories.label(id))) },
-                                onClick = { category = id; categoryExpanded = false },
-                                modifier = Modifier.semantics { selected = category == id })
-                        }
-                    }
-                }
-                OutlinedTextField(note, { note = it.take(2_000) },
-                    label = { Text(stringResource(R.string.invoice_note)) },
-                    minLines = 3, maxLines = 6, modifier = Modifier.fillMaxWidth())
-            }
+    if (editing) InvoiceAnnotationDialog(
+        initial = InvoiceAnnotationFields(annotation.invoiceNumber, annotation.category, annotation.note),
+        labels = InvoiceAnnotationLabels(
+            stringResource(R.string.invoice_your_data), stringResource(R.string.invoice_number),
+            stringResource(R.string.invoice_category), stringResource(R.string.invoice_note),
+            stringResource(R.string.invoice_save_details), stringResource(R.string.cancel),
+        ),
+        categoryLabel = { stringResource(InvoiceCategories.label(it)) },
+        onDismiss = { editing = false },
+        onSave = { fields ->
+            onSave(InvoiceAnnotation(fields.number, fields.category, fields.note))
+            true
         },
-        confirmButton = { Button(onClick = {
-            onSave(InvoiceAnnotation(number.trim(), category, note.trim()))
-            editing = false
-        }) { Text(stringResource(R.string.invoice_save_details)) } },
-        dismissButton = { TextButton(onClick = { editing = false }) { Text(stringResource(R.string.cancel)) } })
+    )
 }
 
 @Composable

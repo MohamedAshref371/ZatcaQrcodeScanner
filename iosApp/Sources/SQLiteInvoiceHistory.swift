@@ -22,9 +22,12 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
             let row = InvoiceBackupRow(raw: raw, checkedAt: checkedAt, invoiceNumber: "", category: 0, note: "")
             let inserted = try insert(row, key: key, seller: seller, vat: vat, total: total, invoiceDay: invoiceDay, into: db)
             if inserted {
-                return InvoiceHistoryEntry(raw: raw, checkedAt: checkedAt, alreadySaved: false)
+                return InvoiceHistoryEntry(id: sqlite3_last_insert_rowid(db), raw: raw, checkedAt: checkedAt,
+                    alreadySaved: false, annotation: InvoiceAnnotationFields(number: "", category: 0, note: ""))
             }
-            return try statement(db, "SELECT raw, checked_at FROM invoices WHERE payload_key = ?") { query in
+            return try statement(db, """
+                SELECT id, raw, checked_at, invoice_number, category, note FROM invoices WHERE payload_key = ?
+                """) { query in
                 try bind(key, to: query, at: 1)
                 return try readEntry(query, alreadySaved: true)
             }
@@ -134,7 +137,7 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
     func page(beforeId: Int64, limit: Int32, filter: InvoiceHistoryQuery) -> InvoiceHistoryPage? {
         return try? withDatabase { db in
             try statement(db, """
-                SELECT id, seller, vat, total, checked_at FROM invoices
+                SELECT id, seller, vat, total, checked_at, invoice_number, category FROM invoices
                 WHERE id < ?1
                   AND (?3 = '' OR instr(seller_search, ?3) > 0 OR (?4 <> '' AND instr(vat, ?4) > 0))
                   AND ((?5 = '' AND ?6 = '') OR (invoice_day <> ''
@@ -160,7 +163,9 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                             seller: columnText(query, at: 1),
                             vat: columnText(query, at: 2),
                             total: columnText(query, at: 3),
-                            checkedAt: sqlite3_column_int64(query, 4)
+                            checkedAt: sqlite3_column_int64(query, 4),
+                            number: columnText(query, at: 5),
+                            category: sqlite3_column_int(query, 6)
                         ))
                     case SQLITE_DONE:
                         return InvoiceHistoryPage(rows: rows, hasMore: false)
@@ -174,11 +179,26 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
 
     func entry(id: Int64) -> InvoiceHistoryEntry? {
         return try? withDatabase { db in
-            try statement(db, "SELECT raw, checked_at FROM invoices WHERE id = ?") { query in
+            try statement(db, """
+                SELECT id, raw, checked_at, invoice_number, category, note FROM invoices WHERE id = ?
+                """) { query in
                 try requireOK(sqlite3_bind_int64(query, 1, id))
                 return try readEntry(query, alreadySaved: false)
             }
         }
+    }
+
+    func updateAnnotation(id: Int64, annotation: InvoiceAnnotationFields) -> Bool {
+        (try? withDatabase { db in
+            try statement(db, "UPDATE invoices SET invoice_number = ?, category = ?, note = ? WHERE id = ?") { query in
+                try bind(annotation.number, to: query, at: 1)
+                try requireOK(sqlite3_bind_int(query, 2, annotation.category))
+                try bind(annotation.note, to: query, at: 3)
+                try requireOK(sqlite3_bind_int64(query, 4, id))
+                guard sqlite3_step(query) == SQLITE_DONE else { throw StorageError.sqlite }
+                return sqlite3_changes(db) == 1
+            }
+        }) ?? false
     }
 
     private enum StorageError: Error { case sqlite }
@@ -300,8 +320,10 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
 
     private func readEntry(_ query: OpaquePointer, alreadySaved: Bool) throws -> InvoiceHistoryEntry {
         guard sqlite3_step(query) == SQLITE_ROW else { throw StorageError.sqlite }
-        return InvoiceHistoryEntry(raw: columnText(query, at: 0),
-                                   checkedAt: sqlite3_column_int64(query, 1), alreadySaved: alreadySaved)
+        return InvoiceHistoryEntry(id: sqlite3_column_int64(query, 0), raw: columnText(query, at: 1),
+            checkedAt: sqlite3_column_int64(query, 2), alreadySaved: alreadySaved,
+            annotation: InvoiceAnnotationFields(number: columnText(query, at: 3),
+                category: sqlite3_column_int(query, 4), note: columnText(query, at: 5)))
     }
 
     private func columnText(_ query: OpaquePointer, at index: Int32) -> String {

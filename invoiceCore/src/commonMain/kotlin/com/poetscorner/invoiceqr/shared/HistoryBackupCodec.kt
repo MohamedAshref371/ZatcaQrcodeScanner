@@ -24,7 +24,6 @@ object HistoryBackupCodec {
     const val MAX_BYTES = 64L * 1024 * 1024
     const val FORMAT = "invoiceqr-history-backup"
     const val VERSION = 2
-    val categoryIds = listOf(0, 1, 2, 3, 4, 5, 6, 99)
 
     fun header() = """{"format":"$FORMAT","version":$VERSION,"invoices":["""
 
@@ -131,17 +130,17 @@ class HistoryBackupReader(source: HistoryBackupSource) {
                     "checkedAt" -> checkedAt = json.integer()
                     "invoiceNumber" -> {
                         annotated = true
-                        invoiceNumber = json.string(120)
+                        invoiceNumber = json.string(InvoiceAnnotationRules.MAX_NUMBER)
                     }
                     "category" -> {
                         annotated = true
                         val id = json.integer()
-                        validBackup(HistoryBackupCodec.categoryIds.any { it.toLong() == id })
+                        validBackup(InvoiceAnnotationRules.categoryIds.any { it.toLong() == id })
                         category = id.toInt()
                     }
                     "note" -> {
                         annotated = true
-                        note = json.string(2_000)
+                        note = json.string(InvoiceAnnotationRules.MAX_NOTE)
                     }
                     else -> throw InvalidHistoryBackup()
                 }

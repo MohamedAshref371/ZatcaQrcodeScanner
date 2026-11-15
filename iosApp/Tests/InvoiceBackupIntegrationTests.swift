@@ -20,6 +20,7 @@ final class InvoiceBackupIntegrationTests: XCTestCase {
         XCTAssertEqual(imported.added, 1)
         XCTAssertEqual(imported.duplicates, 1)
         XCTAssertEqual(first.entry(id: 1)?.checkedAt, 123456789)
+        XCTAssertEqual(first.entry(id: 1)?.annotation.note, note)
 
         let exported = folder.appendingPathComponent("iphone.json")
         try Data().write(to: exported)
@@ -37,6 +38,29 @@ final class InvoiceBackupIntegrationTests: XCTestCase {
         let roundTrip = try restore(from: exported, into: second)
         XCTAssertEqual(roundTrip.added, 1)
         XCTAssertEqual(second.entry(id: 1)?.raw, raw)
+    }
+
+    func testEditingAnnotationsPreservesPayloadAndOriginalCheckTime() throws {
+        let folder = try temporaryFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let first = SQLiteInvoiceHistory(folder: folder)
+        let raw = payload("Seller")
+        let saved = try XCTUnwrap(first.save(raw: raw, normalizedPayload: raw, seller: "Seller", vat: "300000000000003",
+                                             total: "23.00", invoiceDay: "2026-10-20", checkedAt: 42))
+        let annotation = InvoiceAnnotationFields(number: "INV-21", category: 4, note: "ملاحظة")
+        XCTAssertTrue(first.updateAnnotation(id: saved.id, annotation: annotation))
+        XCTAssertFalse(first.updateAnnotation(id: saved.id + 1, annotation: annotation))
+
+        let second = SQLiteInvoiceHistory(folder: folder)
+        let duplicate = try XCTUnwrap(second.save(raw: raw, normalizedPayload: raw, seller: "Seller", vat: "300000000000003",
+                                                  total: "23.00", invoiceDay: "2026-10-20", checkedAt: 999))
+        XCTAssertTrue(duplicate.alreadySaved)
+        XCTAssertEqual(duplicate.checkedAt, 42)
+        XCTAssertEqual(duplicate.id, saved.id)
+        XCTAssertEqual(duplicate.raw, raw)
+        XCTAssertEqual(duplicate.annotation.number, "INV-21")
+        XCTAssertEqual(duplicate.annotation.category, 4)
+        XCTAssertEqual(duplicate.annotation.note, "ملاحظة")
     }
 
     func testTruncatedBackupRollsBackRecordsAlreadyRead() throws {

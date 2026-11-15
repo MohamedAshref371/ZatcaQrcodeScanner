@@ -28,7 +28,13 @@ import com.poetscorner.invoiceqr.shared.ParsedInvoice
 import com.poetscorner.invoiceqr.shared.ZatcaInvoiceParser
 import kotlinx.coroutines.delay
 
-data class InvoiceHistoryEntry(val raw: String, val checkedAt: Long, val alreadySaved: Boolean)
+data class InvoiceHistoryEntry(
+    val id: Long,
+    val raw: String,
+    val checkedAt: Long,
+    val alreadySaved: Boolean,
+    val annotation: InvoiceAnnotationFields,
+)
 
 data class InvoiceHistorySummary(
     val id: Long,
@@ -36,6 +42,8 @@ data class InvoiceHistorySummary(
     val vat: String,
     val total: String,
     val checkedAt: Long,
+    val number: String,
+    val category: Int,
 )
 
 data class InvoiceHistoryPage(val rows: List<InvoiceHistorySummary>, val hasMore: Boolean)
@@ -54,6 +62,7 @@ interface InvoiceHistoryStore {
         invoiceDay: String, checkedAt: Long): InvoiceHistoryEntry?
     fun page(beforeId: Long, limit: Int, filter: InvoiceHistoryQuery): InvoiceHistoryPage?
     fun entry(id: Long): InvoiceHistoryEntry?
+    fun updateAnnotation(id: Long, annotation: InvoiceAnnotationFields): Boolean
 }
 
 fun invoiceHistoryDay(raw: String): String = invoiceHistoryDay(ZatcaInvoiceParser.parse(raw))
@@ -136,6 +145,8 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
                     if (row.total.isNotBlank()) {
                         Text("الإجمالي: ${row.total}", style = MaterialTheme.typography.bodyMedium)
                     }
+                    if (row.number.isNotBlank()) Text("رقم الفاتورة: ${row.number}", style = MaterialTheme.typography.bodySmall)
+                    if (row.category != 0) Text(arabicInvoiceCategory(row.category), style = MaterialTheme.typography.bodySmall)
                     Text("تاريخ الفحص: ${formatInvoiceCheckTime(row.checkedAt)}",
                         style = MaterialTheme.typography.bodySmall)
                 }

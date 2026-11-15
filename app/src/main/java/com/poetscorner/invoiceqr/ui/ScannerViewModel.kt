@@ -2,6 +2,7 @@ package com.poetscorner.invoiceqr.ui
 
 import android.app.Application
 import androidx.core.content.ContextCompat
+import com.poetscorner.invoiceqr.shared.InvoiceAnnotationRules
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.InvoiceFileType
 import com.poetscorner.invoiceqr.invoiceFileDisplayName
@@ -399,8 +400,7 @@ class ScannerViewModel(
     fun saveAnnotation(annotation: InvoiceAnnotation) {
         val current = mutableResult.value ?: return
         val id = current.scanId ?: return
-        if (annotation.invoiceNumber.length > 120 || annotation.note.length > 2_000 ||
-            annotation.category !in InvoiceCategories.ids) return
+        if (!InvoiceAnnotationRules.isValid(annotation.invoiceNumber, annotation.category, annotation.note)) return
         viewModelScope.launch {
             try {
                 val updated = withContext(Dispatchers.IO) {

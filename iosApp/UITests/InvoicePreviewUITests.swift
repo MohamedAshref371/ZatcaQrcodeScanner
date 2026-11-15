@@ -167,6 +167,24 @@ final class InvoicePreviewUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["تم النسخ"].exists || element("invoice-copy-raw", in: app).label == "تم النسخ")
     }
 
+    func testCanEditInvoiceNumber() {
+        continueAfterFailure = false
+        let app = isolatedApp()
+        app.launch()
+        submit(base64(["Seller", "300000000000003", "2026-10-20T10:30:00", "230.00", "30.00"]), in: app)
+        XCTAssertTrue(element("invoice-status", in: app).waitForExistence(timeout: 15))
+        scrollTo("invoice-annotation-edit", in: app).tap()
+        let number = element("invoice-annotation-number", in: app)
+        XCTAssertTrue(number.waitForExistence(timeout: 10))
+        number.tap()
+        number.typeText("INV-21")
+        let done = app.keyboards.buttons["Done"].firstMatch
+        if done.exists { done.tap() }
+        element("invoice-annotation-save", in: app).tap()
+        let saved = scrollTo("invoice-saved-number", in: app)
+        XCTAssertEqual(saved.label, "رقم الفاتورة: INV-21")
+    }
+
     private func scrollTo(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         let target = element(identifier, in: app)
         for _ in 0..<8 where !target.isHittable {
