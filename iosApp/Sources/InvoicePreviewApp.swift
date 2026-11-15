@@ -15,7 +15,7 @@ struct InvoicePreviewApp: App {
 private struct InvoiceScreen: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
         let host = NativeInvoiceScanner()
-        let controller = InvoiceScreenControllerKt.invoiceScreenController(host: host)
+        let controller = InvoiceScreenControllerKt.invoiceScreenController(host: host, history: SQLiteInvoiceHistory())
         host.presenter = controller
         return controller
     }

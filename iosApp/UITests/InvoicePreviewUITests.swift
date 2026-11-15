@@ -3,7 +3,7 @@ import XCTest
 final class InvoicePreviewUITests: XCTestCase {
     func testAndroidStyleResultFlow() {
         continueAfterFailure = false
-        let app = XCUIApplication()
+        let app = isolatedApp()
         app.launch()
         let resultTab = element("invoice-result-tab", in: app)
         XCTAssertTrue(resultTab.waitForExistence(timeout: 15))
@@ -24,13 +24,7 @@ final class InvoicePreviewUITests: XCTestCase {
         input.tap()
         input.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
         let fields = ["متجر تجريبي", "300000000000003", "2026-10-20T10:30:00", "230.00", "30.00"]
-        var tlv = Data()
-        for (index, field) in fields.enumerated() {
-            let bytes = Data(field.utf8)
-            tlv.append(contentsOf: [UInt8(index + 1), UInt8(bytes.count)])
-            tlv.append(bytes)
-        }
-        input.typeText(tlv.base64EncodedString())
+        input.typeText(base64(fields))
         element("invoice-submit", in: app).tap()
 
         let status = element("invoice-status", in: app)
@@ -56,7 +50,7 @@ final class InvoicePreviewUITests: XCTestCase {
 
     func testScansInvoiceQRFromPhotos() {
         continueAfterFailure = false
-        let app = XCUIApplication()
+        let app = isolatedApp()
         app.launch()
         let photoButton = element("invoice-scan-photo", in: app)
         XCTAssertTrue(photoButton.waitForExistence(timeout: 15))
@@ -82,6 +76,71 @@ final class InvoicePreviewUITests: XCTestCase {
         XCTAssertEqual(element("invoice-field-1", in: app).label, "متجر صور الاختبار")
         XCTAssertEqual(element("invoice-field-2", in: app).label, "310123456789013")
         attachScreenshot("invoice-photo-result", of: app)
+        element("invoice-history-tab", in: app).tap()
+        XCTAssertTrue(element("invoice-history-row", in: app).waitForExistence(timeout: 10), app.debugDescription)
+    }
+
+    func testHistoryPersistsAndRescanKeepsOriginalCheckTime() {
+        continueAfterFailure = false
+        let app = isolatedApp()
+        let seller = "History store"
+        let payload = base64([seller, "300000000000003", "2026-10-20T10:30:00", "230.00", "30.00"])
+        XCTAssertTrue(payload.hasSuffix("="))
+
+        app.launch()
+        let historyTab = element("invoice-history-tab", in: app)
+        XCTAssertTrue(historyTab.waitForExistence(timeout: 15))
+        historyTab.tap()
+        XCTAssertTrue(element("invoice-history-empty", in: app).waitForExistence(timeout: 10))
+        submit(payload, in: app)
+        let checkedAt = element("invoice-checked-at", in: app)
+        XCTAssertTrue(checkedAt.waitForExistence(timeout: 15))
+        let originalCheckTime = checkedAt.label
+
+        app.terminate()
+        app.launch()
+        // Submit a different textual encoding of the same payload after restarting.
+        let unpadded = payload.trimmingCharacters(in: CharacterSet(charactersIn: "="))
+        submit(String(unpadded.prefix(8)) + " " + String(unpadded.dropFirst(8)), in: app)
+        XCTAssertTrue(checkedAt.waitForExistence(timeout: 15))
+        XCTAssertEqual(checkedAt.label, originalCheckTime)
+        XCTAssertEqual(element("invoice-field-1", in: app).label, seller)
+
+        historyTab.tap()
+        let rows = app.descendants(matching: .any).matching(identifier: "invoice-history-row")
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertEqual(rows.count, 1)
+        rows.firstMatch.tap()
+        XCTAssertTrue(checkedAt.waitForExistence(timeout: 15))
+        XCTAssertEqual(checkedAt.label, originalCheckTime)
+        XCTAssertEqual(element("invoice-field-1", in: app).label, seller)
+    }
+
+    private func isolatedApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["INVOICE_UI_TEST_HISTORY"] = UUID().uuidString
+        return app
+    }
+
+    private func submit(_ payload: String, in app: XCUIApplication) {
+        let tab = element("invoice-result-tab", in: app)
+        XCTAssertTrue(tab.waitForExistence(timeout: 15))
+        tab.tap()
+        let input = element("invoice-input", in: app)
+        XCTAssertTrue(input.waitForExistence(timeout: 15))
+        input.tap()
+        input.typeText(payload)
+        element("invoice-submit", in: app).tap()
+    }
+
+    private func base64(_ fields: [String]) -> String {
+        var tlv = Data()
+        for (index, field) in fields.enumerated() {
+            let bytes = Data(field.utf8)
+            tlv.append(contentsOf: [UInt8(index + 1), UInt8(bytes.count)])
+            tlv.append(bytes)
+        }
+        return tlv.base64EncodedString()
     }
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {

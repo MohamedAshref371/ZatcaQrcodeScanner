@@ -50,7 +50,7 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
                 guard let self else { return }
                 self.photoDetection = nil
                 picker?.dismiss(animated: true)
-                if !candidates.contains(where: { detection.accept(raw: $0) }) {
+                if !candidates.contains(where: { detection.accept(raw: $0) != .invalid }) {
                     detection.reportPhotoIssue(foundQr: !candidates.isEmpty)
                 }
             }
@@ -250,11 +250,13 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
             guard let payload = code.stringValue else { continue }
             let now = ProcessInfo.processInfo.systemUptime
             if let lastRejected, lastRejected.payload == payload, now - lastRejected.time < 1 { continue }
-            if detection.accept(raw: payload) {
+            let result = detection.accept(raw: payload)
+            if result == .accepted {
                 accepted = true
                 return
             }
             lastRejected = (payload, now)
+            if result != .invalid { return }
         }
     }
 }

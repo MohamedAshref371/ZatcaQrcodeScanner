@@ -1,0 +1,155 @@
+import CryptoKit
+import Foundation
+import InvoiceUI
+import SQLite3
+
+final class SQLiteInvoiceHistory: InvoiceHistoryStore {
+    private var database: OpaquePointer?
+
+    deinit {
+        if let database { sqlite3_close(database) }
+    }
+
+    func save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String,
+              checkedAt: Int64) -> InvoiceHistoryEntry? {
+        let key = SHA256.hash(data: Data(normalizedPayload.utf8)).map { String(format: "%02x", $0) }.joined()
+        return try? withDatabase { db in
+            let inserted = try statement(db, """
+                INSERT INTO invoices(payload_key, raw, seller, vat, total, checked_at)
+                VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(payload_key) DO NOTHING
+                """) { query in
+                try bind(key, to: query, at: 1)
+                try bind(raw, to: query, at: 2)
+                try bind(seller, to: query, at: 3)
+                try bind(vat, to: query, at: 4)
+                try bind(total, to: query, at: 5)
+                try requireOK(sqlite3_bind_int64(query, 6, checkedAt))
+                guard sqlite3_step(query) == SQLITE_DONE else { throw StorageError.sqlite }
+                return sqlite3_changes(db) == 1
+            }
+            if inserted {
+                return InvoiceHistoryEntry(raw: raw, checkedAt: checkedAt, alreadySaved: false)
+            }
+            return try statement(db, "SELECT raw, checked_at FROM invoices WHERE payload_key = ?") { query in
+                try bind(key, to: query, at: 1)
+                return try readEntry(query, alreadySaved: true)
+            }
+        }
+    }
+
+    func page(beforeId: Int64, limit: Int32) -> InvoiceHistoryPage? {
+        return try? withDatabase { db in
+            try statement(db, """
+                SELECT id, seller, vat, total, checked_at FROM invoices
+                WHERE id < ? ORDER BY id DESC LIMIT ?
+                """) { query in
+                try requireOK(sqlite3_bind_int64(query, 1, beforeId))
+                try requireOK(sqlite3_bind_int64(query, 2, Int64(limit) + 1))
+                var rows: [InvoiceHistorySummary] = []
+                while true {
+                    switch sqlite3_step(query) {
+                    case SQLITE_ROW:
+                        if rows.count == Int(limit) { return InvoiceHistoryPage(rows: rows, hasMore: true) }
+                        rows.append(InvoiceHistorySummary(
+                            id: sqlite3_column_int64(query, 0),
+                            seller: columnText(query, at: 1),
+                            vat: columnText(query, at: 2),
+                            total: columnText(query, at: 3),
+                            checkedAt: sqlite3_column_int64(query, 4)
+                        ))
+                    case SQLITE_DONE:
+                        return InvoiceHistoryPage(rows: rows, hasMore: false)
+                    default:
+                        throw StorageError.sqlite
+                    }
+                }
+            }
+        }
+    }
+
+    func entry(id: Int64) -> InvoiceHistoryEntry? {
+        return try? withDatabase { db in
+            try statement(db, "SELECT raw, checked_at FROM invoices WHERE id = ?") { query in
+                try requireOK(sqlite3_bind_int64(query, 1, id))
+                return try readEntry(query, alreadySaved: false)
+            }
+        }
+    }
+
+    private enum StorageError: Error { case sqlite }
+
+    private func withDatabase<T>(_ action: (OpaquePointer) throws -> T) throws -> T {
+        if let database { return try action(database) }
+
+        let manager = FileManager.default
+        let support = try manager.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                      appropriateFor: nil, create: true)
+        var folder = support.appendingPathComponent("InvoiceHistory", isDirectory: true)
+        #if targetEnvironment(simulator)
+        if let testStore = ProcessInfo.processInfo.environment["INVOICE_UI_TEST_HISTORY"],
+           let id = UUID(uuidString: testStore) {
+            folder = manager.temporaryDirectory.appendingPathComponent("InvoiceHistory-\(id.uuidString)", isDirectory: true)
+        }
+        #endif
+        try manager.createDirectory(at: folder, withIntermediateDirectories: true)
+        var resources = URLResourceValues()
+        resources.isExcludedFromBackup = true
+        try folder.setResourceValues(resources)
+
+        var opened: OpaquePointer?
+        let path = folder.appendingPathComponent("invoices.sqlite").path
+        let status = sqlite3_open_v2(path, &opened, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nil)
+        guard let opened else { throw StorageError.sqlite }
+        do {
+            try requireOK(status)
+            try requireOK(sqlite3_busy_timeout(opened, 1000))
+            try requireOK(sqlite3_exec(opened, """
+                CREATE TABLE IF NOT EXISTS invoices (
+                    id INTEGER PRIMARY KEY,
+                    payload_key TEXT NOT NULL UNIQUE,
+                    raw TEXT NOT NULL,
+                    seller TEXT NOT NULL,
+                    vat TEXT NOT NULL,
+                    total TEXT NOT NULL,
+                    checked_at INTEGER NOT NULL
+                )
+                """, nil, nil, nil))
+        } catch {
+            sqlite3_close(opened)
+            throw error
+        }
+        database = opened
+        return try action(opened)
+    }
+
+    private func statement<T>(_ db: OpaquePointer, _ sql: String, _ action: (OpaquePointer) throws -> T) throws -> T {
+        var query: OpaquePointer?
+        try requireOK(sqlite3_prepare_v2(db, sql, -1, &query, nil))
+        guard let query else { throw StorageError.sqlite }
+        defer { sqlite3_finalize(query) }
+        return try action(query)
+    }
+
+    private func bind(_ value: String, to query: OpaquePointer, at index: Int32) throws {
+        let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+        try value.utf8CString.withUnsafeBufferPointer { bytes in
+            try requireOK(sqlite3_bind_text(query, index, bytes.baseAddress, Int32(bytes.count - 1), transient))
+        }
+    }
+
+    private func readEntry(_ query: OpaquePointer, alreadySaved: Bool) throws -> InvoiceHistoryEntry {
+        guard sqlite3_step(query) == SQLITE_ROW else { throw StorageError.sqlite }
+        return InvoiceHistoryEntry(raw: columnText(query, at: 0),
+                                   checkedAt: sqlite3_column_int64(query, 1), alreadySaved: alreadySaved)
+    }
+
+    private func columnText(_ query: OpaquePointer, at index: Int32) -> String {
+        let bytes = sqlite3_column_text(query, index)
+        let length = Int(sqlite3_column_bytes(query, index))
+        return String(decoding: UnsafeBufferPointer(start: bytes, count: length), as: UTF8.self)
+    }
+
+    private func requireOK(_ code: Int32) throws {
+        guard code == SQLITE_OK else { throw StorageError.sqlite }
+    }
+}

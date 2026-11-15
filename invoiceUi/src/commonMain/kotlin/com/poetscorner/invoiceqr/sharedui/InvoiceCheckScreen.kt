@@ -30,47 +30,82 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
+import kotlin.time.Instant
+
+private enum class InvoiceTab { SCANNER, RESULT, HISTORY, STATISTICS, SETTINGS }
+
+private const val invalidInvoiceMessage = "رمز QR غير صالح للفاتورة"
+
+enum class InvoiceDetectionResult { ACCEPTED, INVALID, SAVE_FAILED, INACTIVE }
 
 interface InvoiceDetection {
-    fun accept(raw: String): Boolean
+    fun accept(raw: String): InvoiceDetectionResult
     fun reportPhotoIssue(foundQr: Boolean)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InvoiceCheckScreen(
+    history: InvoiceHistoryStore,
     camera: (@Composable (InvoiceDetection) -> Unit)? = null,
     selectPhoto: ((InvoiceDetection) -> Unit)? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var scannerSelected by remember { mutableStateOf(camera != null) }
+    val startTab = if (camera == null) InvoiceTab.RESULT else InvoiceTab.SCANNER
+    var tab by remember { mutableStateOf(startTab) }
     var result by remember { mutableStateOf<ParsedInvoice?>(null) }
-    var checkedAt by remember { mutableStateOf("") }
+    var checkedAt by remember { mutableStateOf(0L) }
 
     fun showMessage(message: String) {
+        if (snackbar.currentSnackbarData?.visuals?.message == message) return
         snackbar.currentSnackbarData?.dismiss()
         scope.launch { snackbar.showSnackbar(message) }
     }
 
-    fun inspect(raw: String): Boolean {
-        val parsed = ZatcaInvoiceParser.parse(raw)
-        if (parsed.error != null) return false
+    fun showResult(parsed: ParsedInvoice, saved: InvoiceHistoryEntry) {
         snackbar.currentSnackbarData?.dismiss()
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        checkedAt = "${now.year}/${twoDigits(now.monthNumber)}/${twoDigits(now.dayOfMonth)} ${displayTime(now)}"
+        checkedAt = saved.checkedAt
         result = parsed
-        scannerSelected = false
-        return true
+        tab = InvoiceTab.RESULT
     }
 
-    val detection = remember {
+    fun inspect(raw: String): InvoiceDetectionResult {
+        val parsed = ZatcaInvoiceParser.parse(raw)
+        if (parsed.error != null) return InvoiceDetectionResult.INVALID
+
+        val normalized = raw.filterNot { it.isWhitespace() }.trimEnd('=')
+        val saved = history.save(raw, normalized, parsed.value(1), parsed.value(2), parsed.value(4),
+            Clock.System.now().toEpochMilliseconds())
+        if (saved == null) {
+            showMessage("تعذّر حفظ الفاتورة. حاول مرة أخرى.")
+            return InvoiceDetectionResult.SAVE_FAILED
+        }
+
+        val invoice = if (saved.raw == raw) parsed else ZatcaInvoiceParser.parse(saved.raw)
+        showResult(invoice, saved)
+        if (saved.alreadySaved) showMessage("الفاتورة محفوظة بالفعل")
+        return InvoiceDetectionResult.ACCEPTED
+    }
+
+    fun openSavedInvoice(id: Long) {
+        val saved = history.entry(id)
+        val invoice = saved?.let { ZatcaInvoiceParser.parse(it.raw) }
+        if (saved == null || invoice == null || invoice.error != null) {
+            showMessage("تعذّر فتح الفاتورة المحفوظة")
+            return
+        }
+        showResult(invoice, saved)
+    }
+
+    val detection = remember(history) {
         object : InvoiceDetection {
-            override fun accept(raw: String): Boolean = scannerSelected && inspect(raw)
+            override fun accept(raw: String): InvoiceDetectionResult =
+                if (tab == InvoiceTab.SCANNER) inspect(raw) else InvoiceDetectionResult.INACTIVE
 
             override fun reportPhotoIssue(foundQr: Boolean) {
-                if (scannerSelected) {
-                    showMessage(if (foundQr) "رمز QR غير صالح للفاتورة" else "لم أتمكن من قراءة رمز QR من الصورة")
+                if (tab == InvoiceTab.SCANNER) {
+                    showMessage(if (foundQr) invalidInvoiceMessage else "لم أتمكن من قراءة رمز QR من الصورة")
                 }
             }
         }
@@ -95,13 +130,15 @@ fun InvoiceCheckScreen(
                     )
                 },
                 bottomBar = {
-                    InvoiceResultNavigation(scannerSelected, camera != null) { scannerSelected = it }
+                    InvoiceResultNavigation(tab, camera != null) { tab = it }
                 },
                 snackbarHost = { SnackbarHost(snackbar, Modifier.testTag("invoice-error")) },
             ) { padding ->
                 Box(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
                     val invoice = result
-                    if (scannerSelected && camera != null) {
+                    if (tab == InvoiceTab.HISTORY) {
+                        InvoiceHistoryScreen(history, ::openSavedInvoice)
+                    } else if (tab == InvoiceTab.SCANNER && camera != null) {
                         InvoiceScannerPanel(
                             camera = { camera(detection) },
                             selectPhoto = selectPhoto?.let { action -> { action(detection) } },
@@ -115,12 +152,12 @@ fun InvoiceCheckScreen(
                             buttonLabel = "فحص",
                             icon = { InvoiceIconTile(ReceiptIcon) },
                         ) { raw ->
-                            if (!inspect(raw)) showMessage("رمز QR غير صالح للفاتورة")
+                            if (inspect(raw) == InvoiceDetectionResult.INVALID) showMessage(invalidInvoiceMessage)
                         }
                     } else {
-                        InvoiceResult(invoice, checkedAt) {
+                        InvoiceResult(invoice, formatInvoiceCheckTime(checkedAt)) {
                             result = null
-                            scannerSelected = camera != null
+                            tab = startTab
                         }
                     }
                 }
@@ -153,7 +190,7 @@ private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (()
 }
 
 @Composable
-private fun InvoiceResultNavigation(scannerSelected: Boolean, hasScanner: Boolean, select: (Boolean) -> Unit) {
+private fun InvoiceResultNavigation(tab: InvoiceTab, hasScanner: Boolean, select: (InvoiceTab) -> Unit) {
     val items = listOf(
         "الماسح" to ScanIcon, "النتيجة" to ReceiptIcon, "السجل" to HistoryIcon,
         "الإحصاءات" to StatisticsIcon, "الإعدادات" to SettingsIcon,
@@ -177,13 +214,19 @@ private fun InvoiceResultNavigation(scannerSelected: Boolean, hasScanner: Boolea
                 windowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal),
             ) {
                 items.forEachIndexed { index, (title, icon) ->
+                    val itemTab = InvoiceTab.entries[index]
                     NavigationBarItem(
-                        selected = index == if (scannerSelected) 0 else 1,
-                        onClick = { select(index == 0) },
-                        enabled = index == 1 || (index == 0 && hasScanner),
-                        modifier = when (index) {
-                            0 -> Modifier.testTag("invoice-scanner-tab")
-                            1 -> Modifier.testTag("invoice-result-tab")
+                        selected = itemTab == tab,
+                        onClick = { select(itemTab) },
+                        enabled = when (itemTab) {
+                            InvoiceTab.SCANNER -> hasScanner
+                            InvoiceTab.RESULT, InvoiceTab.HISTORY -> true
+                            else -> false
+                        },
+                        modifier = when (itemTab) {
+                            InvoiceTab.SCANNER -> Modifier.testTag("invoice-scanner-tab")
+                            InvoiceTab.RESULT -> Modifier.testTag("invoice-result-tab")
+                            InvoiceTab.HISTORY -> Modifier.testTag("invoice-history-tab")
                             else -> Modifier
                         },
                         icon = { Icon(icon, null) },
@@ -236,7 +279,7 @@ private fun InvoiceResult(invoice: ParsedInvoice, checkedAt: String, onAgain: ()
                 )
             }
             Text("$type · $phase")
-            Text("تاريخ الفحص: $checkedAt", style = MaterialTheme.typography.bodySmall)
+            Text("تاريخ الفحص: $checkedAt", Modifier.testTag("invoice-checked-at"), style = MaterialTheme.typography.bodySmall)
         }
         Text(
             "يفحص التطبيق بنية QR وحقول الفاتورة محليًا، ولا يتحقق من صحة التوقيع أو اعتماد الفاتورة رسميًا.",
@@ -319,6 +362,11 @@ private val weekdays = listOf("الاثنين", "الثلاثاء", "الأرب�
 private val months = listOf("يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر")
 
 private fun twoDigits(value: Int) = value.toString().padStart(2, '0')
+
+internal fun formatInvoiceCheckTime(checkedAt: Long): String {
+    val time = Instant.fromEpochMilliseconds(checkedAt).toLocalDateTime(TimeZone.currentSystemDefault())
+    return "${time.year}/${twoDigits(time.monthNumber)}/${twoDigits(time.dayOfMonth)} ${displayTime(time)}"
+}
 
 private fun displayTime(value: LocalDateTime): String {
     val hour = (value.hour + 11) % 12 + 1

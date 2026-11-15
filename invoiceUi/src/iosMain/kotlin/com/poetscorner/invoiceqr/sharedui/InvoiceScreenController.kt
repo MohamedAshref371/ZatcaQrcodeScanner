@@ -12,8 +12,9 @@ interface InvoiceScannerHost {
     fun selectPhoto(detection: InvoiceDetection)
 }
 
-fun invoiceScreenController(host: InvoiceScannerHost): UIViewController = ComposeUIViewController {
+fun invoiceScreenController(host: InvoiceScannerHost, history: InvoiceHistoryStore): UIViewController = ComposeUIViewController {
     InvoiceCheckScreen(
+        history = history,
         camera = { detection ->
             UIKitViewController(
                 factory = { host.makeCamera(detection) },
