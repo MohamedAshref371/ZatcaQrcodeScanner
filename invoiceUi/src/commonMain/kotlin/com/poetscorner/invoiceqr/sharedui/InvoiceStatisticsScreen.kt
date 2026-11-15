@@ -69,7 +69,8 @@ internal data class InvoiceStatisticsSettings(
 
 @Composable
 internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: InvoiceStatisticsSettings,
-    onChange: (InvoiceStatisticsSettings) -> Unit) {
+    onChange: (InvoiceStatisticsSettings) -> Unit, exportEnabled: Boolean = false,
+    onExport: (InvoiceStatisticsSnapshot, String, Boolean) -> Unit = { _, _, _ -> }) {
     var retries by remember { mutableIntStateOf(0) }
     var showDates by remember { mutableStateOf(false) }
     var showCalculations by remember { mutableStateOf(false) }
@@ -94,6 +95,11 @@ internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("الإحصاءات", style = MaterialTheme.typography.titleLarge)
+                TextButton(onClick = {
+                    result?.let { onExport(it, statisticsGroupingLabel(settings.grouping),
+                        settings.grouping != StatisticsGrouping.CATEGORY && settings.calculations.isNotEmpty()) }
+                }, enabled = exportEnabled && result != null && result.summary.count > 0,
+                    modifier = Modifier.testTag("invoice-statistics-export-csv")) { Text("تصدير CSV") }
                 StatisticsChoice("التجميع حسب", settings.grouping, StatisticsGrouping.entries.filterNot { it == StatisticsGrouping.HALF_YEAR },
                     ::statisticsGroupingLabel, "invoice-statistics-group") { onChange(settings.copy(grouping = it)) }
                 TextButton(onClick = { showDates = true }) { Text(settings.dates.dateSummary()) }

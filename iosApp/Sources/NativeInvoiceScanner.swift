@@ -12,6 +12,7 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
     weak var presenter: UIViewController?
     private var photoDetection: InvoiceDetection?
     private let backupDocuments = InvoiceBackupDocuments()
+    private let csvDocuments = InvoiceCsvDocuments()
     private let statisticsQueue = DispatchQueue(label: "com.poetscorner.invoiceqr.statistics", qos: .userInitiated)
     private static let photoLog = Logger(subsystem: "com.poetscorner.invoiceqr.preview", category: "photo-scan")
 
@@ -36,6 +37,16 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
             let result = try? SQLiteInvoiceHistory().statistics(query)
             DispatchQueue.main.async { observer.complete(snapshot: result) }
         }
+    }
+
+    func exportHistoryCsv(query: InvoiceHistoryQuery, observer: InvoiceCsvObserver) {
+        csvDocuments.exportHistory(from: presenter, query: query, observer: observer)
+    }
+
+    func exportStatisticsCsv(snapshot: InvoiceStatisticsSnapshot, groupingLabel: String, net: Bool,
+                             observer: InvoiceCsvObserver) {
+        csvDocuments.exportStatistics(from: presenter, snapshot: snapshot, groupingLabel: groupingLabel,
+                                      net: net, observer: observer)
     }
 
     func shareInvoice(summary: String) -> Bool {

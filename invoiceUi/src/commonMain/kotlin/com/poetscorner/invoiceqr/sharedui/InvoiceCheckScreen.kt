@@ -54,6 +54,7 @@ fun InvoiceCheckScreen(
     shareInvoice: ((String) -> Boolean)? = null,
     backupActions: InvoiceBackupActions? = null,
     statisticsSource: InvoiceStatisticsSource? = null,
+    csvActions: InvoiceCsvActions? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -64,6 +65,7 @@ fun InvoiceCheckScreen(
     var historyFilter by remember { mutableStateOf(InvoiceHistoryFilter()) }
     var statisticsSettings by remember { mutableStateOf(InvoiceStatisticsSettings()) }
     var backupBusy by remember { mutableStateOf(false) }
+    var csvBusy by remember { mutableStateOf(false) }
 
     fun showMessage(message: String) {
         if (snackbar.currentSnackbarData?.visuals?.message == message) return
@@ -72,11 +74,24 @@ fun InvoiceCheckScreen(
     }
 
     fun transferBackup(transfer: (InvoiceBackupObserver) -> Unit) {
-        if (backupBusy) return
+        if (backupBusy || csvBusy) return
         backupBusy = true
         transfer { result ->
             backupBusy = false
             result.message()?.let(::showMessage)
+        }
+    }
+
+    fun transferCsv(transfer: (InvoiceCsvObserver) -> Unit) {
+        if (csvBusy || backupBusy) return
+        csvBusy = true
+        transfer { status ->
+            csvBusy = false
+            when (status) {
+                InvoiceCsvStatus.EXPORTED -> showMessage("تم تصدير CSV")
+                InvoiceCsvStatus.FAILED -> showMessage("تعذّر تصدير ملف CSV")
+                InvoiceCsvStatus.CANCELLED -> Unit
+            }
         }
     }
 
@@ -157,13 +172,21 @@ fun InvoiceCheckScreen(
                     val invoice = result
                     val entry = savedEntry
                     if (tab == InvoiceTab.SETTINGS && backupActions != null) {
-                        InvoiceBackupSettings(backupBusy,
+                        InvoiceBackupSettings(backupBusy || csvBusy,
                             onExport = { transferBackup(backupActions::exportBackup) },
                             onImport = { transferBackup(backupActions::importBackup) })
                     } else if (tab == InvoiceTab.STATISTICS && statisticsSource != null) {
-                        InvoiceStatisticsScreen(statisticsSource, statisticsSettings) { statisticsSettings = it }
+                        InvoiceStatisticsScreen(statisticsSource, statisticsSettings,
+                            onChange = { statisticsSettings = it }, exportEnabled = csvActions != null && !csvBusy && !backupBusy,
+                            onExport = { snapshot, label, net ->
+                                csvActions?.let { actions -> transferCsv { actions.exportStatisticsCsv(snapshot, label, net, it) } }
+                            })
                     } else if (tab == InvoiceTab.HISTORY) {
-                        InvoiceHistoryScreen(history, historyFilter, { historyFilter = it }, ::openSavedInvoice)
+                        InvoiceHistoryScreen(history, historyFilter, { historyFilter = it }, ::openSavedInvoice,
+                            exportEnabled = csvActions != null && !csvBusy && !backupBusy,
+                            onExport = {
+                                csvActions?.let { actions -> transferCsv { actions.exportHistoryCsv(historyFilter.toQuery(), it) } }
+                            })
                     } else if (tab == InvoiceTab.SCANNER && camera != null) {
                         InvoiceScannerPanel(
                             camera = { camera(detection) },

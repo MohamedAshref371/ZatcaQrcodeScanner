@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr.data
 
+import com.poetscorner.invoiceqr.shared.InvoiceStatisticsCsv
 import java.io.Writer
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -9,24 +10,13 @@ object StatisticsExporter {
     suspend fun write(writer: Writer, result: StatisticsResult, headers: List<String>, summaryTitle: String,
         title: (StatisticsKey) -> String) {
         require(headers.size == 6)
-        val columns = buildList {
-            addAll(0..3)
-            if (result.summary.missingTotal != 0 || result.groups.any { it.totals.missingTotal != 0 }) add(4)
-            if (result.summary.missingTax != 0 || result.groups.any { it.totals.missingTax != 0 }) add(5)
-        }
-        fun quote(value: String): String {
-            val safe = if (value.trimStart().firstOrNull() in listOf('=', '+', '-', '@', '\t', '\r')) "'$value" else value
-            return "\"${safe.replace("\"", "\"\"")}\""
-        }
-        fun line(values: List<String>) {
-            writer.write(columns.joinToString(",", postfix = "\r\n") { quote(values[it]) })
-        }
-        fun row(label: String, totals: StatisticsTotals) = line(listOf(label, totals.count.toString(),
-            if (totals.count > totals.ignoredCount && totals.count - totals.ignoredCount == totals.missingTotal) "" else totals.total.toPlainString(),
-            if (totals.count > totals.ignoredCount && totals.count - totals.ignoredCount == totals.missingTax) "" else totals.tax.toPlainString(),
-            totals.missingTotal.toString(), totals.missingTax.toString()))
-        writer.write("\uFEFF")
-        line(headers)
+        val document = InvoiceStatisticsCsv(headers,
+            result.summary.missingTotal != 0 || result.groups.any { it.totals.missingTotal != 0 },
+            result.summary.missingTax != 0 || result.groups.any { it.totals.missingTax != 0 })
+        fun row(label: String, totals: StatisticsTotals) = writer.write(document.record(label, totals.count,
+            totals.total.toPlainString(), totals.tax.toPlainString(), totals.missingTotal, totals.missingTax,
+            totals.ignoredCount))
+        writer.write(document.header())
         for (group in result.groups) {
             currentCoroutineContext().ensureActive()
             row(title(group.key), group.totals)

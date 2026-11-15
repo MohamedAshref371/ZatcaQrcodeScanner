@@ -1,7 +1,10 @@
 package com.poetscorner.invoiceqr
 
 import com.poetscorner.invoiceqr.data.HistoryExporter
+import com.poetscorner.invoiceqr.data.ExportInvoice
 import com.poetscorner.invoiceqr.data.ScanEntity
+import com.poetscorner.invoiceqr.data.csvFields
+import com.poetscorner.invoiceqr.shared.InvoiceHistoryCsv
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.Base64
@@ -48,5 +51,13 @@ class HistoryExporterTest {
         val csv = HistoryExporter.csv(listOf(scan), names) { "Business purchases" }
         assertTrue(csv.split("\r\n")[1].startsWith("\"INV-007\",\"Customer\""))
         assertTrue(csv.endsWith("\"Business purchases\",\"Client visit\""))
+    }
+
+    @Test fun pagedDatabaseRowKeepsEachCsvColumnAligned() {
+        val row = ExportInvoice(7, 123, "Seller", "3001", "2026-11-15T10:00:00Z", "115.00", "15.00",
+            "hash", "INV-7", 1, "Note")
+        val csv = InvoiceHistoryCsv((1..9).map(names::getValue), hasHash = true)
+        assertEquals("\"INV-7\",\"Seller\",\"3001\",\"2026-11-15T10:00:00Z\",\"115.00\",\"15.00\",\"hash\",\"Business purchases\",\"Note\"",
+            csv.record(row.csvFields("Business purchases")))
     }
 }

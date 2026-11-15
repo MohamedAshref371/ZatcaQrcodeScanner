@@ -79,7 +79,8 @@ private const val historyPageSize = 50
 
 @Composable
 internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter,
-    onFilter: (InvoiceHistoryFilter) -> Unit, onOpen: (Long) -> Unit) {
+    onFilter: (InvoiceHistoryFilter) -> Unit, onOpen: (Long) -> Unit,
+    exportEnabled: Boolean = false, onExport: () -> Unit = {}) {
     var showDates by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -97,7 +98,7 @@ internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceH
             }
         }
         key(filter) {
-            InvoiceHistoryResults(history, filter, onOpen)
+            InvoiceHistoryResults(history, filter, onOpen, exportEnabled, onExport)
         }
     }
     if (showDates) {
@@ -109,7 +110,8 @@ internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceH
 }
 
 @Composable
-private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter, onOpen: (Long) -> Unit) {
+private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter, onOpen: (Long) -> Unit,
+    exportEnabled: Boolean, onExport: () -> Unit) {
     var page by remember(history) { mutableStateOf<InvoiceHistoryPage?>(null) }
     var rows by remember(history) { mutableStateOf(emptyList<InvoiceHistorySummary>()) }
     var loadFailed by remember(history) { mutableStateOf(false) }
@@ -134,6 +136,10 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item {
+            TextButton(onClick = onExport, enabled = exportEnabled && rows.isNotEmpty() && !loadFailed,
+                modifier = Modifier.testTag("invoice-history-export-csv")) { Text("تصدير CSV") }
+        }
         if (rows.isEmpty() && page != null) {
             item {
                 Text(if (filter.isActive) "لا توجد فواتير مطابقة" else "لا توجد فواتير محفوظة",

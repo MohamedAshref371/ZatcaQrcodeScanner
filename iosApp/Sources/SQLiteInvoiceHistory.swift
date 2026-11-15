@@ -147,14 +147,7 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                   AND checked_at >= ?7 AND checked_at < ?8
                 ORDER BY id DESC LIMIT ?2
                 """) { query in
-                try requireOK(sqlite3_bind_int64(query, 1, beforeId))
-                try requireOK(sqlite3_bind_int64(query, 2, Int64(limit) + 1))
-                try bind(filter.seller.lowercased(), to: query, at: 3)
-                try bind(filter.vat, to: query, at: 4)
-                try bind(filter.invoiceFrom, to: query, at: 5)
-                try bind(filter.invoiceTo, to: query, at: 6)
-                try requireOK(sqlite3_bind_int64(query, 7, filter.checkedFrom))
-                try requireOK(sqlite3_bind_int64(query, 8, filter.checkedBefore))
+                try bindHistoryFilter(query, beforeId: beforeId, limit: Int64(limit) + 1, filter: filter)
                 var rows: [InvoiceHistorySummary] = []
                 while true {
                     switch sqlite3_step(query) {
@@ -177,6 +170,77 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                 }
             }
         }
+    }
+
+    /// Two passes in one read transaction keep the optional hash column and rows on one snapshot.
+    func writeHistoryCsv(filter: InvoiceHistoryQuery, to file: FileHandle) throws {
+        try withDatabase { db in
+            try transaction(db, begin: "BEGIN") {
+                let detector = InvoiceHistoryCsvDocument(hasHash: false)
+                var cursor = Int64.max
+                var hasHash = false
+                while !hasHash {
+                    let rows = try historyExportPage(db, beforeId: cursor, filter: filter)
+                    guard let last = rows.last else { break }
+                    hasHash = rows.contains { detector.hasHash(raw: $0.raw) }
+                    cursor = last.id
+                }
+                let document = InvoiceHistoryCsvDocument(hasHash: hasHash)
+                try file.write(contentsOf: Data(document.header().utf8))
+                cursor = Int64.max
+                var first = true
+                while true {
+                    let rows = try historyExportPage(db, beforeId: cursor, filter: filter)
+                    guard let last = rows.last else { break }
+                    for row in rows {
+                        if !first { try file.write(contentsOf: Data("\r\n".utf8)) }
+                        try file.write(contentsOf: Data(document.record(raw: row.raw, number: row.number,
+                            category: row.category, note: row.note).utf8))
+                        first = false
+                    }
+                    cursor = last.id
+                }
+            }
+        }
+    }
+
+    private typealias CsvHistoryRow = (id: Int64, raw: String, number: String, category: Int32, note: String)
+
+    private func historyExportPage(_ db: OpaquePointer, beforeId: Int64,
+                                   filter: InvoiceHistoryQuery) throws -> [CsvHistoryRow] {
+        try statement(db, """
+            SELECT id, raw, invoice_number, category, note FROM invoices
+            WHERE id < ?1
+              AND (?3 = '' OR instr(seller_search, ?3) > 0 OR (?4 <> '' AND instr(vat, ?4) > 0))
+              AND ((?5 = '' AND ?6 = '') OR (invoice_day <> ''
+                AND (?5 = '' OR invoice_day >= ?5) AND (?6 = '' OR invoice_day <= ?6)))
+              AND checked_at >= ?7 AND checked_at < ?8
+            ORDER BY id DESC LIMIT ?2
+            """) { query in
+            try bindHistoryFilter(query, beforeId: beforeId, limit: 200, filter: filter)
+            var rows: [CsvHistoryRow] = []
+            var status = sqlite3_step(query)
+            while status == SQLITE_ROW {
+                rows.append((id: sqlite3_column_int64(query, 0), raw: columnText(query, at: 1),
+                    number: columnText(query, at: 2), category: sqlite3_column_int(query, 3),
+                    note: columnText(query, at: 4)))
+                status = sqlite3_step(query)
+            }
+            guard status == SQLITE_DONE else { throw StorageError.sqlite }
+            return rows
+        }
+    }
+
+    private func bindHistoryFilter(_ query: OpaquePointer, beforeId: Int64, limit: Int64,
+                                   filter: InvoiceHistoryQuery) throws {
+        try requireOK(sqlite3_bind_int64(query, 1, beforeId))
+        try requireOK(sqlite3_bind_int64(query, 2, limit))
+        try bind(filter.seller.lowercased(), to: query, at: 3)
+        try bind(filter.vat, to: query, at: 4)
+        try bind(filter.invoiceFrom, to: query, at: 5)
+        try bind(filter.invoiceTo, to: query, at: 6)
+        try requireOK(sqlite3_bind_int64(query, 7, filter.checkedFrom))
+        try requireOK(sqlite3_bind_int64(query, 8, filter.checkedBefore))
     }
 
     func entry(id: Int64) -> InvoiceHistoryEntry? {

@@ -3,9 +3,14 @@ package com.poetscorner.invoiceqr.data
 import org.json.JSONArray
 import org.json.JSONObject
 import com.poetscorner.invoiceqr.domain.ZatcaParser
+import com.poetscorner.invoiceqr.shared.InvoiceHistoryCsv
 import java.io.Writer
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+
+internal fun ExportInvoice.csvFields(categoryName: String): List<String> =
+    listOf(seller, vat, invoiceDate, total, tax, hash, invoiceNumber,
+        if (category == 0) "" else categoryName, note)
 
 object HistoryExporter {
     /** The caller holds a database transaction so all pages and the CSV header share one snapshot. */
@@ -16,8 +21,8 @@ object HistoryExporter {
         val total = dao.counts(queries.counts()).matching
         var written = 0
         progress(0, total)
-        val columns = listOf(7) + (if (csv && dao.hasHash(queries.hashExists())) (1..6).toList() else (1..5).toList()) + listOf(8, 9)
-        if (csv) writer.write("\uFEFF" + columns.joinToString(",") { quote(names.getValue(it)) } + "\r\n")
+        val csvDocument = if (csv) InvoiceHistoryCsv((1..9).map(names::getValue), dao.hasHash(queries.hashExists())) else null
+        if (csvDocument != null) writer.write(csvDocument.header())
         else writer.write("[")
         var cursor: HistoryCursor? = null
         var first = true
@@ -27,10 +32,9 @@ object HistoryExporter {
             if (rows.isEmpty()) break
             for (row in rows) {
                 currentCoroutineContext().ensureActive()
-                if (csv) {
+                if (csvDocument != null) {
                     if (!first) writer.write("\r\n")
-                    val fields = row.fields(categoryName(row.category))
-                    writer.write(columns.joinToString(",") { quote(fields[fieldIndex(it)]) })
+                    writer.write(csvDocument.record(row.csvFields(categoryName(row.category))))
                 } else {
                     writer.write(if (first) "\n  {" else ",\n  {")
                     val fields = row.fields(categoryName(row.category))
@@ -51,10 +55,11 @@ object HistoryExporter {
 
     private fun fieldIndex(tag: Int) = when (tag) { 7 -> 0; 8 -> 7; 9 -> 8; else -> tag }
 
-    private fun quote(value: String): String {
-        val safe = if (value.trimStart().firstOrNull() in listOf('=', '+', '-', '@', '\t', '\r')) "'$value" else value
-        return "\"${safe.replace("\"", "\"\"")}\""
+    private fun ScanEntity.csvFields(categoryName: String): List<String> {
+        val invoice = ZatcaParser.parse(raw)
+        return (1..6).map(invoice::value) + listOf(invoiceNumber, if (category == 0) "" else categoryName, note)
     }
+
     private fun fields(row: ScanEntity, categoryName: (Int) -> String): Map<Int, String> {
         val invoice = ZatcaParser.parse(row.raw)
         return mapOf(7 to row.invoiceNumber) + (1..6).associateWith { invoice.value(it) } +
@@ -71,11 +76,8 @@ object HistoryExporter {
         }
     }.toString(2)
     fun csv(rows: List<ScanEntity>, names: Map<Int, String>, categoryName: (Int) -> String = { it.toString() }): String {
-        val invoices = rows.map { fields(it, categoryName) }
-        val tags = listOf(7) + (if (invoices.any { it.getValue(6).isNotBlank() }) (1..6).toList() else (1..5).toList()) + listOf(8, 9)
-        val header = tags.joinToString(",") { quote(names.getValue(it)) }
-        return "\uFEFF$header\r\n" + invoices.joinToString("\r\n") { invoice ->
-            tags.joinToString(",") { quote(invoice.getValue(it)) }
-        }
+        val invoices = rows.map { it.csvFields(categoryName(it.category)) }
+        val document = InvoiceHistoryCsv((1..9).map(names::getValue), invoices.any { it[5].isNotBlank() })
+        return document.header() + invoices.joinToString("\r\n", transform = document::record)
     }
 }
