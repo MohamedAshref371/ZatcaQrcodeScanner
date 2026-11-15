@@ -1,54 +1,54 @@
 import XCTest
 
 final class InvoicePreviewUITests: XCTestCase {
-    func testInvalidInputThenArabicInvoice() {
+    func testAndroidStyleResultFlow() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launch()
+        let input = element("invoice-input", in: app)
+        XCTAssertTrue(input.waitForExistence(timeout: 15))
+        XCTAssertFalse(element("invoice-submit", in: app).isEnabled)
+        attachScreenshot("invoice-entry", of: app)
 
-        submit("invalid!", in: app)
-        XCTAssertTrue(element("invoice-error", in: app).waitForExistence(timeout: 15))
+        input.tap()
+        input.typeText("invalid!")
+        element("invoice-submit", in: app).tap()
+        let error = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "رمز QR غير صالح للفاتورة")).firstMatch
+        XCTAssertTrue(error.waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertFalse(element("invoice-result", in: app).exists)
         attachScreenshot("invoice-invalid", of: app)
 
-        element("invoice-clear", in: app).tap()
-        XCTAssertFalse(element("invoice-error", in: app).exists)
-        XCTAssertFalse(element("invoice-submit", in: app).isEnabled)
-
-        let fields = ["متجر الاختبار", "310123456789013", "2024-02-29T14:25:00", "115.00", "15.00"]
+        input.tap()
+        input.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
+        let fields = ["متجر تجريبي", "300000000000003", "2026-10-20T10:30:00", "230.00", "30.00"]
         var tlv = Data()
         for (index, field) in fields.enumerated() {
             let bytes = Data(field.utf8)
             tlv.append(contentsOf: [UInt8(index + 1), UInt8(bytes.count)])
             tlv.append(bytes)
         }
-        submit(tlv.base64EncodedString(), in: app)
+        input.typeText(tlv.base64EncodedString())
+        element("invoice-submit", in: app).tap()
 
-        XCTAssertTrue(element("invoice-result", in: app).waitForExistence(timeout: 15))
         let status = element("invoice-status", in: app)
-        XCTAssertTrue(status.waitForExistence(timeout: 5))
-        XCTAssertEqual(status.label, "اجتازت الفحص المحلي")
-        for (index, value) in fields.enumerated() {
-            let field = element("invoice-field-\(index + 1)", in: app)
-            XCTAssertTrue(field.exists, "Missing invoice field \(index + 1)")
-            XCTAssertEqual(field.label, value)
-        }
+        XCTAssertTrue(status.waitForExistence(timeout: 15), app.debugDescription)
+        XCTAssertEqual(status.label, "اجتاز فحوص QR المحلية")
+        XCTAssertFalse(element("invoice-input", in: app).exists)
+        XCTAssertTrue(element("invoice-result", in: app).exists)
+        XCTAssertEqual(element("invoice-field-1", in: app).label, fields[0])
+        XCTAssertEqual(element("invoice-field-2", in: app).label, fields[1])
         attachScreenshot("invoice-valid", of: app)
-    }
 
-    private func submit(_ input: String, in app: XCUIApplication) {
-        let field = element("invoice-input", in: app)
-        guard field.waitForExistence(timeout: 15) else {
-            XCTFail("Input missing. App state: \(app.state). \(app.debugDescription)")
-            return
+        let fieldLabels = [3: "التاريخ: الثلاثاء 20 أكتوبر 2026", 4: fields[3], 5: fields[4]]
+        for tag in 3...5 {
+            let field = element("invoice-field-\(tag)", in: app)
+            for _ in 0..<3 where !field.isHittable {
+                app.swipeUp()
+            }
+            XCTAssertTrue(field.exists)
+            XCTAssertEqual(field.label, fieldLabels[tag])
         }
-        field.tap()
-        field.typeText(input)
-
-        let submit = element("invoice-submit", in: app)
-        XCTAssertTrue(submit.exists)
-        XCTAssertTrue(submit.isEnabled)
-        submit.tap()
+        attachScreenshot("invoice-details", of: app)
     }
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {

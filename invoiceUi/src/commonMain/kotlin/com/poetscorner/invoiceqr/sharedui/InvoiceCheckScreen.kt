@@ -1,169 +1,85 @@
 package com.poetscorner.invoiceqr.sharedui
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.remember
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.shared.ParsedInvoice
 import com.poetscorner.invoiceqr.shared.ZatcaInvoiceParser
+import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
-private val lightColors = lightColorScheme(
-    primary = Color(0xFF116447),
-    onPrimary = Color.White,
-    background = Color(0xFFF4F8F5),
-    onBackground = Color(0xFF17251E),
-    surface = Color.White,
-    onSurface = Color(0xFF17251E),
-    onSurfaceVariant = Color(0xFF43534A),
-    outlineVariant = Color(0xFFD4E0D7),
-    primaryContainer = Color(0xFFDCEFE4),
-    onPrimaryContainer = Color(0xFF11412E),
-    error = Color(0xFF9D322A),
-    errorContainer = Color(0xFFFCEAE6),
-    onErrorContainer = Color(0xFF70261F),
-)
-
-private val darkColors = darkColorScheme(
-    primary = Color(0xFFA7DBBB),
-    onPrimary = Color(0xFF073821),
-    background = Color(0xFF101A15),
-    onBackground = Color(0xFFE5EFE7),
-    surface = Color(0xFF1A2820),
-    onSurface = Color(0xFFE5EFE7),
-    onSurfaceVariant = Color(0xFFBACBBF),
-    outlineVariant = Color(0xFF3A5143),
-    primaryContainer = Color(0xFF214D36),
-    onPrimaryContainer = Color(0xFFD2EDDC),
-)
-
-private val invoiceFields = listOf(
-    1 to "اسم البائع",
-    2 to "الرقم الضريبي",
-    3 to "تاريخ الفاتورة",
-    4 to "الإجمالي شامل الضريبة",
-    5 to "ضريبة القيمة المضافة",
-)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InvoiceCheckScreen() {
-    var input by rememberSaveable { mutableStateOf("") }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var result by remember { mutableStateOf<ParsedInvoice?>(null) }
-    val focus = LocalFocusManager.current
+    var checkedAt by remember { mutableStateOf("") }
 
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColors else lightColors) {
+    InvoiceAppTheme(standardInvoiceColors(isSystemInDarkTheme())) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Box(
-                    Modifier.fillMaxSize().safeDrawingPadding().imePadding(),
-                    contentAlignment = Alignment.TopCenter,
-                ) {
-                    Column(
-                        Modifier.widthIn(max = 560.dp).fillMaxWidth()
-                            .verticalScroll(rememberScrollState()).padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("قارئ فاتورة", style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary)
-                            Text("فحص رمز الفاتورة", style = MaterialTheme.typography.headlineSmall)
-                            Text("الصق محتوى رمز QR بصيغة Base64.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-
-                        OutlinedTextField(
-                            value = input,
-                            onValueChange = {
-                                input = it
-                                result = null
-                            },
-                            modifier = Modifier.fillMaxWidth().testTag("invoice-input"),
-                            label = { Text("محتوى Base64") },
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.None,
-                                autoCorrectEnabled = false,
-                            ),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                textDirection = TextDirection.Ltr,
-                            ),
-                            minLines = 2,
-                            maxLines = 3,
-                            isError = result?.error != null,
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Button(
-                                onClick = {
-                                    focus.clearFocus(force = true)
-                                    result = ZatcaInvoiceParser.parse(input)
-                                },
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                                    .testTag("invoice-submit"),
-                                enabled = input.isNotBlank(),
-                            ) {
-                                Text("فحص الفاتورة")
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        navigationIcon = {
+                            InvoiceIconTile(ScanIcon, Modifier.padding(start = 16.dp, end = 8.dp))
+                        },
+                        title = {
+                            Column {
+                                Text("قارئ فاتورة", style = MaterialTheme.typography.titleMedium)
+                                Text("قراءة دقيقة، وتفاصيل واضحة", style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            TextButton(
-                                onClick = {
-                                    input = ""
-                                    result = null
-                                },
-                                modifier = Modifier.heightIn(min = 48.dp).testTag("invoice-clear"),
-                                enabled = input.isNotEmpty(),
-                            ) {
-                                Text("مسح")
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                    )
+                },
+                bottomBar = { InvoiceResultNavigation() },
+                snackbarHost = { SnackbarHost(snackbar, Modifier.testTag("invoice-error")) },
+            ) { padding ->
+                Box(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
+                    val invoice = result
+                    if (invoice == null) {
+                        InvoiceManualEntry(
+                            busy = false,
+                            title = "لم تُقرأ فاتورة بعد",
+                            hint = "هل لديك نص Base64 لرمز QR الخاص بالفاتورة من برنامج آخر؟ الصقه في الصندوق أدناه واضغط «فحص» لعرض نتيجة الفاتورة.",
+                            fieldLabel = "نص Base64 للفاتورة",
+                            buttonLabel = "فحص",
+                            icon = { InvoiceIconTile(ReceiptIcon) },
+                        ) { raw ->
+                            val parsed = ZatcaInvoiceParser.parse(raw)
+                            snackbar.currentSnackbarData?.dismiss()
+                            if (parsed.error == null) {
+                                val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                                checkedAt = "${now.year}/${twoDigits(now.monthNumber)}/${twoDigits(now.dayOfMonth)} ${displayTime(now)}"
+                                result = parsed
+                            } else {
+                                scope.launch { snackbar.showSnackbar("رمز QR غير صالح للفاتورة") }
                             }
                         }
-
-                        result?.let { InvoiceResult(it) }
+                    } else {
+                        InvoiceResult(invoice, checkedAt) { result = null }
                     }
                 }
             }
@@ -172,64 +88,156 @@ fun InvoiceCheckScreen() {
 }
 
 @Composable
-private fun InvoiceResult(result: ParsedInvoice) {
-    val colors = MaterialTheme.colorScheme
-    if (result.error != null) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = colors.errorContainer,
-            contentColor = colors.onErrorContainer,
-        ) {
-            Text(
-                "تعذّر قراءة رمز الفاتورة. تأكد من نسخ محتوى Base64 كاملًا.",
-                modifier = Modifier.padding(16.dp).testTag("invoice-error")
-                    .semantics { liveRegion = LiveRegionMode.Polite },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-        return
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth().border(1.dp, colors.outlineVariant, RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = colors.surface),
+private fun InvoiceResultNavigation() {
+    val items = listOf(
+        "الماسح" to ScanIcon, "النتيجة" to ReceiptIcon, "السجل" to HistoryIcon,
+        "الإحصاءات" to StatisticsIcon, "الإعدادات" to SettingsIcon,
+    )
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shadowElevation = 8.dp,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("بيانات الفاتورة", style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.testTag("invoice-result"))
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (result.passed) colors.primaryContainer else colors.errorContainer,
-                contentColor = if (result.passed) colors.onPrimaryContainer else colors.onErrorContainer,
-            ) {
-                Text(
-                    if (result.passed) "اجتازت الفحص المحلي" else "بعض الحقول تحتاج مراجعة",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        .testTag("invoice-status").semantics { liveRegion = LiveRegionMode.Polite },
-                    style = MaterialTheme.typography.labelLarge,
+        NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
+            items.forEachIndexed { index, (title, icon) ->
+                NavigationBarItem(
+                    selected = index == 1,
+                    onClick = {},
+                    enabled = index == 1,
+                    icon = { Icon(icon, null) },
+                    label = { Text(title, style = MaterialTheme.typography.labelMedium) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
                 )
             }
+        }
+    }
+}
 
-            invoiceFields.forEachIndexed { index, (tag, label) ->
-                if (index > 0) HorizontalDivider(color = colors.outlineVariant)
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
-                        color = colors.onSurfaceVariant)
-                    Text(
-                        result.value(tag).ifBlank { "—" },
-                        Modifier.testTag("invoice-field-$tag"),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            textDirection = if (tag == 1) TextDirection.Content else TextDirection.Ltr,
-                        ),
-                    )
+@Composable
+private fun InvoiceIconTile(
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    container: Color = MaterialTheme.colorScheme.primaryContainer,
+    tint: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+) {
+    Surface(modifier.size(44.dp), color = container, shape = MaterialTheme.shapes.small) {
+        Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(24.dp), tint) }
+    }
+}
+
+@Composable
+private fun InvoiceResult(invoice: ParsedInvoice, checkedAt: String, onAgain: () -> Unit) {
+    val phase = if (invoice.phase2) "المرحلة الثانية" else "المرحلة الأولى"
+    val type = if (invoice.isSimplified) "فاتورة ضريبية مبسطة" else "فاتورة ضريبية"
+    val colors = MaterialTheme.colorScheme
+    Column(
+        Modifier.fillMaxSize().testTag("invoice-result-list").verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        InvoiceSummaryCard(invoice.passed) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                InvoiceIconTile(
+                    if (invoice.passed) CheckIcon else InfoIcon,
+                    container = colors.surfaceContainerLowest,
+                    tint = if (invoice.passed) colors.primary else colors.error,
+                )
+                Text(
+                    if (invoice.passed) "اجتاز فحوص QR المحلية" else "لم يجتز فحوص QR المحلية",
+                    Modifier.weight(1f).testTag("invoice-status"),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            Text("$type · $phase")
+            Text("تاريخ الفحص: $checkedAt", style = MaterialTheme.typography.bodySmall)
+        }
+        Text(
+            "يفحص التطبيق بنية QR وحقول الفاتورة محليًا، ولا يتحقق من صحة التوقيع أو اعتماد الفاتورة رسميًا.",
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurfaceVariant,
+        )
+        Text(
+            "تفاصيل الفاتورة",
+            Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp).testTag("invoice-result"),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        InvoiceValueCard(1, "اسم البائع", invoice.value(1))
+        InvoiceValueCard(2, "الرقم الضريبي", invoice.value(2))
+        InvoiceDateCard(invoice.value(3))
+        InvoiceValueCard(4, "إجمالي الفاتورة", invoice.value(4))
+        InvoiceValueCard(5, "الضريبة", invoice.value(5))
+        if (invoice.phase2) InvoiceValueCard(6, "بصمة الفاتورة", invoice.value(6))
+        Button(onClick = onAgain, modifier = Modifier.fillMaxWidth()) { Text("فحص فاتورة أخرى") }
+    }
+}
+
+@Suppress("DEPRECATION")
+@Composable
+private fun InvoiceValueCard(tag: Int, title: String, value: String) {
+    val clipboard = LocalClipboardManager.current
+    InvoiceFieldCard {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            InvoiceFieldLabel(title)
+            val direction = if (tag == 2) LayoutDirection.Ltr else LocalLayoutDirection.current
+            CompositionLocalProvider(LocalLayoutDirection provides direction) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SelectionContainer(Modifier.weight(1f)) {
+                        val style = if (tag == 4) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge
+                        Text(
+                            value.ifBlank { "غير موجود" },
+                            Modifier.testTag("invoice-field-$tag"),
+                            style = if (tag >= 2 && value.isNotBlank()) style.copy(textDirection = TextDirection.Ltr) else style,
+                            fontWeight = if (tag == 1 || tag == 4) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    }
+                    if (tag == 2) {
+                        IconButton(onClick = { clipboard.setText(AnnotatedString(value)) }, enabled = value.isNotBlank()) {
+                            Icon(CopyIcon, "نسخ الرقم الضريبي")
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun InvoiceDateCard(value: String) {
+    val time = remember(value) { runCatching { ZatcaInvoiceParser.parseTimestamp(value) }.getOrNull() }
+    val title = when {
+        time == null -> "التاريخ والوقت"
+        value.endsWith('Z') -> "التاريخ والوقت (توقيت عالمي)"
+        else -> "التاريخ والوقت (توقيت محلي)"
+    }
+    InvoiceFieldCard {
+        SelectionContainer {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                InvoiceFieldLabel(title)
+                val date = if (time == null) value.ifBlank { "غير موجود" }
+                    else "${weekdays[time.date.dayOfWeek.ordinal]} ${time.dayOfMonth} ${months[time.monthNumber - 1]} ${time.year}"
+                Text("التاريخ: $date", Modifier.testTag("invoice-field-3"), style = MaterialTheme.typography.bodyLarge)
+                if (time != null) Text("الوقت: ${displayTime(time)}", style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InvoiceFieldLabel(title: String) {
+    Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+private val weekdays = listOf("الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد")
+private val months = listOf("يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر")
+
+private fun twoDigits(value: Int) = value.toString().padStart(2, '0')
+
+private fun displayTime(value: LocalDateTime): String {
+    val hour = (value.hour + 11) % 12 + 1
+    val period = if (value.hour < 12) "ص" else "م"
+    return "$hour:${twoDigits(value.minute)}:${twoDigits(value.second)} $period"
 }

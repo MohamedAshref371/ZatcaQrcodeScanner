@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -29,8 +28,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -44,6 +41,9 @@ import androidx.compose.ui.res.stringResource
 import com.poetscorner.invoiceqr.BuildConfig
 import com.poetscorner.invoiceqr.selectedInvoiceUris
 import com.poetscorner.invoiceqr.R
+import com.poetscorner.invoiceqr.sharedui.InvoiceFieldCard
+import com.poetscorner.invoiceqr.sharedui.InvoiceManualEntry
+import com.poetscorner.invoiceqr.sharedui.InvoiceSummaryCard
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
@@ -508,32 +508,15 @@ private fun ScannerContent(vm: ScannerViewModel) {
 
 @Composable
 private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
-    var raw by rememberSaveable { mutableStateOf("") }
-    val keyboard = LocalSoftwareKeyboardController.current
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        IconTile(R.drawable.ic_receipt)
-        SectionHeading(stringResource(R.string.no_invoice), stringResource(R.string.manual_base64_hint))
-        OutlinedTextField(
-            value = raw,
-            onValueChange = { raw = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.manual_base64_label)) },
-            textStyle = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
-            minLines = 4,
-            maxLines = 8,
-            shape = MaterialTheme.shapes.medium,
-            enabled = !busy
-        )
-        Button(
-            onClick = { keyboard?.hide(); inspect(raw.trim()) },
-            enabled = raw.isNotBlank() && !busy,
-            modifier = Modifier.fillMaxWidth()
-        ) { Text(stringResource(R.string.manual_base64_inspect)) }
-    }
+    InvoiceManualEntry(
+        busy = busy,
+        title = stringResource(R.string.no_invoice),
+        hint = stringResource(R.string.manual_base64_hint),
+        fieldLabel = stringResource(R.string.manual_base64_label),
+        buttonLabel = stringResource(R.string.manual_base64_inspect),
+        icon = { IconTile(R.drawable.ic_receipt) },
+        onInspect = inspect,
+    )
 }
 
 @Composable
@@ -550,8 +533,7 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
     var raw by rememberSaveable(invoice.raw) { mutableStateOf(false) }
     val relevantChecks = invoice.checks.filter { invoice.phase2 || it.phase == 1 }
     LazyColumn(Modifier.testTag("result_list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Card(colors = CardDefaults.cardColors(containerColor = if(invoice.passed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer)) {
-            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { InvoiceSummaryCard(invoice.passed) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     IconTile(if (invoice.passed) R.drawable.ic_check else R.drawable.ic_info,
                         container = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -570,7 +552,6 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
                         style = MaterialTheme.typography.bodySmall)
                 }
                 Text(stringResource(R.string.result_checked_at, checkedAtText), style = MaterialTheme.typography.bodySmall)
-            }
         } }
         item { Text(stringResource(R.string.structural_disclaimer), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -749,8 +730,7 @@ private fun VerificationLevelRow(label: Int, status: Int) {
 private fun InvoiceField(invoice: Invoice, tag: Int) {
     val context = LocalContext.current
     if (tag == 3) {
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
+        InvoiceFieldCard {
             SelectionContainer {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(invoiceTimestampTitle(context, invoice.value(tag)), style = MaterialTheme.typography.labelMedium,
@@ -764,8 +744,7 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
         }
         return
     }
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
+    InvoiceFieldCard {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(ZatcaParser.names.getValue(tag)), style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -1,4 +1,4 @@
-package com.poetscorner.invoiceqr.ui.theme
+package com.poetscorner.invoiceqr.sharedui
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
@@ -11,7 +11,7 @@ private fun text(size: Int, height: Int, weight: FontWeight = FontWeight.Normal)
     fontFamily = FontFamily.SansSerif, fontWeight = weight, fontSize = size.sp,
     lineHeight = height.sp, letterSpacing = 0.sp)
 
-val Typography = Typography(
+internal val Typography = Typography(
     headlineLarge = text(32, 42, FontWeight.Bold),
     headlineMedium = text(28, 38, FontWeight.Bold),
     headlineSmall = text(24, 34, FontWeight.Bold),

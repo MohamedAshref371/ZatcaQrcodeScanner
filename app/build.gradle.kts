@@ -143,6 +143,7 @@ tasks.register<Exec>("checkProjectDocs") {
 
 dependencies {
     implementation(project(":invoiceCore"))
+    implementation(project(":invoiceUi"))
     implementation(libs.androidx.appcompat)
     implementation(libs.google.play.review)
     implementation(libs.zxing.android)
