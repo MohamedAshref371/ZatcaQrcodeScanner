@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr.sharedui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -13,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
@@ -93,27 +95,41 @@ private fun InvoiceResultNavigation() {
         "الماسح" to ScanIcon, "النتيجة" to ReceiptIcon, "السجل" to HistoryIcon,
         "الإحصاءات" to StatisticsIcon, "الإعدادات" to SettingsIcon,
     )
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        shadowElevation = 8.dp,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-    ) {
-        NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
-            items.forEachIndexed { index, (title, icon) ->
-                NavigationBarItem(
-                    selected = index == 1,
-                    onClick = {},
-                    enabled = index == 1,
-                    icon = { Icon(icon, null) },
-                    label = { Text(title, style = MaterialTheme.typography.labelMedium) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    ),
-                )
+    val colors = MaterialTheme.colorScheme
+    val labelStyle = MaterialTheme.typography.labelMedium
+    val labelHeight = with(LocalDensity.current) { labelStyle.lineHeight.toDp() }
+    val barHeight = maxOf(64.dp, 46.dp + labelHeight)
+
+    // Keep the home-gesture inset outside the bar's white surface.
+    Column(Modifier.fillMaxWidth().background(colors.background)) {
+        Surface(
+            color = colors.surfaceContainerLowest,
+            shadowElevation = 8.dp,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        ) {
+            NavigationBar(
+                modifier = Modifier.height(barHeight),
+                containerColor = Color.Transparent,
+                tonalElevation = 0.dp,
+                windowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal),
+            ) {
+                items.forEachIndexed { index, (title, icon) ->
+                    NavigationBarItem(
+                        selected = index == 1,
+                        onClick = {},
+                        enabled = index == 1,
+                        icon = { Icon(icon, null) },
+                        label = { Text(title, style = labelStyle) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = colors.onPrimaryContainer,
+                            selectedTextColor = colors.primary,
+                            indicatorColor = colors.primaryContainer,
+                        ),
+                    )
+                }
             }
         }
+        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.systemBars))
     }
 }
 
