@@ -155,7 +155,9 @@ final class InvoicePreviewUITests: XCTestCase {
         XCTAssertTrue(element("invoice-status", in: app).waitForExistence(timeout: 15))
         XCTAssertTrue(element("invoice-share", in: app).exists)
         XCTAssertFalse(element("invoice-field-7", in: app).exists)
-        scrollTo("invoice-advanced", in: app).tap()
+        let advanced = scrollTo("invoice-advanced", in: app)
+        advanced.tap()
+        XCTAssertEqual(advanced.label, "إخفاء الحقول المتقدمة")
         XCTAssertEqual(scrollTo("invoice-field-7", in: app).label, "signature")
         XCTAssertEqual(scrollTo("invoice-field-8", in: app).label, Data("key".utf8).base64EncodedString())
         XCTAssertEqual(scrollTo("invoice-field-9", in: app).label, Data("stamp".utf8).base64EncodedString())
@@ -187,10 +189,21 @@ final class InvoicePreviewUITests: XCTestCase {
 
     private func scrollTo(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         let target = element(identifier, in: app)
-        for _ in 0..<8 where !target.isHittable {
-            app.swipeUp()
+        let viewport = element("invoice-result-list", in: app).frame.insetBy(dx: 0, dy: 24)
+        let upper = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.38))
+        let lower = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.64))
+        for _ in 0..<12 {
+            let frame = target.exists ? target.frame : .null
+            if !frame.isNull && viewport.contains(CGPoint(x: frame.midX, y: frame.midY)) && target.isHittable {
+                return target
+            }
+            if !frame.isNull && frame.midY < viewport.minY {
+                upper.press(forDuration: 0.1, thenDragTo: lower)
+            } else {
+                lower.press(forDuration: 0.1, thenDragTo: upper)
+            }
         }
-        XCTAssertTrue(target.isHittable, app.debugDescription)
+        XCTFail("Could not scroll \(identifier) into the result viewport. \(app.debugDescription)")
         return target
     }
 
