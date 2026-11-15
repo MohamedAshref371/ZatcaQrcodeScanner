@@ -1,4 +1,4 @@
-name: KMP invoice core
+name: Kotlin Multiplatform verification
 
 on:
   push:
@@ -34,12 +34,12 @@ jobs:
           echo "::error::Android command-line tools were not found under $sdk_root"
           exit 1
       - name: Test app integration and shared parser
-        run: bash ./gradlew --stacktrace :app:testDebugUnitTest :invoiceCore:testAndroidHostTest
+        run: bash ./gradlew --stacktrace :app:testDebugUnitTest :invoiceCore:testAndroidHostTest :invoiceUi:assemble
 
   ios:
-    name: iOS simulator tests and framework
+    name: iPhone simulator and shared tests
     runs-on: macos-26
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
         with:
@@ -55,3 +55,51 @@ jobs:
           :invoiceCore:iosSimulatorArm64Test
           :invoiceCore:linkDebugFrameworkIosSimulatorArm64
           :invoiceCore:linkDebugFrameworkIosArm64
+          :invoiceUi:linkDebugFrameworkIosSimulatorArm64
+      - name: Generate the Xcode project
+        run: |
+          if ! command -v xcodegen >/dev/null; then
+            brew install xcodegen
+          fi
+          xcodegen generate --spec iosApp/project.yml
+      - name: Run the invoice screen UI tests
+        run: |
+          simulator_id="$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          runtimes = json.load(sys.stdin)["devices"]
+          ios = (key for key in runtimes if ".iOS-" in key)
+          for key in sorted(ios, key=lambda key: tuple(map(int, key.split(".iOS-")[-1].split("-"))), reverse=True):
+              for device in runtimes[key]:
+                  if device["name"].startswith("iPhone"):
+                      print(device["udid"])
+                      sys.exit(0)
+          sys.exit("No available iPhone simulator")
+          ')"
+          mkdir -p iosApp/build
+          xcodebuild test \
+            -project iosApp/InvoicePreview.xcodeproj \
+            -scheme InvoicePreview \
+            -destination "platform=iOS Simulator,id=$simulator_id" \
+            -parallel-testing-enabled NO \
+            -derivedDataPath iosApp/build/derived \
+            -resultBundlePath iosApp/build/InvoicePreview.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Export the invoice screenshots
+        run: |
+          xcrun xcresulttool export attachments \
+            --path iosApp/build/InvoicePreview.xcresult \
+            --output-path iosApp/build/attachments
+          python3 iosApp/export_screenshots.py iosApp/build/attachments iosApp/build/screenshots
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v7
+        with:
+          name: iphone-invoice-screenshots
+          path: iosApp/build/screenshots/*.png
+          if-no-files-found: error
+      - name: Upload Xcode test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: iphone-test-results
+          path: iosApp/build/InvoicePreview.xcresult
+          if-no-files-found: ignore

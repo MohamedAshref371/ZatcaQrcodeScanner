@@ -88,3 +88,6 @@ lint/tmp/
 # ---- Generated store upload bundle ----
 *.zip
 *.mp4
+
+# Xcode project generated from iosApp/project.yml
+/iosApp/InvoicePreview.xcodeproj/
