@@ -127,17 +127,6 @@ fun InvoiceCheckScreen() {
                                 capitalization = KeyboardCapitalization.None,
                                 autoCorrectEnabled = false,
                             ),
-                            trailingIcon = if (input.isNotEmpty()) {
-                                {
-                                    TextButton(
-                                        onClick = {
-                                            input = ""
-                                            result = null
-                                        },
-                                        modifier = Modifier.testTag("invoice-clear"),
-                                    ) { Text("مسح") }
-                                }
-                            } else null,
                             textStyle = MaterialTheme.typography.bodyMedium.copy(
                                 textDirection = TextDirection.Ltr,
                             ),
@@ -146,16 +135,32 @@ fun InvoiceCheckScreen() {
                             isError = result?.error != null,
                         )
 
-                        Button(
-                            onClick = {
-                                focus.clearFocus(force = true)
-                                result = ZatcaInvoiceParser.parse(input)
-                            },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                                .testTag("invoice-submit"),
-                            enabled = input.isNotBlank(),
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("فحص الفاتورة")
+                            Button(
+                                onClick = {
+                                    focus.clearFocus(force = true)
+                                    result = ZatcaInvoiceParser.parse(input)
+                                },
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                    .testTag("invoice-submit"),
+                                enabled = input.isNotBlank(),
+                            ) {
+                                Text("فحص الفاتورة")
+                            }
+                            TextButton(
+                                onClick = {
+                                    input = ""
+                                    result = null
+                                },
+                                modifier = Modifier.heightIn(min = 48.dp).testTag("invoice-clear"),
+                                enabled = input.isNotEmpty(),
+                            ) {
+                                Text("مسح")
+                            }
                         }
 
                         result?.let { InvoiceResult(it) }

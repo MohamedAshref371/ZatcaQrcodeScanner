@@ -96,6 +96,26 @@ jobs:
           name: iphone-invoice-screenshots
           path: iosApp/build/screenshots/*.png
           if-no-files-found: error
+      - name: Report simulator crashes
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          for path in Path.home().joinpath("Library/Logs/DiagnosticReports").glob("InvoicePreview*.ips"):
+              _, _, payload = path.read_text(errors="replace").partition("\n")
+              try:
+                  report = json.loads(payload)
+              except json.JSONDecodeError:
+                  continue
+              print(path.name, report.get("exception"), report.get("termination"))
+              threads = report.get("threads", [])
+              index = report.get("faultingThread")
+              if isinstance(index, int) and index < len(threads):
+                  for frame in threads[index].get("frames", [])[:15]:
+                      print(frame.get("symbol", frame.get("imageOffset")))
+          PY
       - name: Upload Xcode test results
         if: always()
         uses: actions/upload-artifact@v7

@@ -38,7 +38,10 @@ final class InvoicePreviewUITests: XCTestCase {
 
     private func submit(_ input: String, in app: XCUIApplication) {
         let field = element("invoice-input", in: app)
-        XCTAssertTrue(field.waitForExistence(timeout: 15))
+        guard field.waitForExistence(timeout: 15) else {
+            XCTFail("Input missing. App state: \(app.state). \(app.debugDescription)")
+            return
+        }
         field.tap()
         field.typeText(input)
 
