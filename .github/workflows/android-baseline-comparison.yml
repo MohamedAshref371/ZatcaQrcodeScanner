@@ -8,20 +8,14 @@ permissions:
   contents: read
 
 jobs:
-  compare:
-    name: Android emulator (${{ matrix.build.name }})
+  build:
+    name: Build the Android validation APKs
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        build:
-          - name: multiplatform
-            ref: 14102f5a5018b0d1851fa3b4257eca565dc75713
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ matrix.build.ref }}
+          ref: 14102f5a5018b0d1851fa3b4257eca565dc75713
           persist-credentials: false
       - name: Ensure Android SDK 37 is installed
         run: |
@@ -38,36 +32,59 @@ jobs:
           done
           echo "::error::Android command-line tools were not found under $sdk_root"
           exit 1
-      - name: Build Android APK and instrumentation APK
-        run: bash ./gradlew --stacktrace :app:assembleDebug :app:assembleDebugAndroidTest
-      - name: Enable emulator hardware acceleration
+      - name: Build and stage the app and test APKs
         run: |
-          bash ./gradlew --stop
-          df -h "$HOME"
+          bash ./gradlew --stacktrace :app:assembleDebug :app:assembleDebugAndroidTest
+          mkdir -p validation/apks
+          cp app/build/outputs/apk/debug/app-debug.apk validation/apks/
+          cp app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk validation/apks/
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-validation-apks
+          path: validation/apks/
+          if-no-files-found: error
+          retention-days: 7
+
+  emulator:
+    name: Android emulator (multiplatform)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: android-validation-apks
+          path: validation/apks
+      - name: Enable hardware acceleration and reserve emulator disk space
+        run: |
           test -c /dev/kvm
           sudo chmod a+rw /dev/kvm
-      - name: Run the same Android tests on both versions
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          if [[ "$sdk_root" == /usr/local/lib/android/sdk && -d "$sdk_root/ndk" ]]; then
+            sudo rm -rf -- "$sdk_root/ndk"
+          fi
+          df -h "$HOME"
+      - name: Run the comparison tests on the shared-code APK
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
           api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          disk-size: 4096M
           emulator-boot-timeout: 240
           disable-animations: true
           emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back virtualscene -camera-front none
           script: |
-            mkdir -p app/build/parity
+            mkdir -p validation
             adb shell settings put secure show_ime_with_hard_keyboard 1
-            adb install -r -g app/build/outputs/apk/debug/app-debug.apk
-            adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-            adb shell am instrument -w -r -e class 'com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.EdgeToEdgeTest,com.poetscorner.invoiceqr.AppAppearanceUiTest,com.poetscorner.invoiceqr.ResultScrollUiTest,com.poetscorner.invoiceqr.ResultActionsUiTest,com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.ScanDeduplicationTest,com.poetscorner.invoiceqr.ScanRejectionTest,com.poetscorner.invoiceqr.ImageImportTest,com.poetscorner.invoiceqr.PdfInvoiceImportTest,com.poetscorner.invoiceqr.CameraStreamingTest#previewStreamsAgainAfterActivityRecreation' com.poetscorner.invoiceqr.test/androidx.test.runner.AndroidJUnitRunner | tee app/build/parity/instrumentation.txt
+            adb install -r -g validation/apks/app-debug.apk
+            adb install -r validation/apks/app-debug-androidTest.apk
+            adb shell am instrument -w -r -e class 'com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.EdgeToEdgeTest,com.poetscorner.invoiceqr.AppAppearanceUiTest,com.poetscorner.invoiceqr.ResultScrollUiTest,com.poetscorner.invoiceqr.ResultActionsUiTest,com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.ScanDeduplicationTest,com.poetscorner.invoiceqr.ScanRejectionTest,com.poetscorner.invoiceqr.ImageImportTest,com.poetscorner.invoiceqr.PdfInvoiceImportTest,com.poetscorner.invoiceqr.CameraStreamingTest#previewStreamsAgainAfterActivityRecreation' com.poetscorner.invoiceqr.test/androidx.test.runner.AndroidJUnitRunner | tee validation/instrumentation.txt
             grep -Eq '^OK \([0-9]+ tests?\)' app/build/parity/instrumentation.txt
       - name: Upload the Android test report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: android-${{ matrix.build.name }}-test-report
+          name: android-multiplatform-test-report
           path: app/build/parity/instrumentation.txt
           if-no-files-found: ignore
