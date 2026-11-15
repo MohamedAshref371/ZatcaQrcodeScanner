@@ -59,7 +59,6 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back virtualscene -camera-front none
           script: |
-            set -o pipefail
             mkdir -p app/build/parity
             adb shell settings put secure show_ime_with_hard_keyboard 1
             adb install -r -g app/build/outputs/apk/debug/app-debug.apk
