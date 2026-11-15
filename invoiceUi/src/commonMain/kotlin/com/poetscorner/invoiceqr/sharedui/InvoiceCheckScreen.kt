@@ -31,13 +31,50 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
+interface InvoiceDetection {
+    fun accept(raw: String): Boolean
+    fun reportPhotoIssue(foundQr: Boolean)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InvoiceCheckScreen() {
+fun InvoiceCheckScreen(
+    camera: (@Composable (InvoiceDetection) -> Unit)? = null,
+    selectPhoto: ((InvoiceDetection) -> Unit)? = null,
+) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var scannerSelected by remember { mutableStateOf(camera != null) }
     var result by remember { mutableStateOf<ParsedInvoice?>(null) }
     var checkedAt by remember { mutableStateOf("") }
+
+    fun showMessage(message: String) {
+        snackbar.currentSnackbarData?.dismiss()
+        scope.launch { snackbar.showSnackbar(message) }
+    }
+
+    fun inspect(raw: String): Boolean {
+        val parsed = ZatcaInvoiceParser.parse(raw)
+        if (parsed.error != null) return false
+        snackbar.currentSnackbarData?.dismiss()
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        checkedAt = "${now.year}/${twoDigits(now.monthNumber)}/${twoDigits(now.dayOfMonth)} ${displayTime(now)}"
+        result = parsed
+        scannerSelected = false
+        return true
+    }
+
+    val detection = remember {
+        object : InvoiceDetection {
+            override fun accept(raw: String): Boolean = scannerSelected && inspect(raw)
+
+            override fun reportPhotoIssue(foundQr: Boolean) {
+                if (scannerSelected) {
+                    showMessage(if (foundQr) "رمز QR غير صالح للفاتورة" else "لم أتمكن من قراءة رمز QR من الصورة")
+                }
+            }
+        }
+    }
 
     InvoiceAppTheme(standardInvoiceColors(isSystemInDarkTheme())) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -57,12 +94,19 @@ fun InvoiceCheckScreen() {
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                     )
                 },
-                bottomBar = { InvoiceResultNavigation() },
+                bottomBar = {
+                    InvoiceResultNavigation(scannerSelected, camera != null) { scannerSelected = it }
+                },
                 snackbarHost = { SnackbarHost(snackbar, Modifier.testTag("invoice-error")) },
             ) { padding ->
                 Box(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
                     val invoice = result
-                    if (invoice == null) {
+                    if (scannerSelected && camera != null) {
+                        InvoiceScannerPanel(
+                            camera = { camera(detection) },
+                            selectPhoto = selectPhoto?.let { action -> { action(detection) } },
+                        )
+                    } else if (invoice == null) {
                         InvoiceManualEntry(
                             busy = false,
                             title = "لم تُقرأ فاتورة بعد",
@@ -71,18 +115,13 @@ fun InvoiceCheckScreen() {
                             buttonLabel = "فحص",
                             icon = { InvoiceIconTile(ReceiptIcon) },
                         ) { raw ->
-                            val parsed = ZatcaInvoiceParser.parse(raw)
-                            snackbar.currentSnackbarData?.dismiss()
-                            if (parsed.error == null) {
-                                val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                                checkedAt = "${now.year}/${twoDigits(now.monthNumber)}/${twoDigits(now.dayOfMonth)} ${displayTime(now)}"
-                                result = parsed
-                            } else {
-                                scope.launch { snackbar.showSnackbar("رمز QR غير صالح للفاتورة") }
-                            }
+                            if (!inspect(raw)) showMessage("رمز QR غير صالح للفاتورة")
                         }
                     } else {
-                        InvoiceResult(invoice, checkedAt) { result = null }
+                        InvoiceResult(invoice, checkedAt) {
+                            result = null
+                            scannerSelected = camera != null
+                        }
                     }
                 }
             }
@@ -91,7 +130,30 @@ fun InvoiceCheckScreen() {
 }
 
 @Composable
-private fun InvoiceResultNavigation() {
+private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (() -> Unit)?) {
+    Column(Modifier.fillMaxSize().testTag("invoice-scanner")) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("مسح رمز QR", style = MaterialTheme.typography.titleLarge)
+                Text("وجّه الكاميرا إلى رمز QR في الفاتورة.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (selectPhoto != null) {
+                FilledTonalButton(onClick = selectPhoto, modifier = Modifier.testTag("invoice-scan-photo")) {
+                    Text("اختيار صورة")
+                }
+            }
+        }
+        Box(Modifier.fillMaxWidth().weight(1f)) { camera() }
+    }
+}
+
+@Composable
+private fun InvoiceResultNavigation(scannerSelected: Boolean, hasScanner: Boolean, select: (Boolean) -> Unit) {
     val items = listOf(
         "الماسح" to ScanIcon, "النتيجة" to ReceiptIcon, "السجل" to HistoryIcon,
         "الإحصاءات" to StatisticsIcon, "الإعدادات" to SettingsIcon,
@@ -116,9 +178,14 @@ private fun InvoiceResultNavigation() {
             ) {
                 items.forEachIndexed { index, (title, icon) ->
                     NavigationBarItem(
-                        selected = index == 1,
-                        onClick = {},
-                        enabled = index == 1,
+                        selected = index == if (scannerSelected) 0 else 1,
+                        onClick = { select(index == 0) },
+                        enabled = index == 1 || (index == 0 && hasScanner),
+                        modifier = when (index) {
+                            0 -> Modifier.testTag("invoice-scanner-tab")
+                            1 -> Modifier.testTag("invoice-result-tab")
+                            else -> Modifier
+                        },
                         icon = { Icon(icon, null) },
                         label = { Text(title, style = labelStyle) },
                         colors = NavigationBarItemDefaults.colors(

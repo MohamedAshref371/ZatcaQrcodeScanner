@@ -14,7 +14,10 @@ struct InvoicePreviewApp: App {
 
 private struct InvoiceScreen: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        InvoiceScreenControllerKt.invoiceScreenController()
+        let host = NativeInvoiceScanner()
+        let controller = InvoiceScreenControllerKt.invoiceScreenController(host: host)
+        host.presenter = controller
+        return controller
     }
 
     func updateUIViewController(_ viewController: UIViewController, context: Context) {}

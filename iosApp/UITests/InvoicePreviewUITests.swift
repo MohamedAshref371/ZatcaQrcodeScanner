@@ -5,6 +5,9 @@ final class InvoicePreviewUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launch()
+        let resultTab = element("invoice-result-tab", in: app)
+        XCTAssertTrue(resultTab.waitForExistence(timeout: 15))
+        resultTab.tap()
         let input = element("invoice-input", in: app)
         XCTAssertTrue(input.waitForExistence(timeout: 15))
         XCTAssertFalse(element("invoice-submit", in: app).isEnabled)
@@ -49,6 +52,28 @@ final class InvoicePreviewUITests: XCTestCase {
             XCTAssertEqual(field.label, fieldLabels[tag])
         }
         attachScreenshot("invoice-details", of: app)
+    }
+
+    func testScansInvoiceQRFromPhotos() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        let photoButton = element("invoice-scan-photo", in: app)
+        XCTAssertTrue(photoButton.waitForExistence(timeout: 15))
+        attachScreenshot("invoice-scanner", of: app)
+        photoButton.tap()
+
+        // The workflow seeds the simulator's photo library with one generated invoice QR.
+        let photo = app.collectionViews.cells.firstMatch
+        XCTAssertTrue(photo.waitForExistence(timeout: 15), app.debugDescription)
+        photo.tap()
+
+        let status = element("invoice-status", in: app)
+        XCTAssertTrue(status.waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertEqual(status.label, "اجتاز فحوص QR المحلية")
+        XCTAssertEqual(element("invoice-field-1", in: app).label, "متجر صور الاختبار")
+        XCTAssertEqual(element("invoice-field-2", in: app).label, "310123456789013")
+        attachScreenshot("invoice-photo-result", of: app)
     }
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {

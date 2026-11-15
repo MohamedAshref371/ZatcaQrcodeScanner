@@ -56,12 +56,22 @@ jobs:
           :invoiceCore:linkDebugFrameworkIosSimulatorArm64
           :invoiceCore:linkDebugFrameworkIosArm64
           :invoiceUi:linkDebugFrameworkIosSimulatorArm64
+          :invoiceUi:linkDebugFrameworkIosArm64
       - name: Generate the Xcode project
         run: |
           if ! command -v xcodegen >/dev/null; then
             brew install xcodegen
           fi
           xcodegen generate --spec iosApp/project.yml
+      - name: Verify the iPhone device build
+        run: >
+          xcodebuild build
+          -project iosApp/InvoicePreview.xcodeproj
+          -scheme InvoicePreview
+          -destination "generic/platform=iOS"
+          -configuration Debug
+          -derivedDataPath iosApp/build/iphone-device
+          CODE_SIGNING_ALLOWED=NO
       - name: Run the invoice screen UI tests
         run: |
           simulator_id="$(xcrun simctl list devices available --json | python3 -c '
@@ -76,6 +86,9 @@ jobs:
           sys.exit("No available iPhone simulator")
           ')"
           mkdir -p iosApp/build
+          swift iosApp/generate_qr_fixture.swift iosApp/build/invoice-qr.png
+          xcrun simctl bootstatus "$simulator_id" -b
+          xcrun simctl addmedia "$simulator_id" iosApp/build/invoice-qr.png
           xcodebuild test \
             -project iosApp/InvoicePreview.xcodeproj \
             -scheme InvoicePreview \

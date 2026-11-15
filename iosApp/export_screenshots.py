@@ -7,7 +7,7 @@ attachments = Path(sys.argv[1])
 output = Path(sys.argv[2])
 manifest = json.loads((attachments / "manifest.json").read_text(encoding="utf-8"))
 output.mkdir(parents=True, exist_ok=True)
-expected = ("invoice-entry", "invoice-valid", "invoice-details", "invoice-invalid")
+expected = ("invoice-entry", "invoice-valid", "invoice-details", "invoice-invalid", "invoice-scanner", "invoice-photo-result")
 found = set()
 for test in manifest:
     for item in test["attachments"]:
