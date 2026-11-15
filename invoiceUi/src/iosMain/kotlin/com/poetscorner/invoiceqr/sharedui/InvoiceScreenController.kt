@@ -8,6 +8,7 @@ import platform.UIKit.UIViewController
 
 interface InvoiceScannerHost {
     fun makeCamera(detection: InvoiceDetection): UIViewController
+    fun releaseCamera(controller: UIViewController)
     fun selectPhoto(detection: InvoiceDetection)
 }
 
@@ -17,6 +18,7 @@ fun invoiceScreenController(host: InvoiceScannerHost): UIViewController = Compos
             UIKitViewController(
                 factory = { host.makeCamera(detection) },
                 modifier = Modifier.fillMaxSize(),
+                onRelease = host::releaseCamera,
             )
         },
         selectPhoto = host::selectPhoto,

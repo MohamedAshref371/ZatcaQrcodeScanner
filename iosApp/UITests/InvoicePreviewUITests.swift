@@ -63,8 +63,8 @@ final class InvoicePreviewUITests: XCTestCase {
         attachScreenshot("invoice-scanner", of: app)
         photoButton.tap()
 
-        // The workflow seeds the simulator's photo library with one generated invoice QR.
-        let photo = app.collectionViews.cells.firstMatch
+        // The workflow adds a recent QR image, ahead of the simulator's sample photos.
+        let photo = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
         XCTAssertTrue(photo.waitForExistence(timeout: 15), app.debugDescription)
         photo.tap()
 

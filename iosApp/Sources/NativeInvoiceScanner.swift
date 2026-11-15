@@ -13,6 +13,10 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         InvoiceCameraViewController(detection: detection)
     }
 
+    func releaseCamera(controller: UIViewController) {
+        (controller as? InvoiceCameraViewController)?.stopCamera()
+    }
+
     func selectPhoto(detection: InvoiceDetection) {
         guard let presenter, presenter.presentedViewController == nil, photoDetection == nil else { return }
         var configuration = PHPickerConfiguration(photoLibrary: .shared())
@@ -132,6 +136,11 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        stopCamera()
+    }
+
+    func stopCamera() {
+        guard visible else { return }
         visible = false
         captureQueue.async { [self] in
             if session.isRunning { session.stopRunning() }
