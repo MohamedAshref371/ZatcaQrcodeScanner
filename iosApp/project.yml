@@ -15,6 +15,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.poetscorner.invoiceqr.preview
+        INFOPLIST_FILE: Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: قارئ فاتورة
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
