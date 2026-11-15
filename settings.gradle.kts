@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "ZatcaQrcodeScanner"
 include(":app")
+include(":invoiceCore")
