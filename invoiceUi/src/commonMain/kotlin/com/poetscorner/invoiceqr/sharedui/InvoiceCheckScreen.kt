@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.shared.ParsedInvoice
 import com.poetscorner.invoiceqr.shared.ZatcaInvoiceParser
+import com.poetscorner.invoiceqr.shared.normalizedInvoicePayload
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -50,6 +51,7 @@ fun InvoiceCheckScreen(
     camera: (@Composable (InvoiceDetection) -> Unit)? = null,
     selectPhoto: ((InvoiceDetection) -> Unit)? = null,
     shareInvoice: ((String) -> Boolean)? = null,
+    backupActions: InvoiceBackupActions? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -58,11 +60,21 @@ fun InvoiceCheckScreen(
     var result by remember { mutableStateOf<ParsedInvoice?>(null) }
     var checkedAt by remember { mutableStateOf(0L) }
     var historyFilter by remember { mutableStateOf(InvoiceHistoryFilter()) }
+    var backupBusy by remember { mutableStateOf(false) }
 
     fun showMessage(message: String) {
         if (snackbar.currentSnackbarData?.visuals?.message == message) return
         snackbar.currentSnackbarData?.dismiss()
         scope.launch { snackbar.showSnackbar(message) }
+    }
+
+    fun transferBackup(transfer: (InvoiceBackupObserver) -> Unit) {
+        if (backupBusy) return
+        backupBusy = true
+        transfer { result ->
+            backupBusy = false
+            result.message()?.let(::showMessage)
+        }
     }
 
     fun showResult(parsed: ParsedInvoice, saved: InvoiceHistoryEntry) {
@@ -76,7 +88,7 @@ fun InvoiceCheckScreen(
         val parsed = ZatcaInvoiceParser.parse(raw)
         if (parsed.error != null) return InvoiceDetectionResult.INVALID
 
-        val normalized = raw.filterNot { it.isWhitespace() }.trimEnd('=')
+        val normalized = normalizedInvoicePayload(raw)
         val saved = history.save(raw, normalized, parsed.value(1), parsed.value(2), parsed.value(4),
             invoiceHistoryDay(parsed), Clock.System.now().toEpochMilliseconds())
         if (saved == null) {
@@ -132,13 +144,17 @@ fun InvoiceCheckScreen(
                     )
                 },
                 bottomBar = {
-                    InvoiceResultNavigation(tab, camera != null) { tab = it }
+                    InvoiceResultNavigation(tab, camera != null, backupActions != null, backupBusy) { tab = it }
                 },
                 snackbarHost = { SnackbarHost(snackbar, Modifier.testTag("invoice-error")) },
             ) { padding ->
                 Box(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
                     val invoice = result
-                    if (tab == InvoiceTab.HISTORY) {
+                    if (tab == InvoiceTab.SETTINGS && backupActions != null) {
+                        InvoiceBackupSettings(backupBusy,
+                            onExport = { transferBackup(backupActions::exportBackup) },
+                            onImport = { transferBackup(backupActions::importBackup) })
+                    } else if (tab == InvoiceTab.HISTORY) {
                         InvoiceHistoryScreen(history, historyFilter, { historyFilter = it }, ::openSavedInvoice)
                     } else if (tab == InvoiceTab.SCANNER && camera != null) {
                         InvoiceScannerPanel(
@@ -197,7 +213,8 @@ private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (()
 }
 
 @Composable
-private fun InvoiceResultNavigation(tab: InvoiceTab, hasScanner: Boolean, select: (InvoiceTab) -> Unit) {
+private fun InvoiceResultNavigation(tab: InvoiceTab, hasScanner: Boolean, hasSettings: Boolean, busy: Boolean,
+    select: (InvoiceTab) -> Unit) {
     val items = listOf(
         "الماسح" to ScanIcon, "النتيجة" to ReceiptIcon, "السجل" to HistoryIcon,
         "الإحصاءات" to StatisticsIcon, "الإعدادات" to SettingsIcon,
@@ -225,15 +242,17 @@ private fun InvoiceResultNavigation(tab: InvoiceTab, hasScanner: Boolean, select
                     NavigationBarItem(
                         selected = itemTab == tab,
                         onClick = { select(itemTab) },
-                        enabled = when (itemTab) {
+                        enabled = !busy && when (itemTab) {
                             InvoiceTab.SCANNER -> hasScanner
                             InvoiceTab.RESULT, InvoiceTab.HISTORY -> true
-                            else -> false
+                            InvoiceTab.SETTINGS -> hasSettings
+                            InvoiceTab.STATISTICS -> false
                         },
                         modifier = when (itemTab) {
                             InvoiceTab.SCANNER -> Modifier.testTag("invoice-scanner-tab")
                             InvoiceTab.RESULT -> Modifier.testTag("invoice-result-tab")
                             InvoiceTab.HISTORY -> Modifier.testTag("invoice-history-tab")
+                            InvoiceTab.SETTINGS -> Modifier.testTag("invoice-settings-tab")
                             else -> Modifier
                         },
                         icon = { Icon(icon, null) },

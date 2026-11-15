@@ -11,6 +11,7 @@ import Vision
 final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewControllerDelegate {
     weak var presenter: UIViewController?
     private var photoDetection: InvoiceDetection?
+    private let backupDocuments = InvoiceBackupDocuments()
     private static let photoLog = Logger(subsystem: "com.poetscorner.invoiceqr.preview", category: "photo-scan")
 
     func makeCamera(detection: InvoiceDetection) -> UIViewController {
@@ -19,6 +20,14 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
 
     func releaseCamera(controller: UIViewController) {
         (controller as? InvoiceCameraViewController)?.stopCamera()
+    }
+
+    func exportBackup(observer: InvoiceBackupObserver) {
+        backupDocuments.exportBackup(from: presenter, observer: observer)
+    }
+
+    func importBackup(observer: InvoiceBackupObserver) {
+        backupDocuments.importBackup(from: presenter, observer: observer)
     }
 
     func shareInvoice(summary: String) -> Bool {

@@ -4,7 +4,12 @@ import InvoiceUI
 import SQLite3
 
 final class SQLiteInvoiceHistory: InvoiceHistoryStore {
+    private let storageFolder: URL?
     private var database: OpaquePointer?
+
+    init(folder: URL? = nil) {
+        storageFolder = folder
+    }
 
     deinit {
         if let database { sqlite3_close(database) }
@@ -12,23 +17,10 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
 
     func save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String,
               invoiceDay: String, checkedAt: Int64) -> InvoiceHistoryEntry? {
-        let key = SHA256.hash(data: Data(normalizedPayload.utf8)).map { String(format: "%02x", $0) }.joined()
+        let key = payloadKey(normalizedPayload)
         return try? withDatabase { db in
-            let inserted = try statement(db, """
-                INSERT INTO invoices(payload_key, raw, seller, vat, total, checked_at, seller_search, invoice_day)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(payload_key) DO NOTHING
-                """) { query in
-                try bind(key, to: query, at: 1)
-                try bind(raw, to: query, at: 2)
-                try bind(seller, to: query, at: 3)
-                try bind(vat, to: query, at: 4)
-                try bind(total, to: query, at: 5)
-                try requireOK(sqlite3_bind_int64(query, 6, checkedAt))
-                try bind(seller.lowercased(), to: query, at: 7)
-                try bind(invoiceDay, to: query, at: 8)
-                guard sqlite3_step(query) == SQLITE_DONE else { throw StorageError.sqlite }
-                return sqlite3_changes(db) == 1
-            }
+            let row = InvoiceBackupRow(raw: raw, checkedAt: checkedAt, invoiceNumber: "", category: 0, note: "")
+            let inserted = try insert(row, key: key, seller: seller, vat: vat, total: total, invoiceDay: invoiceDay, into: db)
             if inserted {
                 return InvoiceHistoryEntry(raw: raw, checkedAt: checkedAt, alreadySaved: false)
             }
@@ -36,6 +28,106 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                 try bind(key, to: query, at: 1)
                 return try readEntry(query, alreadySaved: true)
             }
+        }
+    }
+
+    private func payloadKey(_ normalized: String) -> String {
+        SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func insert(_ row: InvoiceBackupRow, key: String, seller: String, vat: String,
+                        total: String, invoiceDay: String, into db: OpaquePointer) throws -> Bool {
+        try statement(db, """
+            INSERT INTO invoices(payload_key, raw, seller, vat, total, checked_at, seller_search, invoice_day,
+                                 invoice_number, category, note)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(payload_key) DO NOTHING
+            """) { query in
+            try bind(key, to: query, at: 1)
+            try bind(row.raw, to: query, at: 2)
+            try bind(seller, to: query, at: 3)
+            try bind(vat, to: query, at: 4)
+            try bind(total, to: query, at: 5)
+            try requireOK(sqlite3_bind_int64(query, 6, row.checkedAt))
+            try bind(seller.lowercased(), to: query, at: 7)
+            try bind(invoiceDay, to: query, at: 8)
+            try bind(row.invoiceNumber, to: query, at: 9)
+            try requireOK(sqlite3_bind_int(query, 10, row.category))
+            try bind(row.note, to: query, at: 11)
+            guard sqlite3_step(query) == SQLITE_DONE else { throw StorageError.sqlite }
+            return sqlite3_changes(db) == 1
+        }
+    }
+
+    func writeBackup(to file: FileHandle) throws {
+        try withDatabase { db in
+            try transaction(db, begin: "BEGIN") {
+                let writer = InvoiceBackupWriter.shared
+                try file.write(contentsOf: Data(writer.header().utf8))
+                var cursor: Int64 = 0
+                while true {
+                    let rows = try statement(db, """
+                        SELECT id, raw, checked_at, invoice_number, category, note
+                        FROM invoices WHERE id > ? ORDER BY id LIMIT 50
+                        """) { query in
+                        try requireOK(sqlite3_bind_int64(query, 1, cursor))
+                        var rows: [(Int64, InvoiceBackupRow)] = []
+                        var status = sqlite3_step(query)
+                        while status == SQLITE_ROW {
+                            rows.append((sqlite3_column_int64(query, 0), InvoiceBackupRow(
+                                raw: columnText(query, at: 1), checkedAt: sqlite3_column_int64(query, 2),
+                                invoiceNumber: columnText(query, at: 3), category: sqlite3_column_int(query, 4),
+                                note: columnText(query, at: 5)
+                            )))
+                            status = sqlite3_step(query)
+                        }
+                        guard status == SQLITE_DONE else { throw StorageError.sqlite }
+                        return rows
+                    }
+                    if rows.isEmpty { break }
+                    for (id, row) in rows {
+                        try file.write(contentsOf: Data(writer.record(row: row, first: cursor == 0).utf8))
+                        cursor = id
+                    }
+                }
+                try file.write(contentsOf: Data(writer.footer().utf8))
+            }
+        }
+    }
+
+    func readBackup(from file: FileHandle) throws -> InvoiceBackupResult {
+        try withDatabase { db in
+            try transaction(db, begin: "BEGIN IMMEDIATE") {
+                let input = BackupUTF8Input(file)
+                let reader = InvoiceBackupReader(input: input)
+                var added: Int32 = 0
+                var duplicates: Int32 = 0
+                while true {
+                    let record: InvoiceBackupRecord?
+                    do {
+                        record = try reader.next()
+                    } catch {
+                        throw input.failure ?? InvoiceBackupFailure.invalid
+                    }
+                    if let failure = input.failure { throw failure }
+                    guard let record else { break }
+                    let inserted = try insert(record.row, key: payloadKey(record.normalizedPayload), seller: record.seller,
+                                              vat: record.vat, total: record.total, invoiceDay: record.invoiceDay, into: db)
+                    if inserted { added += 1 } else { duplicates += 1 }
+                }
+                return InvoiceBackupResult(status: .imported, added: added, duplicates: duplicates)
+            }
+        }
+    }
+
+    private func transaction<T>(_ db: OpaquePointer, begin: String, _ action: () throws -> T) throws -> T {
+        try requireOK(sqlite3_exec(db, begin, nil, nil, nil))
+        do {
+            let value = try action()
+            try requireOK(sqlite3_exec(db, "COMMIT", nil, nil, nil))
+            return value
+        } catch {
+            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+            throw error
         }
     }
 
@@ -104,6 +196,7 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
             folder = manager.temporaryDirectory.appendingPathComponent("InvoiceHistory-\(id.uuidString)", isDirectory: true)
         }
         #endif
+        if let storageFolder { folder = storageFolder }
         try manager.createDirectory(at: folder, withIntermediateDirectories: true)
         var resources = URLResourceValues()
         resources.isExcludedFromBackup = true
@@ -127,7 +220,7 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                     checked_at INTEGER NOT NULL
                 )
                 """, nil, nil, nil))
-            try migrateSearchFields(opened)
+            try migrate(opened)
         } catch {
             sqlite3_close(opened)
             throw error
@@ -136,9 +229,8 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         return try action(opened)
     }
 
-    private func migrateSearchFields(_ db: OpaquePointer) throws {
-        try requireOK(sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil))
-        do {
+    private func migrate(_ db: OpaquePointer) throws {
+        try transaction(db, begin: "BEGIN IMMEDIATE") {
             let version = try statement(db, "PRAGMA user_version") { query in
                 guard sqlite3_step(query) == SQLITE_ROW else { throw StorageError.sqlite }
                 return sqlite3_column_int(query, 0)
@@ -149,12 +241,15 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                     ALTER TABLE invoices ADD COLUMN invoice_day TEXT NOT NULL DEFAULT '';
                     """, nil, nil, nil))
                 try backfillSearchFields(db)
-                try requireOK(sqlite3_exec(db, "PRAGMA user_version = 1", nil, nil, nil))
             }
-            try requireOK(sqlite3_exec(db, "COMMIT", nil, nil, nil))
-        } catch {
-            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
-            throw error
+            if version < 2 {
+                try requireOK(sqlite3_exec(db, """
+                    ALTER TABLE invoices ADD COLUMN invoice_number TEXT NOT NULL DEFAULT '';
+                    ALTER TABLE invoices ADD COLUMN category INTEGER NOT NULL DEFAULT 0;
+                    ALTER TABLE invoices ADD COLUMN note TEXT NOT NULL DEFAULT '';
+                    PRAGMA user_version = 2;
+                    """, nil, nil, nil))
+            }
         }
     }
 

@@ -3,6 +3,7 @@ package com.poetscorner.invoiceqr.data
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.poetscorner.invoiceqr.domain.Invoice
 import com.poetscorner.invoiceqr.domain.ZatcaParser
+import com.poetscorner.invoiceqr.shared.normalizedInvoicePayload
 import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.ZoneId
@@ -11,7 +12,7 @@ import java.math.BigDecimal
 
 fun invoicePayloadKey(raw: String): String {
     val digest = MessageDigest.getInstance("SHA-256")
-        .digest(raw.filterNot { it.isWhitespace() }.trimEnd('=').toByteArray(Charsets.US_ASCII))
+        .digest(normalizedInvoicePayload(raw).toByteArray(Charsets.US_ASCII))
     val hex = "0123456789abcdef"
     return buildString(64) { digest.forEach { byte ->
         val number = byte.toInt() and 255

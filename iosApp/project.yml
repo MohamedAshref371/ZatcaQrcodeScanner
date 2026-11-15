@@ -23,7 +23,17 @@ targets:
         "FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]": "$(inherited) $(SRCROOT)/../invoiceUi/build/bin/iosSimulatorArm64/debugFramework"
         "FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]": "$(inherited) $(SRCROOT)/../invoiceUi/build/bin/iosArm64/debugFramework"
     scheme:
-      testTargets: [InvoicePreviewUITests]
+      testTargets: [InvoicePreviewTests, InvoicePreviewUITests]
+  InvoicePreviewTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: InvoicePreview
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.poetscorner.invoiceqr.preview.tests
+        "FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]": "$(inherited) $(SRCROOT)/../invoiceUi/build/bin/iosSimulatorArm64/debugFramework"
   InvoicePreviewUITests:
     type: bundle.ui-testing
     platform: iOS

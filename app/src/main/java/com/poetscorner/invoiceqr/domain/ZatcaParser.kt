@@ -3,6 +3,7 @@ package com.poetscorner.invoiceqr.domain
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.shared.InvoiceCheckKind
 import com.poetscorner.invoiceqr.shared.PayloadErrorKind
+import com.poetscorner.invoiceqr.shared.ParsedInvoice
 import com.poetscorner.invoiceqr.shared.ZatcaInvoiceParser
 import com.poetscorner.invoiceqr.ui.text.UiText
 import java.time.OffsetDateTime
@@ -25,8 +26,9 @@ object ZatcaParser {
         4 to R.string.tag_total, 5 to R.string.tag_tax, 6 to R.string.tag_hash,
         7 to R.string.tag_signature, 8 to R.string.tag_key, 9 to R.string.tag_stamp)
 
-    fun parse(raw: String): Invoice {
-        val parsed = ZatcaInvoiceParser.parse(raw)
+    fun parse(raw: String): Invoice = fromParsed(ZatcaInvoiceParser.parse(raw))
+
+    internal fun fromParsed(parsed: ParsedInvoice): Invoice {
         val checks = parsed.checks.map { check ->
             val label = when (check.kind) {
                 InvoiceCheckKind.STRUCTURE -> UiText(R.string.check_structure)
