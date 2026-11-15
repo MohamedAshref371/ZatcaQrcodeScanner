@@ -73,9 +73,12 @@ final class InvoicePreviewUITests: XCTestCase {
             .withOffset(CGVector(dx: frame.midX - origin.x, dy: frame.midY - origin.y))
             .tap()
 
-        let status = element("invoice-status", in: app)
-        XCTAssertTrue(status.waitForExistence(timeout: 20), app.debugDescription)
-        XCTAssertEqual(status.label, "اجتاز فحوص QR المحلية")
+        let statusOrError = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ OR label == %@ OR label == %@",
+            "invoice-status", "لم أتمكن من قراءة رمز QR من الصورة", "رمز QR غير صالح للفاتورة"
+        )).firstMatch
+        XCTAssertTrue(statusOrError.waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertEqual(statusOrError.label, "اجتاز فحوص QR المحلية")
         XCTAssertEqual(element("invoice-field-1", in: app).label, "متجر صور الاختبار")
         XCTAssertEqual(element("invoice-field-2", in: app).label, "310123456789013")
         attachScreenshot("invoice-photo-result", of: app)

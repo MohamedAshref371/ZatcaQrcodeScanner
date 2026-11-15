@@ -86,6 +86,7 @@ jobs:
           sys.exit("No available iPhone simulator")
           ')"
           mkdir -p iosApp/build
+          printf '%s\n' "$simulator_id" > iosApp/build/simulator-id
           swift iosApp/generate_qr_fixture.swift iosApp/build/invoice-qr.png
           xcrun simctl bootstatus "$simulator_id" -b
           xcrun simctl addmedia "$simulator_id" iosApp/build/invoice-qr.png
@@ -109,6 +110,13 @@ jobs:
           name: iphone-invoice-screenshots
           path: iosApp/build/screenshots/*.png
           if-no-files-found: error
+      - name: Report photo-selection diagnostics
+        if: failure()
+        run: |
+          if [[ -f iosApp/build/simulator-id ]]; then
+            xcrun simctl spawn "$(cat iosApp/build/simulator-id)" log show --last 10m --info \
+              --predicate 'subsystem == "com.poetscorner.invoiceqr.preview" AND category == "photo-scan"'
+          fi
       - name: Report simulator crashes
         if: failure()
         run: |

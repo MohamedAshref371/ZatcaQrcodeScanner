@@ -1,5 +1,7 @@
 import AVFoundation
 import InvoiceUI
+import ImageIO
+import os
 import PhotosUI
 import UIKit
 import UniformTypeIdentifiers
@@ -8,6 +10,7 @@ import Vision
 final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewControllerDelegate {
     weak var presenter: UIViewController?
     private var photoDetection: InvoiceDetection?
+    private static let photoLog = Logger(subsystem: "com.poetscorner.invoiceqr.preview", category: "photo-scan")
 
     func makeCamera(detection: InvoiceDetection) -> UIViewController {
         InvoiceCameraViewController(detection: detection)
@@ -32,14 +35,16 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
 
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         guard let detection = photoDetection, let provider = results.first?.itemProvider else {
+            Self.photoLog.info("Picker returned without a photo.")
             photoDetection = nil
             picker.dismiss(animated: true)
             return
         }
         let imageType = provider.registeredTypeIdentifiers.first { UTType($0)?.conforms(to: .image) == true }
             ?? UTType.image.identifier
-        provider.loadFileRepresentation(forTypeIdentifier: imageType) { [weak self, weak picker] url, _ in
-            let candidates = url.map(Self.readQRs) ?? []
+        provider.loadDataRepresentation(forTypeIdentifier: imageType) { [weak self, weak picker] data, _ in
+            let candidates = data.map(Self.readQRs) ?? []
+            Self.photoLog.info("Photo bytes: \(data?.count ?? 0), QR codes: \(candidates.count).")
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.photoDetection = nil
@@ -51,10 +56,14 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         }
     }
 
-    private static func readQRs(at url: URL) -> [String] {
+    private static func readQRs(data: Data) -> [String] {
         let request = VNDetectBarcodesRequest()
         request.symbologies = [.qr]
-        let handler = VNImageRequestHandler(url: url, options: [:])
+        let source = CGImageSourceCreateWithData(data as CFData, nil)
+        let properties = source.flatMap { CGImageSourceCopyPropertiesAtIndex($0, 0, nil) } as? [CFString: Any]
+        let orientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)
+            .flatMap { CGImagePropertyOrientation(rawValue: $0.uint32Value) } ?? .up
+        let handler = VNImageRequestHandler(data: data, orientation: orientation, options: [:])
         do {
             try handler.perform([request])
             return request.results?.compactMap(\.payloadStringValue) ?? []
