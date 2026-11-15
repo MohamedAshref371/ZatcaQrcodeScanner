@@ -49,6 +49,7 @@ fun InvoiceCheckScreen(
     history: InvoiceHistoryStore,
     camera: (@Composable (InvoiceDetection) -> Unit)? = null,
     selectPhoto: ((InvoiceDetection) -> Unit)? = null,
+    shareInvoice: ((String) -> Boolean)? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -56,6 +57,7 @@ fun InvoiceCheckScreen(
     var tab by remember { mutableStateOf(startTab) }
     var result by remember { mutableStateOf<ParsedInvoice?>(null) }
     var checkedAt by remember { mutableStateOf(0L) }
+    var historyFilter by remember { mutableStateOf(InvoiceHistoryFilter()) }
 
     fun showMessage(message: String) {
         if (snackbar.currentSnackbarData?.visuals?.message == message) return
@@ -76,7 +78,7 @@ fun InvoiceCheckScreen(
 
         val normalized = raw.filterNot { it.isWhitespace() }.trimEnd('=')
         val saved = history.save(raw, normalized, parsed.value(1), parsed.value(2), parsed.value(4),
-            Clock.System.now().toEpochMilliseconds())
+            invoiceHistoryDay(parsed), Clock.System.now().toEpochMilliseconds())
         if (saved == null) {
             showMessage("تعذّر حفظ الفاتورة. حاول مرة أخرى.")
             return InvoiceDetectionResult.SAVE_FAILED
@@ -137,7 +139,7 @@ fun InvoiceCheckScreen(
                 Box(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
                     val invoice = result
                     if (tab == InvoiceTab.HISTORY) {
-                        InvoiceHistoryScreen(history, ::openSavedInvoice)
+                        InvoiceHistoryScreen(history, historyFilter, { historyFilter = it }, ::openSavedInvoice)
                     } else if (tab == InvoiceTab.SCANNER && camera != null) {
                         InvoiceScannerPanel(
                             camera = { camera(detection) },
@@ -155,7 +157,12 @@ fun InvoiceCheckScreen(
                             if (inspect(raw) == InvoiceDetectionResult.INVALID) showMessage(invalidInvoiceMessage)
                         }
                     } else {
-                        InvoiceResult(invoice, formatInvoiceCheckTime(checkedAt)) {
+                        val share: (() -> Unit)? = shareInvoice?.let { action ->
+                            {
+                                if (!action(invoiceShareSummary(invoice))) showMessage("تعذّرت مشاركة الفاتورة")
+                            }
+                        }
+                        InvoiceResult(invoice, formatInvoiceCheckTime(checkedAt), share) {
                             result = null
                             tab = startTab
                         }
@@ -257,10 +264,11 @@ private fun InvoiceIconTile(
 }
 
 @Composable
-private fun InvoiceResult(invoice: ParsedInvoice, checkedAt: String, onAgain: () -> Unit) {
+private fun InvoiceResult(invoice: ParsedInvoice, checkedAt: String, onShare: (() -> Unit)?, onAgain: () -> Unit) {
     val phase = if (invoice.phase2) "المرحلة الثانية" else "المرحلة الأولى"
     val type = if (invoice.isSimplified) "فاتورة ضريبية مبسطة" else "فاتورة ضريبية"
     val colors = MaterialTheme.colorScheme
+    var advanced by remember(invoice.raw) { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().testTag("invoice-result-list").verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -273,12 +281,20 @@ private fun InvoiceResult(invoice: ParsedInvoice, checkedAt: String, onAgain: ()
                     tint = if (invoice.passed) colors.primary else colors.error,
                 )
                 Text(
-                    if (invoice.passed) "اجتاز فحوص QR المحلية" else "لم يجتز فحوص QR المحلية",
+                    invoiceResultStatus(invoice),
                     Modifier.weight(1f).testTag("invoice-status"),
                     style = MaterialTheme.typography.titleMedium,
                 )
+                if (onShare != null) {
+                    IconButton(onClick = onShare, modifier = Modifier.testTag("invoice-share")) {
+                        Icon(ShareIcon, "مشاركة ملخص الفاتورة")
+                    }
+                }
             }
             Text("$type · $phase")
+            invoice.relevantChecks().filterNot { it.passed }.forEach { check ->
+                Text("✕ ${invoiceCheckLabel(check)}", style = MaterialTheme.typography.bodySmall)
+            }
             Text("تاريخ الفحص: $checkedAt", Modifier.testTag("invoice-checked-at"), style = MaterialTheme.typography.bodySmall)
         }
         Text(
@@ -292,12 +308,24 @@ private fun InvoiceResult(invoice: ParsedInvoice, checkedAt: String, onAgain: ()
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
-        InvoiceValueCard(1, "اسم البائع", invoice.value(1))
-        InvoiceValueCard(2, "الرقم الضريبي", invoice.value(2))
-        InvoiceDateCard(invoice.value(3))
-        InvoiceValueCard(4, "إجمالي الفاتورة", invoice.value(4))
-        InvoiceValueCard(5, "الضريبة", invoice.value(5))
-        if (invoice.phase2) InvoiceValueCard(6, "بصمة الفاتورة", invoice.value(6))
+        for (tag in 1..if (invoice.phase2) 6 else 5) {
+            if (tag == 3) InvoiceDateCard(invoice.value(tag))
+            else InvoiceValueCard(tag, invoiceFieldName(tag), invoice.value(tag))
+        }
+        if (invoice.phase2) {
+            OutlinedButton(onClick = { advanced = !advanced },
+                modifier = Modifier.fillMaxWidth().testTag("invoice-advanced")) {
+                Text(if (advanced) "إخفاء الحقول المتقدمة" else "عرض الحقول المتقدمة")
+            }
+            if (advanced) {
+                for (tag in 7..9) {
+                    val value = if (tag == 9 && !invoice.isSimplified) "اختياري للفاتورة الضريبية" else invoice.value(tag)
+                    InvoiceValueCard(tag, invoiceFieldName(tag), value)
+                }
+            }
+        }
+        InvoiceVerificationDetails(invoice)
+        InvoiceRawQr(invoice.raw)
         Button(onClick = onAgain, modifier = Modifier.fillMaxWidth()) { Text("فحص فاتورة أخرى") }
     }
 }

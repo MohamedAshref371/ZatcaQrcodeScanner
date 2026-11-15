@@ -11,12 +11,12 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
     }
 
     func save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String,
-              checkedAt: Int64) -> InvoiceHistoryEntry? {
+              invoiceDay: String, checkedAt: Int64) -> InvoiceHistoryEntry? {
         let key = SHA256.hash(data: Data(normalizedPayload.utf8)).map { String(format: "%02x", $0) }.joined()
         return try? withDatabase { db in
             let inserted = try statement(db, """
-                INSERT INTO invoices(payload_key, raw, seller, vat, total, checked_at)
-                VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(payload_key) DO NOTHING
+                INSERT INTO invoices(payload_key, raw, seller, vat, total, checked_at, seller_search, invoice_day)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(payload_key) DO NOTHING
                 """) { query in
                 try bind(key, to: query, at: 1)
                 try bind(raw, to: query, at: 2)
@@ -24,6 +24,8 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                 try bind(vat, to: query, at: 4)
                 try bind(total, to: query, at: 5)
                 try requireOK(sqlite3_bind_int64(query, 6, checkedAt))
+                try bind(seller.lowercased(), to: query, at: 7)
+                try bind(invoiceDay, to: query, at: 8)
                 guard sqlite3_step(query) == SQLITE_DONE else { throw StorageError.sqlite }
                 return sqlite3_changes(db) == 1
             }
@@ -37,14 +39,25 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         }
     }
 
-    func page(beforeId: Int64, limit: Int32) -> InvoiceHistoryPage? {
+    func page(beforeId: Int64, limit: Int32, filter: InvoiceHistoryQuery) -> InvoiceHistoryPage? {
         return try? withDatabase { db in
             try statement(db, """
                 SELECT id, seller, vat, total, checked_at FROM invoices
-                WHERE id < ? ORDER BY id DESC LIMIT ?
+                WHERE id < ?1
+                  AND (?3 = '' OR instr(seller_search, ?3) > 0 OR (?4 <> '' AND instr(vat, ?4) > 0))
+                  AND ((?5 = '' AND ?6 = '') OR (invoice_day <> ''
+                    AND (?5 = '' OR invoice_day >= ?5) AND (?6 = '' OR invoice_day <= ?6)))
+                  AND checked_at >= ?7 AND checked_at < ?8
+                ORDER BY id DESC LIMIT ?2
                 """) { query in
                 try requireOK(sqlite3_bind_int64(query, 1, beforeId))
                 try requireOK(sqlite3_bind_int64(query, 2, Int64(limit) + 1))
+                try bind(filter.seller.lowercased(), to: query, at: 3)
+                try bind(filter.vat, to: query, at: 4)
+                try bind(filter.invoiceFrom, to: query, at: 5)
+                try bind(filter.invoiceTo, to: query, at: 6)
+                try requireOK(sqlite3_bind_int64(query, 7, filter.checkedFrom))
+                try requireOK(sqlite3_bind_int64(query, 8, filter.checkedBefore))
                 var rows: [InvoiceHistorySummary] = []
                 while true {
                     switch sqlite3_step(query) {
@@ -114,12 +127,65 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                     checked_at INTEGER NOT NULL
                 )
                 """, nil, nil, nil))
+            try migrateSearchFields(opened)
         } catch {
             sqlite3_close(opened)
             throw error
         }
         database = opened
         return try action(opened)
+    }
+
+    private func migrateSearchFields(_ db: OpaquePointer) throws {
+        try requireOK(sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil))
+        do {
+            let version = try statement(db, "PRAGMA user_version") { query in
+                guard sqlite3_step(query) == SQLITE_ROW else { throw StorageError.sqlite }
+                return sqlite3_column_int(query, 0)
+            }
+            if version == 0 {
+                try requireOK(sqlite3_exec(db, """
+                    ALTER TABLE invoices ADD COLUMN seller_search TEXT NOT NULL DEFAULT '';
+                    ALTER TABLE invoices ADD COLUMN invoice_day TEXT NOT NULL DEFAULT '';
+                    """, nil, nil, nil))
+                try backfillSearchFields(db)
+                try requireOK(sqlite3_exec(db, "PRAGMA user_version = 1", nil, nil, nil))
+            }
+            try requireOK(sqlite3_exec(db, "COMMIT", nil, nil, nil))
+        } catch {
+            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+            throw error
+        }
+    }
+
+    private func backfillSearchFields(_ db: OpaquePointer) throws {
+        var afterId: Int64 = 0
+        while true {
+            let rows = try statement(db, """
+                SELECT id, seller, raw FROM invoices WHERE id > ? ORDER BY id LIMIT 50
+                """) { query in
+                try requireOK(sqlite3_bind_int64(query, 1, afterId))
+                var rows: [(id: Int64, seller: String, raw: String)] = []
+                var status = sqlite3_step(query)
+                while status == SQLITE_ROW {
+                    rows.append((sqlite3_column_int64(query, 0), columnText(query, at: 1), columnText(query, at: 2)))
+                    status = sqlite3_step(query)
+                }
+                guard status == SQLITE_DONE else { throw StorageError.sqlite }
+                return rows
+            }
+            guard let last = rows.last else { return }
+            try statement(db, "UPDATE invoices SET seller_search = ?, invoice_day = ? WHERE id = ?") { query in
+                for row in rows {
+                    try bind(row.seller.lowercased(), to: query, at: 1)
+                    try bind(InvoiceHistoryKt.invoiceHistoryDay(raw: row.raw), to: query, at: 2)
+                    try requireOK(sqlite3_bind_int64(query, 3, row.id))
+                    guard sqlite3_step(query) == SQLITE_DONE else { throw StorageError.sqlite }
+                    try requireOK(sqlite3_reset(query))
+                }
+            }
+            afterId = last.id
+        }
     }
 
     private func statement<T>(_ db: OpaquePointer, _ sql: String, _ action: (OpaquePointer) throws -> T) throws -> T {

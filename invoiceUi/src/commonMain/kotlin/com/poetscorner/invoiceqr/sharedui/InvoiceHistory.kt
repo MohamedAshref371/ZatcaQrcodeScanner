@@ -10,11 +10,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -22,6 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
+import com.poetscorner.invoiceqr.shared.ParsedInvoice
+import com.poetscorner.invoiceqr.shared.ZatcaInvoiceParser
+import kotlinx.coroutines.delay
 
 data class InvoiceHistoryEntry(val raw: String, val checkedAt: Long, val alreadySaved: Boolean)
 
@@ -35,22 +40,69 @@ data class InvoiceHistorySummary(
 
 data class InvoiceHistoryPage(val rows: List<InvoiceHistorySummary>, val hasMore: Boolean)
 
+data class InvoiceHistoryQuery(
+    val seller: String,
+    val vat: String,
+    val invoiceFrom: String,
+    val invoiceTo: String,
+    val checkedFrom: Long,
+    val checkedBefore: Long,
+)
+
 interface InvoiceHistoryStore {
-    fun save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String, checkedAt: Long): InvoiceHistoryEntry?
-    fun page(beforeId: Long, limit: Int): InvoiceHistoryPage?
+    fun save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String,
+        invoiceDay: String, checkedAt: Long): InvoiceHistoryEntry?
+    fun page(beforeId: Long, limit: Int, filter: InvoiceHistoryQuery): InvoiceHistoryPage?
     fun entry(id: Long): InvoiceHistoryEntry?
 }
+
+fun invoiceHistoryDay(raw: String): String = invoiceHistoryDay(ZatcaInvoiceParser.parse(raw))
+
+internal fun invoiceHistoryDay(invoice: ParsedInvoice): String =
+    runCatching { ZatcaInvoiceParser.parseTimestamp(invoice.value(3)).date.toString() }.getOrDefault("")
 
 private const val historyPageSize = 50
 
 @Composable
-internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, onOpen: (Long) -> Unit) {
+internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter,
+    onFilter: (InvoiceHistoryFilter) -> Unit, onOpen: (Long) -> Unit) {
+    var showDates by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("سجل الفواتير", style = MaterialTheme.typography.titleLarge)
+            OutlinedTextField(
+                value = filter.term,
+                onValueChange = { onFilter(filter.copy(term = it)) },
+                modifier = Modifier.fillMaxWidth().testTag("invoice-history-search"),
+                label = { Text("اسم البائع أو الرقم الضريبي") },
+                singleLine = true,
+            )
+            TextButton(onClick = { showDates = true }, modifier = Modifier.testTag("invoice-history-dates")) {
+                Text(filter.dateSummary())
+            }
+        }
+        key(filter) {
+            InvoiceHistoryResults(history, filter, onOpen)
+        }
+    }
+    if (showDates) {
+        InvoiceHistoryDateDialog(filter, onDismiss = { showDates = false }) {
+            onFilter(it)
+            showDates = false
+        }
+    }
+}
+
+@Composable
+private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter, onOpen: (Long) -> Unit) {
     var page by remember(history) { mutableStateOf<InvoiceHistoryPage?>(null) }
     var rows by remember(history) { mutableStateOf(emptyList<InvoiceHistorySummary>()) }
     var loadFailed by remember(history) { mutableStateOf(false) }
+    val query = remember(filter) { filter.toQuery() }
 
     fun loadMore() {
-        val next = history.page(rows.lastOrNull()?.id ?: Long.MAX_VALUE, historyPageSize)
+        val next = history.page(rows.lastOrNull()?.id ?: Long.MAX_VALUE, historyPageSize, query)
         loadFailed = next == null
         if (next != null) {
             rows = rows + next.rows
@@ -58,16 +110,21 @@ internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, onOpen: (Long) -
         }
     }
 
-    LaunchedEffect(history) { loadMore() }
+    LaunchedEffect(history) {
+        if (filter.term.isNotBlank()) delay(200)
+        loadMore()
+    }
 
     LazyColumn(
         Modifier.fillMaxSize().testTag("invoice-history-list"),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { Text("سجل الفواتير", style = MaterialTheme.typography.titleLarge) }
         if (rows.isEmpty() && page != null) {
-            item { Text("لا توجد فواتير محفوظة", Modifier.testTag("invoice-history-empty")) }
+            item {
+                Text(if (filter.isActive) "لا توجد فواتير مطابقة" else "لا توجد فواتير محفوظة",
+                    Modifier.testTag("invoice-history-empty"))
+            }
         }
         items(rows, key = { it.id }) { row ->
             Card(onClick = { onOpen(row.id) }, modifier = Modifier.fillMaxWidth().testTag("invoice-history-row")) {

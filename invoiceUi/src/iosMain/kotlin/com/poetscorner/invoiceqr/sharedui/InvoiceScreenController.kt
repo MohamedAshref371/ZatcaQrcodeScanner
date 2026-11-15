@@ -10,6 +10,7 @@ interface InvoiceScannerHost {
     fun makeCamera(detection: InvoiceDetection): UIViewController
     fun releaseCamera(controller: UIViewController)
     fun selectPhoto(detection: InvoiceDetection)
+    fun shareInvoice(summary: String): Boolean
 }
 
 fun invoiceScreenController(host: InvoiceScannerHost, history: InvoiceHistoryStore): UIViewController = ComposeUIViewController {
@@ -23,5 +24,6 @@ fun invoiceScreenController(host: InvoiceScannerHost, history: InvoiceHistorySto
             )
         },
         selectPhoto = host::selectPhoto,
+        shareInvoice = host::shareInvoice,
     )
 }

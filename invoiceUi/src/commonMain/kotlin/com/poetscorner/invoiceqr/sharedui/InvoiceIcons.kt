@@ -33,6 +33,9 @@ internal val InfoIcon = invoiceIcon("Info",
 internal val CopyIcon = invoiceIcon("Copy",
     "M8,8 L20,8 L20,21 L8,21 Z M16,4 L4,4 L4,17")
 
+internal val ShareIcon = invoiceIcon("Share",
+    "M12,15 L12,3 M8,7 L12,3 L16,7 M8,10 L5,10 L5,21 L19,21 L19,10 L16,10")
+
 private fun invoiceIcon(name: String, path: String): ImageVector =
     ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
         .addPath(

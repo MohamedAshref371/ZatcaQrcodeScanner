@@ -116,6 +116,66 @@ final class InvoicePreviewUITests: XCTestCase {
         XCTAssertEqual(element("invoice-field-1", in: app).label, seller)
     }
 
+    func testHistorySearchAndInvoiceDateFilter() {
+        continueAfterFailure = false
+        let app = isolatedApp()
+        app.launch()
+        submit(base64(["Éclair", "300000000000003", "2026-10-20T10:30:00Z", "230.00", "30.00"]), in: app)
+        XCTAssertTrue(element("invoice-status", in: app).waitForExistence(timeout: 15))
+        element("invoice-history-tab", in: app).tap()
+        let search = element("invoice-history-search", in: app)
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.tap()
+        search.typeText("CLAIR")
+        let row = element("invoice-history-row", in: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        search.typeText("X")
+        let empty = element("invoice-history-empty", in: app)
+        XCTAssertTrue(empty.waitForExistence(timeout: 10))
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 6))
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        element("invoice-history-dates", in: app).tap()
+        let start = element("invoice-history-from", in: app)
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        start.typeText("2026-10-21")
+        let done = app.keyboards.buttons["Done"].firstMatch
+        if done.exists { done.tap() }
+        element("invoice-history-date-apply", in: app).tap()
+        XCTAssertTrue(empty.waitForExistence(timeout: 10))
+        XCTAssertFalse(row.exists)
+    }
+
+    func testPhaseTwoResultExposesAdvancedFieldsAndChecks() {
+        continueAfterFailure = false
+        let app = isolatedApp()
+        app.launch()
+        submit(base64(["Seller", "300000000000003", "2026-10-20T10:30:00", "230.00", "30.00",
+                       "hash", "signature", "key", "stamp"]), in: app)
+        XCTAssertTrue(element("invoice-status", in: app).waitForExistence(timeout: 15))
+        XCTAssertTrue(element("invoice-share", in: app).exists)
+        XCTAssertFalse(element("invoice-field-7", in: app).exists)
+        scrollTo("invoice-advanced", in: app).tap()
+        XCTAssertEqual(scrollTo("invoice-field-7", in: app).label, "signature")
+        XCTAssertEqual(scrollTo("invoice-field-8", in: app).label, Data("key".utf8).base64EncodedString())
+        XCTAssertEqual(scrollTo("invoice-field-9", in: app).label, Data("stamp".utf8).base64EncodedString())
+        scrollTo("invoice-checks", in: app).tap()
+        XCTAssertTrue(element("invoice-check-details", in: app).exists)
+        scrollTo("invoice-checks", in: app).tap()
+        scrollTo("invoice-raw", in: app).tap()
+        scrollTo("invoice-copy-raw", in: app).tap()
+        XCTAssertTrue(app.staticTexts["تم النسخ"].exists || element("invoice-copy-raw", in: app).label == "تم النسخ")
+    }
+
+    private func scrollTo(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
+        let target = element(identifier, in: app)
+        for _ in 0..<8 where !target.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(target.isHittable, app.debugDescription)
+        return target
+    }
+
     private func isolatedApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["INVOICE_UI_TEST_HISTORY"] = UUID().uuidString

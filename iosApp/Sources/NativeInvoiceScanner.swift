@@ -21,6 +21,20 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         (controller as? InvoiceCameraViewController)?.stopCamera()
     }
 
+    func shareInvoice(summary: String) -> Bool {
+        guard let presenter, presenter.presentedViewController == nil, let view = presenter.viewIfLoaded else {
+            return false
+        }
+        let shareSheet = UIActivityViewController(activityItems: [summary], applicationActivities: nil)
+        if let popover = shareSheet.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+            popover.permittedArrowDirections = []
+        }
+        presenter.present(shareSheet, animated: true)
+        return true
+    }
+
     func selectPhoto(detection: InvoiceDetection) {
         guard let presenter, presenter.presentedViewController == nil, photoDetection == nil else { return }
         var configuration = PHPickerConfiguration(photoLibrary: .shared())
