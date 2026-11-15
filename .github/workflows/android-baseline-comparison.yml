@@ -1,0 +1,75 @@
+name: Android baseline comparison
+
+on:
+  push:
+    branches: [android-kmp-validation]
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Android emulator (${{ matrix.build.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - name: baseline
+            ref: 2de79584272f08a30501cf5c799422aaff3b8b9e
+          - name: multiplatform
+            ref: 14102f5a5018b0d1851fa3b4257eca565dc75713
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ matrix.build.ref }}
+          persist-credentials: false
+      - name: Ensure Android SDK 37 is installed
+        run: |
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$sdk_root" >> "$GITHUB_ENV"
+          if [[ -f "$sdk_root/platforms/android-37.0/android.jar" && -x "$sdk_root/build-tools/37.0.0/aapt2" ]]; then
+            exit 0
+          fi
+          for sdkmanager in "$sdk_root"/cmdline-tools/*/bin/sdkmanager; do
+            if [[ -x "$sdkmanager" ]]; then
+              "$sdkmanager" --sdk_root="$sdk_root" "platforms;android-37.0" "build-tools;37.0.0"
+              exit
+            fi
+          done
+          echo "::error::Android command-line tools were not found under $sdk_root"
+          exit 1
+      - name: Build Android APK and instrumentation APK
+        run: bash ./gradlew --stacktrace :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Build the minified Release APK
+        if: matrix.build.name == 'multiplatform'
+        run: bash ./gradlew --stacktrace :app:assembleRelease
+      - name: Enable emulator hardware acceleration
+        run: |
+          test -c /dev/kvm
+          sudo chmod a+rw /dev/kvm
+      - name: Run the same Android tests on both versions
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back virtualscene -camera-front none
+          script: |
+            set -o pipefail
+            mkdir -p app/build/parity
+            adb shell settings put secure show_ime_with_hard_keyboard 1
+            adb install -r -g app/build/outputs/apk/debug/app-debug.apk
+            adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell am instrument -w -r -e class 'com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.EdgeToEdgeTest,com.poetscorner.invoiceqr.AppAppearanceUiTest,com.poetscorner.invoiceqr.ResultScrollUiTest,com.poetscorner.invoiceqr.ResultActionsUiTest,com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.ScanDeduplicationTest,com.poetscorner.invoiceqr.ScanRejectionTest,com.poetscorner.invoiceqr.ImageImportTest,com.poetscorner.invoiceqr.PdfInvoiceImportTest,com.poetscorner.invoiceqr.CameraStreamingTest#previewStreamsAgainAfterActivityRecreation' com.poetscorner.invoiceqr.test/androidx.test.runner.AndroidJUnitRunner | tee app/build/parity/instrumentation.txt
+            grep -Eq '^OK \([0-9]+ tests?\)' app/build/parity/instrumentation.txt
+      - name: Upload the Android test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-${{ matrix.build.name }}-test-report
+          path: app/build/parity/instrumentation.txt
+          if-no-files-found: ignore
