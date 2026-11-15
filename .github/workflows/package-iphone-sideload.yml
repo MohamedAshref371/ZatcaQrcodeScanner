@@ -1,0 +1,80 @@
+name: Package iPhone Release for sideloading
+
+on:
+  push:
+    branches: [iphone-sideload-build]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build and verify the unsigned iPhone Release
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: 14102f5a5018b0d1851fa3b4257eca565dc75713
+          persist-credentials: false
+      - name: Build the Kotlin iPhone Release framework
+        run: bash ./gradlew --stacktrace :invoiceUi:linkReleaseFrameworkIosArm64
+      - name: Generate the Xcode project
+        run: |
+          if ! command -v xcodegen >/dev/null; then
+            brew install xcodegen
+          fi
+          xcodegen generate --spec iosApp/project.yml
+      - name: Build the iPhone Release app
+        run: |
+          xcodebuild build \
+            -project iosApp/InvoicePreview.xcodeproj \
+            -scheme InvoicePreview \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$PWD/iosApp/build/sideload" \
+            "FRAMEWORK_SEARCH_PATHS=$PWD/invoiceUi/build/bin/iosArm64/releaseFramework" \
+            ARCHS=arm64 CODE_SIGNING_ALLOWED=NO ENABLE_DEBUG_DYLIB=NO \
+            MARKETING_VERSION=0.1.0 CURRENT_PROJECT_VERSION=1
+      - name: Package and check the IPA and sample QR
+        run: |
+          app="$PWD/iosApp/build/sideload/Build/Products/Release-iphoneos/InvoicePreview.app"
+          stage="$RUNNER_TEMP/zatca-ipa-stage"
+          mkdir -p "$stage/Payload" dist
+          test "$(xcrun lipo -archs "$app/InvoicePreview")" = arm64
+          xcrun vtool -show-build "$app/InvoicePreview"
+          test ! -e "$app/InvoicePreview.debug.dylib"
+          test ! -e "$app/embedded.mobileprovision"
+          ditto "$app" "$stage/Payload/InvoicePreview.app"
+          ditto -c -k --norsrc --keepParent "$stage/Payload" "$PWD/dist/ZatcaQR-iPhone-Release.ipa"
+          swift iosApp/generate_qr_fixture.swift dist/Invoice-QR.png
+          python3 - <<'PY'
+          from pathlib import Path
+          import plistlib
+          import stat
+          import zipfile
+
+          ipa = Path("dist/ZatcaQR-iPhone-Release.ipa")
+          with zipfile.ZipFile(ipa) as archive:
+              assert archive.testzip() is None
+              root = "Payload/InvoicePreview.app/"
+              assert all(name == "Payload/" or name.startswith(root) for name in archive.namelist())
+              info = plistlib.loads(archive.read(root + "Info.plist"))
+              assert info["CFBundleSupportedPlatforms"] == ["iPhoneOS"]
+              assert info["MinimumOSVersion"] == "16.0"
+              assert info["CFBundleIdentifier"] == "com.poetscorner.invoiceqr.preview"
+              assert info["CFBundleShortVersionString"] == "0.1.0"
+              assert info["CFBundleVersion"] == "1"
+              assert info["NSCameraUsageDescription"]
+              executable = archive.getinfo(root + info["CFBundleExecutable"])
+              assert executable.external_attr >> 16 & stat.S_IXUSR
+          assert Path("dist/Invoice-QR.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+          print("Verified arm64 iPhone Release IPA, plist, executable permissions, and invoice QR fixture.")
+          PY
+      - name: Upload the unsigned IPA and sample QR
+        uses: actions/upload-artifact@v7
+        with:
+          name: zatca-iphone-release-sideload
+          path: dist/
+          if-no-files-found: error
+          compression-level: 0
