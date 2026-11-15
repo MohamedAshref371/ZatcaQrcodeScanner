@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr.sharedui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
@@ -104,7 +105,7 @@ private fun InvoiceResultNavigation() {
     Column(Modifier.fillMaxWidth().background(colors.background)) {
         Surface(
             color = colors.surfaceContainerLowest,
-            shadowElevation = 8.dp,
+            border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f)),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         ) {
             NavigationBar(
