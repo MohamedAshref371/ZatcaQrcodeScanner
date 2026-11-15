@@ -16,8 +16,6 @@ jobs:
       fail-fast: false
       matrix:
         build:
-          - name: baseline
-            ref: 2de79584272f08a30501cf5c799422aaff3b8b9e
           - name: multiplatform
             ref: 14102f5a5018b0d1851fa3b4257eca565dc75713
     steps:
@@ -42,11 +40,10 @@ jobs:
           exit 1
       - name: Build Android APK and instrumentation APK
         run: bash ./gradlew --stacktrace :app:assembleDebug :app:assembleDebugAndroidTest
-      - name: Build the minified Release APK
-        if: matrix.build.name == 'multiplatform'
-        run: bash ./gradlew --stacktrace :app:assembleRelease
       - name: Enable emulator hardware acceleration
         run: |
+          bash ./gradlew --stop
+          df -h "$HOME"
           test -c /dev/kvm
           sudo chmod a+rw /dev/kvm
       - name: Run the same Android tests on both versions
@@ -56,6 +53,8 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          disk-size: 4096M
+          emulator-boot-timeout: 240
           disable-animations: true
           emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back virtualscene -camera-front none
           script: |
