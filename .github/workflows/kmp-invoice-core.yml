@@ -125,16 +125,26 @@ jobs:
             brew install xcodegen
           fi
           xcodegen generate --spec iosApp/project.yml
+      - name: Install ML Kit for the iPhone device build
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if ! command -v pod >/dev/null; then
+            brew install cocoapods
+          fi
+          pod install --project-directory=iosApp
       - name: Verify the iPhone device build
         if: github.event_name == 'workflow_dispatch'
         run: >
           xcodebuild build
-          -project iosApp/InvoicePreview.xcodeproj
+          -workspace iosApp/InvoicePreview.xcworkspace
           -scheme InvoicePreview
           -destination "generic/platform=iOS"
           -configuration Debug
           -derivedDataPath iosApp/build/iphone-device
           CODE_SIGNING_ALLOWED=NO
+      - name: Generate the simulator project
+        if: github.event_name == 'workflow_dispatch'
+        run: xcodegen generate --spec iosApp/project.yml
       - name: Run the shared Kotlin tests
         run: bash ./gradlew --stacktrace --build-cache :invoiceCore:iosSimulatorArm64Test
       - name: Start the iPhone simulator

@@ -1,36 +1,32 @@
 package com.poetscorner.invoiceqr.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.ScannerSettings
+import com.poetscorner.invoiceqr.sharedui.InvoiceScannerHeader
+import java.text.NumberFormat
 
 @Composable
 internal fun ScannerHome(settings: ScannerSettings, state: ContinuousScanState, busy: Boolean,
     zoom: Float, onZoom: (Float) -> Unit,
     onGallery: () -> Unit, onContinuous: (Boolean) -> Unit,
     onScan: suspend (String) -> Boolean, contentPadding: PaddingValues = PaddingValues(), onTorch: () -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    val numbers = remember(locale) { NumberFormat.getIntegerInstance(locale) }
     val controls: @Composable () -> Unit = {
-        Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.88f),
-            shape = MaterialTheme.shapes.large) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(Modifier.weight(1f)) {
-                        SectionHeading(stringResource(R.string.scanner_heading), stringResource(R.string.scan_local))
-                    }
-                    FilledTonalIconButton(onClick = onGallery, enabled = !busy) {
-                        AppIcon(R.drawable.ic_image, description = stringResource(R.string.gallery_pick_multiple))
-                    }
-                }
-                ContinuousScanControls(state, onContinuous)
-            }
-        }
+        InvoiceScannerHeader(
+            title = stringResource(R.string.scanner_heading), subtitle = stringResource(R.string.scan_local),
+            chooseLabel = stringResource(R.string.gallery_pick_multiple), chooseEnabled = !busy, onChoose = onGallery,
+            continuousEnabled = state.enabled, continuousLabel = stringResource(R.string.continuous_scan),
+            countLabel = stringResource(R.string.continuous_scan_count, numbers.format(state.added)),
+            onContinuousChange = onContinuous,
+        )
     }
     Box(Modifier.fillMaxSize()) {
         if (!busy) CameraScanner(settings, state.enabled, zoom, onZoom, onScan, onTorch, contentPadding, controls)

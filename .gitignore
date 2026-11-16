@@ -91,3 +91,7 @@ lint/tmp/
 
 # Xcode project generated from iosApp/project.yml
 /iosApp/InvoicePreview.xcodeproj/
+
+# CocoaPods device workspace is generated from the iOS target.
+/iosApp/Pods/
+/iosApp/InvoicePreview.xcworkspace/

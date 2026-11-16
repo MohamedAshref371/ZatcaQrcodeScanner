@@ -49,6 +49,7 @@ internal fun InvoiceBackupSettings(
     busy: Boolean,
     languagePreference: InvoiceLanguagePreference,
     onLanguageChange: ((InvoiceLanguagePreference) -> Unit)?,
+    scannerOptions: @Composable () -> Unit = {},
     onExport: () -> Unit,
     onImport: () -> Unit,
 ) {
@@ -58,6 +59,7 @@ internal fun InvoiceBackupSettings(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(language.text("الإعدادات", "Settings"), style = MaterialTheme.typography.titleLarge)
+        scannerOptions()
         if (onLanguageChange != null) InvoiceFieldCard {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(language.text("لغة التطبيق", "App language"), style = MaterialTheme.typography.titleMedium)
@@ -92,6 +94,32 @@ internal fun InvoiceBackupSettings(
                     Text(language.text("استعادة من نسخة احتياطية", "Restore from backup"))
                 }
                 if (busy) CircularProgressIndicator()
+            }
+        }
+    }
+}
+
+@Composable
+internal fun InvoiceScannerOptions(engine: InvoiceQrEngine, mlKitAvailable: Boolean, cropEnabled: Boolean,
+    onEngine: (InvoiceQrEngine) -> Unit, onCrop: (Boolean) -> Unit) {
+    val language = LocalInvoiceLanguage.current
+    InvoiceFieldCard {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(language.text("محرك القراءة", "Scan engine"), style = MaterialTheme.typography.titleMedium)
+            InvoiceQrEngine.entries.forEach { option ->
+                val enabled = option != InvoiceQrEngine.ML_KIT || mlKitAvailable
+                Row(Modifier.fillMaxWidth().selectable(engine == option, enabled = enabled, role = Role.RadioButton,
+                    onClick = { onEngine(option) }), verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = engine == option, onClick = null, enabled = enabled)
+                    Text(if (option == InvoiceQrEngine.ZXING) "ZXing" else "Google ML Kit",
+                        Modifier.padding(start = 8.dp))
+                }
+            }
+            if (!mlKitAvailable) Text(language.text("Google ML Kit متاح في نسخة الآيفون الفعلي.",
+                "Google ML Kit is available in the iPhone device build."), style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(language.text("تحديد منطقة المسح", "Crop scan area"), Modifier.weight(1f))
+                androidx.compose.material3.Switch(checked = cropEnabled, onCheckedChange = onCrop)
             }
         }
     }

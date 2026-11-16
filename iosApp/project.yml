@@ -10,6 +10,10 @@ settings:
     INVOICE_APP_GROUP: group.com.poetscorner.invoiceqr.preview
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
+packages:
+  ZXingCpp:
+    url: https://github.com/zxing-cpp/zxing-cpp.git
+    exactVersion: 3.1.1
 targets:
   InvoicePreview:
     type: application
@@ -18,11 +22,14 @@ targets:
     dependencies:
       - target: InvoiceShare
         embed: true
+      - package: ZXingCpp
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.poetscorner.invoiceqr.preview
         INFOPLIST_FILE: Info.plist
         CODE_SIGN_ENTITLEMENTS: SharedInvoices.entitlements
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/InvoiceZXingDecoder.h
+        CLANG_ENABLE_MODULES: YES
         INFOPLIST_KEY_CFBundleDisplayName: Invoice QR Reader
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES

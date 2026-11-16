@@ -1,11 +1,9 @@
 import CoreGraphics
-import CoreImage
 import Foundation
 import ImageIO
 import InvoiceUI
 import UIKit
 import UniformTypeIdentifiers
-import Vision
 
 /// Reads images and every PDF page, then commits each file as one SQLite transaction.
 final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
@@ -65,7 +63,9 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
     }
 
     private func process(_ urls: [URL], fromInbox: Bool) {
+        let engine = InvoiceQrReader.selected
         queue.async { [self] in
+            let reader = InvoiceQrReader(engine: engine)
             var added: Int32 = 0
             var duplicates: Int32 = 0
             var needsReview: Int32 = 0
@@ -109,9 +109,9 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
                         candidates.append(candidate)
                     }
                     if type.conforms(to: .pdf) {
-                        try scanPdf(staged, file: Int32(index + 1), total: Int32(urls.count), accept: accept)
+                        try scanPdf(staged, reader: reader, file: Int32(index + 1), total: Int32(urls.count), accept: accept)
                     } else {
-                        try scanImage(staged, accept: accept)
+                        try scanImage(staged, reader: reader, accept: accept)
                     }
                     if isCancelled { throw CancellationError() }
                     removeInboxFile = true
@@ -195,17 +195,12 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
         if let coordinationError { throw coordinationError }
     }
 
-    private func scanImage(_ url: URL, accept: (String) -> Void) throws {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                  kCGImageSourceCreateThumbnailFromImageAlways: true,
-                  kCGImageSourceCreateThumbnailWithTransform: true,
-                  kCGImageSourceThumbnailMaxPixelSize: 4096
-              ] as CFDictionary) else { throw ImportError.unreadable }
-        for raw in readQRs(image) { accept(raw) }
+    private func scanImage(_ url: URL, reader: InvoiceQrReader, accept: (String) -> Void) throws {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { throw ImportError.unreadable }
+        for raw in try reader.read(source) { accept(raw) }
     }
 
-    private func scanPdf(_ url: URL, file: Int32, total: Int32, accept: (String) -> Void) throws {
+    private func scanPdf(_ url: URL, reader: InvoiceQrReader, file: Int32, total: Int32, accept: (String) -> Void) throws {
         guard let document = CGPDFDocument(url as CFURL), document.numberOfPages > 0 else {
             throw ImportError.unreadable
         }
@@ -231,25 +226,8 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
                 context.concatenate(page.getDrawingTransform(.mediaBox, rect: target, rotate: 0, preserveAspectRatio: true))
                 context.drawPDFPage(page)
                 guard let image = context.makeImage() else { throw ImportError.unreadable }
-                for raw in readQRs(image) { accept(raw) }
+                for raw in reader.read(image) { accept(raw) }
             }
         }
-    }
-
-    private func readQRs(_ image: CGImage) -> [String] {
-        let request = VNDetectBarcodesRequest()
-        request.symbologies = [.qr]
-        #if targetEnvironment(simulator)
-        request.usesCPUOnly = true
-        #endif
-        if (try? VNImageRequestHandler(cgImage: image, options: [:]).perform([request])) != nil {
-            let codes = request.results?.compactMap(\.payloadStringValue) ?? []
-            if !codes.isEmpty { return codes }
-        }
-        guard let detector = CIDetector(ofType: CIDetectorTypeQRCode,
-            context: CIContext(options: [.useSoftwareRenderer: true]),
-            options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]) else { return [] }
-        return detector.features(in: CIImage(cgImage: image))
-            .compactMap { ($0 as? CIQRCodeFeature)?.messageString }
     }
 }

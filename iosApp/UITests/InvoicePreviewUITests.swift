@@ -52,9 +52,12 @@ final class InvoicePreviewUITests: XCTestCase {
         continueAfterFailure = false
         let app = isolatedApp()
         app.launch()
+        let chooseButton = element("invoice-scanner-choose", in: app)
+        XCTAssertTrue(chooseButton.waitForExistence(timeout: 15))
+        attachScreenshot("invoice-scanner", of: app)
+        chooseButton.tap()
         let photoButton = element("invoice-scan-photo", in: app)
         XCTAssertTrue(photoButton.waitForExistence(timeout: 15))
-        attachScreenshot("invoice-scanner", of: app)
         photoButton.tap()
 
         // The workflow adds a recent QR image, ahead of the simulator's sample photos.

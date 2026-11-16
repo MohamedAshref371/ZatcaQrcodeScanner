@@ -8,8 +8,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import platform.UIKit.UIViewController
 
-interface InvoiceScannerHost : InvoiceBackupActions, InvoiceStatisticsSource, InvoiceCsvActions, InvoiceLanguageSettings {
+interface InvoiceScannerHost : InvoiceBackupActions, InvoiceStatisticsSource, InvoiceCsvActions, InvoiceLanguageSettings, InvoiceScannerSettings {
     fun makeCamera(detection: InvoiceDetection): UIViewController
+    fun configureCamera(controller: UIViewController, configuration: InvoiceCameraConfiguration)
     fun releaseCamera(controller: UIViewController)
     fun selectPhoto(detection: InvoiceDetection)
     fun importFiles(observer: InvoiceFilesObserver)
@@ -33,10 +34,11 @@ fun invoiceScreenController(
 ): UIViewController = ComposeUIViewController {
     InvoiceCheckScreen(
         history = history,
-        camera = { detection ->
+        camera = { detection, configuration ->
             UIKitViewController(
                 factory = { host.makeCamera(detection) },
                 modifier = Modifier.fillMaxSize(),
+                update = { host.configureCamera(it, configuration) },
                 onRelease = host::releaseCamera,
             )
         },
@@ -50,5 +52,6 @@ fun invoiceScreenController(
         statisticsSource = host,
         csvActions = host,
         languageSettings = host,
+        scannerSettings = host,
     )
 }

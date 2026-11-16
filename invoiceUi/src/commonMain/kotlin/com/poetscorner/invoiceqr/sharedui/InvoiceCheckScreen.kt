@@ -18,8 +18,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
@@ -53,7 +51,7 @@ interface InvoiceDetection {
 @Composable
 fun InvoiceCheckScreen(
     history: InvoiceHistoryStore,
-    camera: (@Composable (InvoiceDetection) -> Unit)? = null,
+    camera: (@Composable (InvoiceDetection, InvoiceCameraConfiguration) -> Unit)? = null,
     selectPhoto: ((InvoiceDetection) -> Unit)? = null,
     importFiles: ((InvoiceFilesObserver) -> Unit)? = null,
     cancelFileImport: (() -> Unit)? = null,
@@ -64,6 +62,7 @@ fun InvoiceCheckScreen(
     importSharedFiles: ((InvoiceFilesObserver) -> Boolean)? = null,
     sharedImportRequests: StateFlow<Int>? = null,
     languageSettings: InvoiceLanguageSettings? = null,
+    scannerSettings: InvoiceScannerSettings? = null,
 ) {
     var languagePreference by remember(languageSettings) {
         mutableStateOf(languageSettings?.languagePreference() ?: InvoiceLanguagePreference.DEVICE)
@@ -83,6 +82,10 @@ fun InvoiceCheckScreen(
     var importBusy by remember { mutableStateOf(false) }
     var importProgress by remember { mutableStateOf("") }
     var importSummary by remember { mutableStateOf<InvoiceFilesResult?>(null) }
+    var scanEngine by remember(scannerSettings) { mutableStateOf(scannerSettings?.selectedEngine() ?: InvoiceQrEngine.ZXING) }
+    var cropEnabled by remember(scannerSettings) { mutableStateOf(scannerSettings?.cropEnabled() ?: true) }
+    var cameraZoom by remember { mutableFloatStateOf(0f) }
+    var cameraTorch by remember { mutableStateOf(false) }
     var continuousEnabled by remember { mutableStateOf(false) }
     var continuousAdded by remember { mutableIntStateOf(0) }
     var continuousNotice by remember { mutableStateOf<ContinuousInvoiceNotice?>(null) }
@@ -267,7 +270,10 @@ fun InvoiceCheckScreen(
                 bottomBar = {
                     InvoiceResultNavigation(tab, camera != null, backupActions != null, statisticsSource != null,
                         backupBusy || importBusy) {
-                        if (it != tab) continuousNotice = null
+                        if (it != tab) {
+                            continuousNotice = null
+                            if (it != InvoiceTab.SCANNER) cameraTorch = false
+                        }
                         tab = it
                     }
                 },
@@ -285,6 +291,13 @@ fun InvoiceCheckScreen(
                                     languagePreference = preference
                                     snackbar.currentSnackbarData?.dismiss()
                                 }
+                            },
+                            scannerOptions = {
+                                if (scannerSettings != null) InvoiceScannerOptions(
+                                    engine = scanEngine, mlKitAvailable = scannerSettings.mlKitAvailable(), cropEnabled = cropEnabled,
+                                    onEngine = { scannerSettings.setEngine(it); scanEngine = it },
+                                    onCrop = { scannerSettings.setCropEnabled(it); cropEnabled = it },
+                                )
                             },
                             onExport = { transferBackup(backupActions::exportBackup) },
                             onImport = { transferBackup(backupActions::importBackup) })
@@ -314,7 +327,12 @@ fun InvoiceCheckScreen(
                             })
                     } else if (tab == InvoiceTab.SCANNER && camera != null) {
                         InvoiceScannerPanel(
-                            camera = { camera(detection) },
+                            camera = { camera(detection, it) },
+                            scanEngine = scanEngine, cropEnabled = cropEnabled,
+                            zoom = cameraZoom, onZoom = { cameraZoom = it },
+                            torch = cameraTorch, onTorch = { cameraTorch = !cameraTorch },
+                            zoomEnabled = scannerSettings?.cameraAvailable() == true,
+                            torchEnabled = scannerSettings?.torchAvailable() == true,
                             continuousEnabled = continuousEnabled,
                             continuousAdded = continuousAdded,
                             onContinuousChange = { enabled ->
@@ -366,76 +384,83 @@ fun InvoiceCheckScreen(
 }
 
 @Composable
-private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (() -> Unit)?, selectPhotoEnabled: Boolean,
-                                importFiles: (() -> Unit)?, importBusy: Boolean, importProgress: String,
-                                importSummary: InvoiceFilesResult?, cancelImport: (() -> Unit)?,
-                                continuousEnabled: Boolean, continuousAdded: Int,
-                                onContinuousChange: (Boolean) -> Unit) {
+private fun InvoiceScannerPanel(
+    camera: @Composable (InvoiceCameraConfiguration) -> Unit,
+    scanEngine: InvoiceQrEngine, cropEnabled: Boolean, zoom: Float, onZoom: (Float) -> Unit,
+    torch: Boolean, onTorch: () -> Unit, zoomEnabled: Boolean, torchEnabled: Boolean,
+    selectPhoto: (() -> Unit)?, selectPhotoEnabled: Boolean, importFiles: (() -> Unit)?,
+    importBusy: Boolean, importProgress: String, importSummary: InvoiceFilesResult?, cancelImport: (() -> Unit)?,
+    continuousEnabled: Boolean, continuousAdded: Int, onContinuousChange: (Boolean) -> Unit,
+) {
     val language = LocalInvoiceLanguage.current
-    Column(Modifier.fillMaxSize().testTag("invoice-scanner")) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(language.text("مسح رمز QR", "Scan a QR code"), style = MaterialTheme.typography.titleLarge)
-                Text(language.text("وجّه الكاميرا إلى رمز QR في الفاتورة.", "Point the camera at the invoice QR code."),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (selectPhoto != null) {
-                FilledTonalButton(onClick = selectPhoto, enabled = selectPhotoEnabled,
-                    modifier = Modifier.testTag("invoice-scan-photo")) {
-                    Text(language.text("اختيار صورة", "Choose photo"))
+    var chooseMenu by remember { mutableStateOf(false) }
+    InvoiceScannerViewport(
+        cropEnabled = cropEnabled,
+        topControls = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                InvoiceScannerHeader(
+                    title = language.text("قراءة رمز الفاتورة", "Scan invoice QR code"),
+                    subtitle = language.text("قراءة محلية • QR فقط", "Offline scanning • QR only"),
+                    chooseLabel = language.text("اختيار صور أو ملفات PDF", "Choose images or PDFs"),
+                    chooseEnabled = !importBusy && (selectPhotoEnabled && selectPhoto != null || importFiles != null),
+                    onChoose = { chooseMenu = true },
+                    continuousEnabled = continuousEnabled,
+                    continuousLabel = language.text("الفحص المتتابع", "Continuous scanning"),
+                    countLabel = language.text("الفواتير: $continuousAdded", "Invoices: $continuousAdded"),
+                    onContinuousChange = { if (!importBusy) onContinuousChange(it) },
+                    chooser = {
+                        DropdownMenu(expanded = chooseMenu, onDismissRequest = { chooseMenu = false }) {
+                            if (selectPhoto != null) DropdownMenuItem(
+                                text = { Text(language.text("اختيار صورة", "Choose photo")) },
+                                onClick = { chooseMenu = false; selectPhoto() },
+                                modifier = Modifier.testTag("invoice-scan-photo"),
+                            )
+                            if (importFiles != null) DropdownMenuItem(
+                                text = { Text(language.text("استيراد صور أو PDF", "Import images or PDFs")) },
+                                onClick = { chooseMenu = false; importFiles() },
+                                modifier = Modifier.testTag("invoice-import-files"),
+                            )
+                        }
+                    },
+                )
+                if (importBusy || importSummary != null) Surface(shape = MaterialTheme.shapes.medium) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                        if (importBusy && cancelImport != null) {
+                            TextButton(onClick = cancelImport, modifier = Modifier.testTag("invoice-import-cancel")) {
+                                Text(language.text("إلغاء", "Cancel"))
+                            }
+                        }
+                        if (importProgress.isNotEmpty()) Text(importProgress, Modifier.padding(horizontal = 16.dp),
+                            style = MaterialTheme.typography.bodySmall)
+                        if (importSummary != null) {
+                            Text(language.text("${importSummary.processedFiles} من ${importSummary.totalFiles} ملفات: ", "${importSummary.processedFiles} of ${importSummary.totalFiles} files: ") +
+                                language.text("أضيفت ${importSummary.added}، مكررة ${importSummary.duplicates}، ", "added ${importSummary.added}, duplicates ${importSummary.duplicates}, ") +
+                                language.text("تحتاج مراجعة ${importSummary.needsReview}، QR غير صالح ${importSummary.invalidQr}، ", "need review ${importSummary.needsReview}, invalid QR ${importSummary.invalidQr}, ") +
+                                language.text("غير مقروءة ${importSummary.unreadable}، فشل الحفظ ${importSummary.saveFailed}", "unreadable ${importSummary.unreadable}, save failures ${importSummary.saveFailed}") +
+                                if (importSummary.cancelled) language.text(" (توقف)", " (stopped)") else "",
+                                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             }
-        }
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(language.text("المسح المستمر", "Continuous scanning"), style = MaterialTheme.typography.titleSmall)
-                if (continuousEnabled) {
-                    Text(
-                        language.text("فواتير جديدة: $continuousAdded", "New invoices: $continuousAdded"),
-                        Modifier.testTag("invoice-continuous-count"),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-            Switch(
-                checked = continuousEnabled,
-                onCheckedChange = onContinuousChange,
-                enabled = !importBusy,
-                modifier = Modifier.testTag("invoice-continuous-toggle").semantics {
-                    contentDescription = language.text("المسح المستمر", "Continuous scanning")
+        },
+        bottomControls = {
+            InvoiceScannerFooter(
+                hint = if (cropEnabled) {
+                    language.text("ضع رمز QR الفاتورة داخل المربع • اضغط للتركيز", "Place the invoice QR code inside the square • Tap to focus")
+                } else {
+                    language.text("وجّه الكاميرا إلى رمز QR الفاتورة • اضغط للتركيز", "Point the camera at the invoice QR code • Tap to focus")
                 },
+                zoomLabel = language.text("الزوم", "Zoom"),
+                torchLabel = if (torch) language.text("إطفاء الكشاف", "Turn torch off") else language.text("الكشاف", "Torch"),
+                zoom = zoom, onZoom = onZoom, onTorch = onTorch,
+                zoomEnabled = zoomEnabled && !importBusy, torchEnabled = torchEnabled && !importBusy,
             )
-        }
-        if (importFiles != null) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalButton(onClick = importFiles, enabled = !importBusy,
-                    modifier = Modifier.testTag("invoice-import-files")) { Text(language.text("استيراد صور أو PDF", "Import images or PDFs")) }
-                if (importBusy && cancelImport != null) {
-                    TextButton(onClick = cancelImport, modifier = Modifier.testTag("invoice-import-cancel")) { Text(language.text("إلغاء", "Cancel")) }
-                }
-            }
-            if (importProgress.isNotEmpty()) Text(importProgress, Modifier.padding(horizontal = 16.dp),
-                style = MaterialTheme.typography.bodySmall)
-            if (importSummary != null) {
-                Text(language.text("${importSummary.processedFiles} من ${importSummary.totalFiles} ملفات: ", "${importSummary.processedFiles} of ${importSummary.totalFiles} files: ") +
-                    language.text("أضيفت ${importSummary.added}، مكررة ${importSummary.duplicates}، ", "added ${importSummary.added}, duplicates ${importSummary.duplicates}, ") +
-                    language.text("تحتاج مراجعة ${importSummary.needsReview}، QR غير صالح ${importSummary.invalidQr}، ", "need review ${importSummary.needsReview}, invalid QR ${importSummary.invalidQr}, ") +
-                    language.text("غير مقروءة ${importSummary.unreadable}، فشل الحفظ ${importSummary.saveFailed}", "unreadable ${importSummary.unreadable}, save failures ${importSummary.saveFailed}") +
-                    if (importSummary.cancelled) language.text(" (توقف)", " (stopped)") else "",
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodySmall)
-            }
-        }
-        Box(Modifier.fillMaxWidth().weight(1f)) { camera() }
+        },
+    ) { guide, width, height ->
+        if (!importBusy) camera(InvoiceCameraConfiguration(guide.left.toFloat() / width, guide.top.toFloat() / height,
+            guide.size.toFloat() / width, guide.size.toFloat() / height, cropEnabled, zoom, torch, scanEngine))
     }
 }
 

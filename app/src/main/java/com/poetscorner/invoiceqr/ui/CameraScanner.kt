@@ -26,27 +26,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size as ComposeSize
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -54,6 +41,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.poetscorner.invoiceqr.sharedui.InvoiceScannerFooter
+import com.poetscorner.invoiceqr.sharedui.InvoiceScannerViewport
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.domain.ZatcaParser
@@ -61,7 +50,6 @@ import com.poetscorner.invoiceqr.scanner.decoder
 import com.poetscorner.invoiceqr.scanner.reader
 import com.poetscorner.invoiceqr.scanner.MultiFrameQrRecovery
 import com.poetscorner.invoiceqr.scanner.ScanWindow
-import com.poetscorner.invoiceqr.scanner.scanGuideWindow
 import com.poetscorner.invoiceqr.scanner.previewCropInBuffer
 import com.poetscorner.invoiceqr.scanner.QrDeliveryGate
 import java.util.concurrent.Executors
@@ -278,54 +266,27 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
             camera?.cameraControl?.setLinearZoom(zoom.coerceIn(0f, 1f))
         }
     }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val landscape = maxWidth > maxHeight
-        val density = LocalDensity.current
-        val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-        var headerHeight by remember { mutableIntStateOf(0) }
-        var footerHeight by remember { mutableIntStateOf(0) }
-        val margin = with(density) { 12.dp.roundToPx() }
-        val leftInset = with(density) { contentPadding.calculateLeftPadding(LocalLayoutDirection.current).roundToPx() }
-        val rightInset = with(density) { contentPadding.calculateRightPadding(LocalLayoutDirection.current).roundToPx() }
-        val sideControls = if (landscape) ((constraints.maxWidth - leftInset - rightInset - margin * 2) * 0.32f).toInt() + margin else 0
-        val window = scanGuideWindow(constraints.maxWidth.coerceAtLeast(1), constraints.maxHeight.coerceAtLeast(1),
-            leftInset + margin + if (!rtl) sideControls else 0,
-            with(density) { contentPadding.calculateTopPadding().roundToPx() } + margin + if (landscape) 0 else headerHeight + margin,
-            rightInset + margin + if (rtl) sideControls else 0,
-            with(density) { contentPadding.calculateBottomPadding().roundToPx() } + margin + if (landscape) 0 else footerHeight + margin)
-        SideEffect { guideWindow = window }
-        Box(Modifier.fillMaxSize().testTag("camera_preview").clipToBounds().onSizeChanged { previewSize = it }) {
-            AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize(), update = { view ->
-                view.setOnTouchListener { _, event ->
-                    if (event.action == MotionEvent.ACTION_UP) {
-                        camera?.let { activeCamera ->
-                            val point = view.meteringPointFactory.createPoint(event.x, event.y)
-                            activeCamera.cameraControl.startFocusAndMetering(
-                                FocusMeteringAction.Builder(point)
-                                    .setAutoCancelDuration(2, TimeUnit.SECONDS)
-                                    .build())
-                            focusIndicator = Offset(event.x, event.y)
-                            focusTapId++
+    InvoiceScannerViewport(
+        cropEnabled = settings.cropEnabled,
+        contentPadding = contentPadding,
+        topControls = topControls,
+        bottomControls = {
+            InvoiceScannerFooter(
+                hint = stringResource(if (settings.cropEnabled) R.string.camera_hint else R.string.camera_hint_full_frame),
+                zoomLabel = stringResource(R.string.zoom),
+                torchLabel = stringResource(if (settings.torch) R.string.torch_off else R.string.torch),
+                zoom = zoom, onZoom = onZoom, onTorch = onTorch,
+                zoomEnabled = camera != null, torchEnabled = camera?.cameraInfo?.hasFlashUnit() == true,
+                status = {
+                    error?.let {
+                        Surface(color = Color.Black.copy(alpha = 0.7f), shape = MaterialTheme.shapes.medium) {
+                            Text(it.localized(), color = Color.White, modifier = Modifier.padding(12.dp))
                         }
-                        view.performClick()
                     }
-                    true
-                }
-            })
-            if (settings.cropEnabled) Canvas(Modifier.fillMaxSize().testTag("camera_crop_guide")) {
-                if (size.width < 1 || size.height < 1) return@Canvas
-                val left = window.left.toFloat()
-                val top = window.top.toFloat()
-                val side = window.size.toFloat()
-                val radius = CornerRadius(20.dp.toPx())
-                val shade = Path().apply {
-                    fillType = PathFillType.EvenOdd
-                    addRect(androidx.compose.ui.geometry.Rect(Offset.Zero, size))
-                    addRoundRect(RoundRect(left, top, left + side, top + side, radius))
-                }
-                drawPath(shade, Color.Black.copy(alpha = 0.5f))
-                drawRoundRect(Color.White.copy(alpha = 0.35f), Offset(left, top), ComposeSize(side, side), radius, style = Stroke(1.dp.toPx()))
-            }
+                },
+            )
+        },
+        previewOverlay = {
             focusIndicator?.let { center ->
                 Canvas(Modifier.fillMaxSize().testTag("camera_focus_indicator")) {
                     drawCircle(Color.Black.copy(alpha = 0.5f), 28.dp.toPx(), center,
@@ -334,40 +295,25 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
                         style = Stroke(2.dp.toPx()))
                 }
             }
-        }
-        // Only the overlays respect app bars; the preview fills the whole screen.
-        Box(Modifier.fillMaxSize().padding(contentPadding).padding(12.dp)) {
-            Column(Modifier.align(Alignment.TopStart).fillMaxHeight()
-                .then(if (landscape) Modifier.fillMaxWidth(0.32f).verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.onSizeChanged { headerHeight = it.height }) { topControls() }
-                if (!landscape) Spacer(Modifier.weight(1f))
-                Column(Modifier.fillMaxWidth().onSizeChanged { footerHeight = it.height },
-                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(color = Color.Black.copy(alpha = 0.6f), shape = RoundedCornerShape(16.dp)) {
-                        Text(stringResource(if (settings.cropEnabled) R.string.camera_hint else R.string.camera_hint_full_frame),
-                            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            style = MaterialTheme.typography.bodySmall, color = Color.White, textAlign = TextAlign.Center)
+        },
+    ) { guide, _, _ ->
+        SideEffect { guideWindow = ScanWindow(guide.left, guide.top, guide.size) }
+        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize().onSizeChanged { previewSize = it }, update = { view ->
+            view.setOnTouchListener { _, event ->
+                if (event.action == MotionEvent.ACTION_UP) {
+                    camera?.let { activeCamera ->
+                        val point = view.meteringPointFactory.createPoint(event.x, event.y)
+                        activeCamera.cameraControl.startFocusAndMetering(
+                            FocusMeteringAction.Builder(point)
+                                .setAutoCancelDuration(2, TimeUnit.SECONDS)
+                                .build())
+                        focusIndicator = Offset(event.x, event.y)
+                        focusTapId++
                     }
-                    error?.let {
-                        Surface(color = Color.Black.copy(alpha = 0.7f), shape = MaterialTheme.shapes.medium) {
-                            Text(it.localized(), color = Color.White, modifier = Modifier.padding(12.dp))
-                        }
-                    }
-                    Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.88f),
-                        shape = MaterialTheme.shapes.medium) {
-                        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(stringResource(R.string.zoom), style = MaterialTheme.typography.labelMedium)
-                            Slider(zoom, onValueChange = onZoom,
-                                modifier = Modifier.weight(1f), enabled = camera != null)
-                            FilledTonalIconButton(onClick = onTorch, enabled = camera?.cameraInfo?.hasFlashUnit() == true) {
-                                AppIcon(R.drawable.ic_flash, description = stringResource(if (settings.torch) R.string.torch_off else R.string.torch))
-                            }
-                        }
-                    }
+                    view.performClick()
                 }
+                true
             }
-        }
+        })
     }
 }

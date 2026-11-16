@@ -27,10 +27,16 @@ jobs:
             brew install xcodegen
           fi
           xcodegen generate --spec iosApp/project.yml
+      - name: Install ML Kit for the iPhone device build
+        run: |
+          if ! command -v pod >/dev/null; then
+            brew install cocoapods
+          fi
+          pod install --project-directory=iosApp
       - name: Build the iPhone Release app
         run: |
           xcodebuild build \
-            -project iosApp/InvoicePreview.xcodeproj \
+            -workspace iosApp/InvoicePreview.xcworkspace \
             -scheme InvoicePreview \
             -configuration Release \
             -destination 'generic/platform=iOS' \

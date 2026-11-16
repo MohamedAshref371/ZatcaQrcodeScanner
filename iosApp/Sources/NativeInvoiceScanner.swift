@@ -6,7 +6,6 @@ import os
 import PhotosUI
 import UIKit
 import UniformTypeIdentifiers
-import Vision
 
 final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewControllerDelegate {
     weak var presenter: UIViewController?
@@ -39,8 +38,26 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         }
     }
 
+    func selectedEngine() -> InvoiceQrEngine { InvoiceQrReader.selected }
+    func mlKitAvailable() -> Bool { InvoiceQrReader.mlKitAvailable }
+    func setEngine(engine: InvoiceQrEngine) { InvoiceQrReader.save(engine) }
+    func cropEnabled() -> Bool {
+        UserDefaults.standard.object(forKey: "invoiceScanCrop") as? Bool ?? true
+    }
+    func setCropEnabled(enabled: Bool) { UserDefaults.standard.set(enabled, forKey: "invoiceScanCrop") }
+    func cameraAvailable() -> Bool { Self.backCamera != nil }
+    func torchAvailable() -> Bool { Self.backCamera?.hasTorch == true }
+
+    private static var backCamera: AVCaptureDevice? {
+        AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+    }
+
     func makeCamera(detection: InvoiceDetection) -> UIViewController {
         InvoiceCameraViewController(detection: detection)
+    }
+
+    func configureCamera(controller: UIViewController, configuration: InvoiceCameraConfiguration) {
+        (controller as? InvoiceCameraViewController)?.update(configuration)
     }
 
     func releaseCamera(controller: UIViewController) {
@@ -120,9 +137,11 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         }
         let imageType = provider.registeredTypeIdentifiers.first { UTType($0)?.conforms(to: .image) == true }
             ?? UTType.image.identifier
+        let engine = InvoiceQrReader.selected
         provider.loadDataRepresentation(forTypeIdentifier: imageType) { [weak self, weak picker] data, _ in
-            let candidates = data.map(Self.readQRs) ?? []
-            Self.photoLog.info("Photo bytes: \(data?.count ?? 0), QR codes: \(candidates.count).")
+            let source = data.flatMap { CGImageSourceCreateWithData($0 as CFData, nil) }
+            let candidates = source.flatMap { try? InvoiceQrReader(engine: engine).read($0) } ?? []
+            Self.photoLog.info("QR codes in selected photo: \(candidates.count).")
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.photoDetection = nil
@@ -134,51 +153,26 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         }
     }
 
-    private static func readQRs(data: Data) -> [String] {
-        let request = VNDetectBarcodesRequest()
-        request.symbologies = [.qr]
-        #if targetEnvironment(simulator)
-        request.usesCPUOnly = true
-        #endif
-        let source = CGImageSourceCreateWithData(data as CFData, nil)
-        let properties = source.flatMap { CGImageSourceCopyPropertiesAtIndex($0, 0, nil) } as? [CFString: Any]
-        let orientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)
-            .flatMap { CGImagePropertyOrientation(rawValue: $0.uint32Value) } ?? .up
-        let handler = VNImageRequestHandler(data: data, orientation: orientation, options: [:])
-        do {
-            try handler.perform([request])
-            let codes = request.results?.compactMap(\.payloadStringValue) ?? []
-            if !codes.isEmpty { return codes }
-        } catch {
-            let failure = error as NSError
-            Self.photoLog.info("Vision QR detection failed: \(failure.domain, privacy: .public) \(failure.code).")
-        }
-
-        // Use the software QR detector when Vision cannot decode an image.
-        guard let image = CIImage(data: data, options: [.applyOrientationProperty: true]),
-              let detector = CIDetector(
-                ofType: CIDetectorTypeQRCode,
-                context: CIContext(options: [.useSoftwareRenderer: true]),
-                options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]
-              ) else { return [] }
-        let codes = detector.features(in: image).compactMap { ($0 as? CIQRCodeFeature)?.messageString }
-        Self.photoLog.info("Core Image fallback QR codes: \(codes.count).")
-        return codes
-    }
 }
 
-private final class InvoiceCameraViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+private final class InvoiceCameraViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate {
     private let detection: InvoiceDetection
     private let session = AVCaptureSession()
     private let captureQueue = DispatchQueue(label: "com.poetscorner.invoiceqr.camera", qos: .userInitiated)
     private lazy var preview = AVCaptureVideoPreviewLayer(session: session)
-    private let guide = UIView()
     private let status = UILabel()
     private var visible = false
     private var accepted = false
+    private var configuration: InvoiceCameraConfiguration?
 
     // Accessed exclusively on captureQueue.
-    private var configured = false
+    private var device: AVCaptureDevice?
+    private let videoOutput = AVCaptureVideoDataOutput()
+    private let imageContext = CIContext()
+    private var captureConfiguration: InvoiceCameraConfiguration?
+    private var viewportSize: CGSize = .zero
+    private var lastFrame: TimeInterval = 0
+    private var reader: InvoiceQrReader?
 
     init(detection: InvoiceDetection) {
         self.detection = detection
@@ -193,12 +187,7 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
         preview.videoGravity = .resizeAspectFill
         view.layer.addSublayer(preview)
 
-        guide.isUserInteractionEnabled = false
-        guide.layer.borderWidth = 2
-        guide.layer.borderColor = UIColor.white.withAlphaComponent(0.9).cgColor
-        guide.layer.cornerRadius = 16
-        guide.isHidden = true
-        view.addSubview(guide)
+        view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(focus(_:))))
 
         status.textColor = .white
         status.numberOfLines = 0
@@ -218,15 +207,79 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         preview.frame = view.bounds
-        let side = min(view.bounds.width * 0.72, view.bounds.height * 0.74, 310)
-        guide.frame = CGRect(x: view.bounds.midX - side / 2, y: view.bounds.midY - side / 2, width: side, height: side)
+        let orientation: AVCaptureVideoOrientation
+        switch view.window?.windowScene?.interfaceOrientation {
+        case .landscapeLeft: orientation = .landscapeLeft
+        case .landscapeRight: orientation = .landscapeRight
+        case .portraitUpsideDown: orientation = .portraitUpsideDown
+        default: orientation = .portrait
+        }
         if let connection = preview.connection, connection.isVideoOrientationSupported {
-            switch view.window?.windowScene?.interfaceOrientation {
-            case .landscapeLeft: connection.videoOrientation = .landscapeLeft
-            case .landscapeRight: connection.videoOrientation = .landscapeRight
-            case .portraitUpsideDown: connection.videoOrientation = .portraitUpsideDown
-            default: connection.videoOrientation = .portrait
+            connection.videoOrientation = orientation
+        }
+        let size = view.bounds.size
+        captureQueue.async { [self] in
+            viewportSize = size
+            if let connection = videoOutput.connection(with: .video), connection.isVideoOrientationSupported,
+               connection.videoOrientation != orientation {
+                connection.videoOrientation = orientation
             }
+        }
+    }
+
+    func update(_ configuration: InvoiceCameraConfiguration) {
+        guard self.configuration != configuration else { return }
+        self.configuration = configuration
+        captureQueue.async { [self] in
+            captureConfiguration = configuration
+            updateDeviceControls()
+        }
+    }
+
+    @objc private func focus(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: view)
+        let point = preview.captureDevicePointConverted(fromLayerPoint: location)
+        captureQueue.async { [self] in
+            guard let device, session.isRunning else { return }
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                if device.isFocusPointOfInterestSupported, device.isFocusModeSupported(.autoFocus) {
+                    device.focusPointOfInterest = point
+                    device.focusMode = .autoFocus
+                }
+                if device.isExposurePointOfInterestSupported, device.isExposureModeSupported(.continuousAutoExposure) {
+                    device.exposurePointOfInterest = point
+                    device.exposureMode = .continuousAutoExposure
+                }
+            } catch {
+                return
+            }
+        }
+        let ring = UIView(frame: CGRect(x: location.x - 28, y: location.y - 28, width: 56, height: 56))
+        ring.layer.cornerRadius = 28
+        ring.layer.borderWidth = 2
+        ring.layer.borderColor = UIColor.white.cgColor
+        ring.isUserInteractionEnabled = false
+        view.addSubview(ring)
+        UIView.animate(withDuration: 0.4, delay: 0.6, animations: { ring.alpha = 0 }) { _ in ring.removeFromSuperview() }
+    }
+
+    private func updateDeviceControls() {
+        guard let device, let configuration = captureConfiguration, session.isRunning else { return }
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            let minZoom = device.minAvailableVideoZoomFactor
+            let maxZoom = min(device.maxAvailableVideoZoomFactor, 10)
+            let offset = min(1, max(0, CGFloat(configuration.zoom)))
+            device.videoZoomFactor = minZoom + max(0, maxZoom - minZoom) * offset
+            let torch: AVCaptureDevice.TorchMode = configuration.torch ? .on : .off
+            if device.hasTorch, device.isTorchModeSupported(torch), device.torchMode != torch {
+                device.torchMode = torch
+            }
+        } catch {
+            return
         }
     }
 
@@ -246,6 +299,7 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
         visible = false
         captureQueue.async { [self] in
             if session.isRunning { session.stopRunning() }
+            lastFrame = 0
         }
     }
 
@@ -283,15 +337,17 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
         status.text = InvoiceLanguagePreferences.text("جارٍ فتح الكاميرا…", "Opening camera…")
         captureQueue.async { [weak self] in
             guard let self else { return }
-            if !self.configured {
-                self.configured = self.configureCamera(device: device)
+            if self.device == nil && self.configureCamera(device: device) {
+                self.device = device
             }
-            if self.configured && !self.session.isRunning { self.session.startRunning() }
+            if self.device != nil && !self.session.isRunning {
+                self.session.startRunning()
+                self.updateDeviceControls()
+            }
             let running = self.session.isRunning
             DispatchQueue.main.async {
                 guard self.visible else { return }
                 self.status.text = running ? nil : InvoiceLanguagePreferences.text("تعذّر تشغيل الكاميرا. يمكنك اختيار صورة.", "Could not start the camera. You can choose a photo.")
-                self.guide.isHidden = !running
                 self.view.setNeedsLayout()
             }
         }
@@ -299,31 +355,53 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
 
     private func configureCamera(device: AVCaptureDevice) -> Bool {
         guard let input = try? AVCaptureDeviceInput(device: device) else { return false }
-        let output = AVCaptureMetadataOutput()
         session.beginConfiguration()
         defer { session.commitConfiguration() }
+        if session.canSetSessionPreset(.hd1280x720) { session.sessionPreset = .hd1280x720 }
         guard session.canAddInput(input) else { return false }
         session.addInput(input)
-        guard session.canAddOutput(output) else {
+        guard session.canAddOutput(videoOutput) else {
             session.removeInput(input)
             return false
         }
-        session.addOutput(output)
-        guard output.availableMetadataObjectTypes.contains(.qr) else {
-            session.removeOutput(output)
-            session.removeInput(input)
-            return false
-        }
-        output.setMetadataObjectsDelegate(self, queue: .main)
-        output.metadataObjectTypes = [.qr]
+        videoOutput.alwaysDiscardsLateVideoFrames = true
+        videoOutput.videoSettings = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+        ]
+        videoOutput.setSampleBufferDelegate(self, queue: captureQueue)
+        session.addOutput(videoOutput)
         return true
     }
 
-    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject],
-                        from connection: AVCaptureConnection) {
-        guard visible, !accepted else { return }
-        let codes = metadataObjects.compactMap { ($0 as? AVMetadataMachineReadableCodeObject)?.stringValue }
-        let nowMillis = Int64(ProcessInfo.processInfo.systemUptime * 1000)
-        accepted = detection.acceptCameraFrame(rawCodes: codes, nowMillis: nowMillis)
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
+                       from connection: AVCaptureConnection) {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastFrame >= 0.15, let configuration = captureConfiguration,
+              let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        lastFrame = now
+
+        let input = CIImage(cvPixelBuffer: buffer)
+        var region = input.extent
+        if configuration.cropEnabled {
+            guard viewportSize.width > 0, viewportSize.height > 0 else { return }
+            let scale = max(viewportSize.width / region.width, viewportSize.height / region.height)
+            let scaledWidth = region.width * scale
+            let scaledHeight = region.height * scale
+            let x = (CGFloat(configuration.left) * viewportSize.width + (scaledWidth - viewportSize.width) / 2) / scale
+            let y = (CGFloat(configuration.top) * viewportSize.height + (scaledHeight - viewportSize.height) / 2) / scale
+            let width = CGFloat(configuration.width) * viewportSize.width / scale
+            let height = CGFloat(configuration.height) * viewportSize.height / scale
+            region = CGRect(x: x, y: region.height - y - height, width: width, height: height)
+                .integral.intersection(input.extent)
+        }
+        guard !region.isEmpty, let image = imageContext.createCGImage(input, from: region) else { return }
+        if reader?.engine != configuration.engine { reader = InvoiceQrReader(engine: configuration.engine) }
+        let codes = reader?.read(image, maxSymbols: 1) ?? []
+        let nowMillis = Int64(now * 1000)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.visible, !self.accepted, self.configuration?.engine == configuration.engine else { return }
+            self.accepted = self.detection.acceptCameraFrame(rawCodes: codes, nowMillis: nowMillis)
+            if self.accepted { self.stopCamera() }
+        }
     }
 }
