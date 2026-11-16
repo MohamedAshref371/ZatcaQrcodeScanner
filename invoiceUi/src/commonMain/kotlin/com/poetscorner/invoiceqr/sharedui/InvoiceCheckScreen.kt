@@ -82,6 +82,9 @@ fun InvoiceCheckScreen(
     var importSummary by remember { mutableStateOf<InvoiceFilesResult?>(null) }
     var scanEngine by remember(scannerSettings) { mutableStateOf(scannerSettings?.selectedEngine() ?: InvoiceQrEngine.ZXING) }
     var zxingSettings by remember(scannerSettings) { mutableStateOf(scannerSettings?.zxingSettings() ?: InvoiceZxingSettings()) }
+    var resolution by remember(scannerSettings) {
+        mutableStateOf(InvoiceScanResolution.fromPreference(scannerSettings?.scanResolution()))
+    }
     var scanSpeed by remember(scannerSettings) { mutableStateOf(scannerSettings?.scanSpeed() ?: "NORMAL") }
     var appearanceMode by remember(scannerSettings) { mutableStateOf(scannerSettings?.appearanceMode() ?: "SYSTEM") }
     var appearanceColor by remember(scannerSettings) { mutableStateOf(scannerSettings?.appearanceColor() ?: "DEFAULT") }
@@ -308,6 +311,8 @@ fun InvoiceCheckScreen(
                                     onCrop = { scannerSettings.setCropEnabled(it); cropEnabled = it },
                                     zxingSettings = zxingSettings,
                                     onZxingChange = { scannerSettings.setZxingSettings(it); zxingSettings = it },
+                                    resolution = resolution,
+                                    onResolution = { scannerSettings.setScanResolution(it.name); resolution = it },
                                     scanSpeed = scanSpeed,
                                     onScanSpeed = { scannerSettings.setScanSpeed(it); scanSpeed = it },
                                 )
@@ -357,6 +362,7 @@ fun InvoiceCheckScreen(
                         InvoiceScannerPanel(
                             camera = { camera(detection, it) },
                             scanEngine = scanEngine, cropEnabled = cropEnabled, zxing = zxingSettings,
+                            resolution = resolution,
                             intervalMillis = when (scanSpeed) { "FAST" -> 100; "FASTEST" -> 50; else -> 300 },
                             zoom = cameraZoom, onZoom = { cameraZoom = it },
                             torch = cameraTorch, onTorch = { cameraTorch = !cameraTorch },
@@ -416,6 +422,7 @@ fun InvoiceCheckScreen(
 private fun InvoiceScannerPanel(
     camera: @Composable (InvoiceCameraConfiguration) -> Unit,
     scanEngine: InvoiceQrEngine, cropEnabled: Boolean, zxing: InvoiceZxingSettings, intervalMillis: Int,
+    resolution: InvoiceScanResolution,
     zoom: Float, onZoom: (Float) -> Unit,
     torch: Boolean, onTorch: () -> Unit, zoomEnabled: Boolean, torchEnabled: Boolean,
     selectPhoto: (() -> Unit)?, selectPhotoEnabled: Boolean, importFiles: (() -> Unit)?,
@@ -491,7 +498,7 @@ private fun InvoiceScannerPanel(
     ) { guide, width, height ->
         if (!importBusy) camera(InvoiceCameraConfiguration(guide.left.toFloat() / width, guide.top.toFloat() / height,
             guide.size.toFloat() / width, guide.size.toFloat() / height, cropEnabled, zoom, torch, scanEngine,
-            zxing, intervalMillis))
+            zxing, intervalMillis, resolution))
     }
 }
 

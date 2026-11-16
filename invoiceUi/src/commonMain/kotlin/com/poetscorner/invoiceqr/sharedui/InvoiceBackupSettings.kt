@@ -104,10 +104,20 @@ internal fun InvoiceBackupSettings(
 @Composable
 internal fun InvoiceScannerOptions(engine: InvoiceQrEngine, mlKitAvailable: Boolean, cropEnabled: Boolean,
     onEngine: (InvoiceQrEngine) -> Unit, onCrop: (Boolean) -> Unit, zxingSettings: InvoiceZxingSettings,
-    onZxingChange: (InvoiceZxingSettings) -> Unit, scanSpeed: String, onScanSpeed: (String) -> Unit) {
+    onZxingChange: (InvoiceZxingSettings) -> Unit, scanSpeed: String, onScanSpeed: (String) -> Unit,
+    resolution: InvoiceScanResolution, onResolution: (InvoiceScanResolution) -> Unit) {
     val language = LocalInvoiceLanguage.current
     Text(language.text("الكاميرا", "Camera"), style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary)
+    InvoiceSettingChoice(
+        language.text("دقة الكاميرا", "Camera resolution"), resolution.name,
+        InvoiceScanResolution.entries.map { it.name to "${it.name} · ${it.height}p" }, singleLine = true,
+        warningDescription = when (resolution) {
+            InvoiceScanResolution.SD -> language.text("قد تصعّب دقة 480p قراءة رموز QR الصغيرة", "480p may make small QR codes harder to read")
+            InvoiceScanResolution.UHD -> language.text("قد تبطئ دقة 2160p المسح وتستهلك بطارية أكثر", "2160p may slow scanning and use more battery")
+            else -> null
+        },
+    ) { onResolution(InvoiceScanResolution.fromPreference(it)) }
     InvoiceSettingChoice(language.text("تكرار المسح", "Scan frequency"), scanSpeed, listOf(
         "NORMAL" to language.text("عادي · كل 300ms", "Normal · every 300 ms"),
         "FAST" to language.text("سريع · كل 100ms", "Fast · every 100 ms"),

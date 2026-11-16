@@ -44,6 +44,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.poetscorner.invoiceqr.sharedui.InvoiceScannerFooter
 import com.poetscorner.invoiceqr.sharedui.InvoiceScannerViewport
 import com.poetscorner.invoiceqr.data.ScannerSettings
+import com.poetscorner.invoiceqr.sharedui.InvoiceScanResolution
 import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.domain.ZatcaParser
 import com.poetscorner.invoiceqr.scanner.decoder
@@ -147,13 +148,8 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
         providerFuture.addListener({
             if (!disposed) try {
                 val p = providerFuture.get(); provider = p
-                val size = when (settings.resolution) {
-                    "SD" -> Size(854, 480)
-                    "FHD" -> Size(1920, 1080)
-                    "QHD" -> Size(2560, 1440)
-                    "UHD" -> Size(3840, 2160)
-                    else -> Size(1280, 720)
-                }
+                val resolution = InvoiceScanResolution.fromPreference(settings.resolution)
+                val size = Size(resolution.width, resolution.height)
                 val selector = ResolutionSelector.Builder().setResolutionStrategy(ResolutionStrategy(size, ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER)).build()
                 val rotation = previewView.display?.rotation ?: displayRotation
                 val pv = Preview.Builder().setTargetRotation(rotation).build()

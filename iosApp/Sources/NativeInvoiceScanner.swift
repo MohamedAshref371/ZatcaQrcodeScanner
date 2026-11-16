@@ -43,6 +43,8 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
     func setEngine(engine: InvoiceQrEngine) { InvoiceQrReader.save(engine) }
     func zxingSettings() -> InvoiceZxingSettings { InvoiceQrReader.zxingSettings }
     func setZxingSettings(settings: InvoiceZxingSettings) { InvoiceQrReader.save(settings) }
+    func scanResolution() -> String { UserDefaults.standard.string(forKey: "invoiceScanResolution") ?? "HD" }
+    func setScanResolution(resolution: String) { UserDefaults.standard.set(resolution, forKey: "invoiceScanResolution") }
     func scanSpeed() -> String { UserDefaults.standard.string(forKey: "invoiceScanSpeed") ?? "NORMAL" }
     func setScanSpeed(speed: String) { UserDefaults.standard.set(speed, forKey: "invoiceScanSpeed") }
     func appearanceMode() -> String { UserDefaults.standard.string(forKey: "invoiceAppearanceMode") ?? "SYSTEM" }
@@ -243,6 +245,11 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureVide
         self.configuration = configuration
         captureQueue.async { [self] in
             recovery.reset()
+            if let device, captureConfiguration?.resolution != configuration.resolution {
+                session.beginConfiguration()
+                applyResolution(configuration.resolution, to: device)
+                session.commitConfiguration()
+            }
             captureConfiguration = configuration
             updateDeviceControls()
         }
@@ -383,7 +390,40 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureVide
         ]
         videoOutput.setSampleBufferDelegate(self, queue: captureQueue)
         session.addOutput(videoOutput)
+        if let resolution = captureConfiguration?.resolution, resolution != .hd {
+            applyResolution(resolution, to: device)
+        }
         return true
+    }
+
+    private func applyResolution(_ resolution: InvoiceScanResolution, to device: AVCaptureDevice) {
+        let targetPixels = Int(resolution.width) * Int(resolution.height)
+        var lower: (format: AVCaptureDevice.Format, pixels: Int)?
+        var higher: (format: AVCaptureDevice.Format, pixels: Int)?
+        for format in device.formats {
+            let description = format.formatDescription
+            let pixelType = CMFormatDescriptionGetMediaSubType(description)
+            guard pixelType == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ||
+                pixelType == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange else { continue }
+            guard format.videoSupportedFrameRateRanges.contains(where: { $0.minFrameRate <= 30 && $0.maxFrameRate >= 24 }) else {
+                continue
+            }
+            let dimensions = CMVideoFormatDescriptionGetDimensions(description)
+            let area = Int(dimensions.width) * Int(dimensions.height)
+            if area <= targetPixels {
+                if area > (lower?.pixels ?? 0) { lower = (format, area) }
+            } else if area < (higher?.pixels ?? Int.max) {
+                higher = (format, area)
+            }
+        }
+        guard let format = (lower ?? higher)?.format, device.activeFormat != format else { return }
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            device.activeFormat = format
+        } catch {
+            return
+        }
     }
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
@@ -426,7 +466,7 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureVide
             codes = []
         }
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.visible, !self.accepted, self.configuration?.engine == configuration.engine else { return }
+            guard let self, self.visible, !self.accepted, self.configuration == configuration else { return }
             self.accepted = self.detection.acceptCameraFrame(rawCodes: codes, nowMillis: nowMillis)
             if self.accepted { self.stopCamera() }
         }
