@@ -1,0 +1,10 @@
+name: Kotlin Multiplatform verification
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: MohamedAshref371/ZatcaQrcodeScanner/.github/workflows/kmp-invoice-core.yml@kmp-invoice-core
