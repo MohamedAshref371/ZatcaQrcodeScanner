@@ -76,6 +76,8 @@ jobs:
           -configuration Debug
           -derivedDataPath iosApp/build/iphone-device
           CODE_SIGNING_ALLOWED=NO
+      - name: Run the shared Kotlin tests
+        run: bash ./gradlew --stacktrace --build-cache :invoiceCore:iosSimulatorArm64Test
       - name: Start the iPhone simulator
         run: |
           simulator_id="$(xcrun simctl list devices available --json | python3 -c '
@@ -92,11 +94,8 @@ jobs:
           mkdir -p iosApp/build
           printf '%s\n' "$simulator_id" > iosApp/build/simulator-id
           xcrun simctl boot "$simulator_id"
-      - name: Run shared tests and link the simulator framework
-        run: >
-          bash ./gradlew --stacktrace --build-cache
-          :invoiceCore:iosSimulatorArm64Test
-          :invoiceUi:linkDebugFrameworkIosSimulatorArm64
+      - name: Link the simulator framework
+        run: bash ./gradlew --stacktrace --build-cache :invoiceUi:linkDebugFrameworkIosSimulatorArm64
       - name: Run the invoice screen UI tests
         run: |
           simulator_id="$(cat iosApp/build/simulator-id)"
