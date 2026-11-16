@@ -17,7 +17,7 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
 
     func open(from presenter: UIViewController?, observer: InvoiceFilesObserver) {
         guard self.observer == nil, let presenter, presenter.presentedViewController == nil else {
-            observer.complete(result: result(saveFailed: 1))
+            observer.complete(result_: result(saveFailed: 1))
             return
         }
         cancelLock.lock()
@@ -130,7 +130,7 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
     private func finish(_ result: InvoiceFilesResult) {
         let callback = observer
         observer = nil
-        callback?.complete(result: result)
+        callback?.complete(result_: result)
     }
 
     private func notify(file: Int32, total: Int32, page: Int32, pages: Int32) {
