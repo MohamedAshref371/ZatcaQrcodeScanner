@@ -176,7 +176,6 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
     private let status = UILabel()
     private var visible = false
     private var accepted = false
-    private var lastRejected: (payload: String, time: TimeInterval)?
 
     // Accessed exclusively on captureQueue.
     private var configured = false
@@ -323,17 +322,8 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject],
                         from connection: AVCaptureConnection) {
         guard visible, !accepted else { return }
-        for case let code as AVMetadataMachineReadableCodeObject in metadataObjects {
-            guard let payload = code.stringValue else { continue }
-            let now = ProcessInfo.processInfo.systemUptime
-            if let lastRejected, lastRejected.payload == payload, now - lastRejected.time < 1 { continue }
-            let result = detection.accept(raw: payload)
-            if result == .accepted {
-                accepted = true
-                return
-            }
-            lastRejected = (payload, now)
-            if result != .invalid { return }
-        }
+        let codes = metadataObjects.compactMap { ($0 as? AVMetadataMachineReadableCodeObject)?.stringValue }
+        let nowMillis = Int64(ProcessInfo.processInfo.systemUptime * 1000)
+        accepted = detection.acceptCameraFrame(rawCodes: codes, nowMillis: nowMillis)
     }
 }

@@ -18,6 +18,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
@@ -39,7 +41,10 @@ private enum class InvoiceTab { SCANNER, RESULT, HISTORY, STATISTICS, SETTINGS }
 
 enum class InvoiceDetectionResult { ACCEPTED, INVALID, SAVE_FAILED, INACTIVE }
 
+private class ContinuousInvoiceNotice(val invoice: ParsedInvoice, val entry: InvoiceHistoryEntry)
+
 interface InvoiceDetection {
+    fun acceptCameraFrame(rawCodes: List<String>, nowMillis: Long): Boolean
     fun accept(raw: String): InvoiceDetectionResult
     fun reportPhotoIssue(foundQr: Boolean)
 }
@@ -78,6 +83,9 @@ fun InvoiceCheckScreen(
     var importBusy by remember { mutableStateOf(false) }
     var importProgress by remember { mutableStateOf("") }
     var importSummary by remember { mutableStateOf<InvoiceFilesResult?>(null) }
+    var continuousEnabled by remember { mutableStateOf(false) }
+    var continuousAdded by remember { mutableIntStateOf(0) }
+    var continuousNotice by remember { mutableStateOf<ContinuousInvoiceNotice?>(null) }
 
     fun showMessage(message: String) {
         if (snackbar.currentSnackbarData?.visuals?.message == message) return
@@ -127,6 +135,10 @@ fun InvoiceCheckScreen(
         })
         if (started && !completed) {
             importBusy = true
+            if (continuousNotice != null) {
+                continuousNotice = null
+                snackbar.currentSnackbarData?.dismiss()
+            }
             importSummary = null
             tab = InvoiceTab.SCANNER
         }
@@ -142,13 +154,14 @@ fun InvoiceCheckScreen(
     }
 
     fun showResult(parsed: ParsedInvoice, saved: InvoiceHistoryEntry) {
+        continuousNotice = null
         snackbar.currentSnackbarData?.dismiss()
         savedEntry = saved
         result = parsed
         tab = InvoiceTab.RESULT
     }
 
-    fun inspect(raw: String): InvoiceDetectionResult {
+    fun inspect(raw: String, continuous: Boolean = false): InvoiceDetectionResult {
         val parsed = ZatcaInvoiceParser.parse(raw)
         if (parsed.error != null) return InvoiceDetectionResult.INVALID
 
@@ -156,14 +169,40 @@ fun InvoiceCheckScreen(
         val saved = history.save(raw, normalized, parsed.value(1), parsed.value(2), parsed.value(4), parsed.value(5),
             invoiceHistoryDay(parsed), Clock.System.now().toEpochMilliseconds())
         if (saved == null) {
+            continuousNotice = null
             showMessage(currentLanguage.text("تعذّر حفظ الفاتورة. حاول مرة أخرى.", "Could not save the invoice. Try again."))
             return InvoiceDetectionResult.SAVE_FAILED
         }
 
         val invoice = if (saved.raw == raw) parsed else ZatcaInvoiceParser.parse(saved.raw)
-        showResult(invoice, saved)
-        if (saved.alreadySaved) showMessage(currentLanguage.text("الفاتورة محفوظة بالفعل", "This invoice is already saved"))
+        if (continuous) {
+            if (!saved.alreadySaved) continuousAdded++
+            continuousNotice = ContinuousInvoiceNotice(invoice, saved)
+        } else {
+            showResult(invoice, saved)
+            if (saved.alreadySaved) showMessage(currentLanguage.text("الفاتورة محفوظة بالفعل", "This invoice is already saved"))
+        }
         return InvoiceDetectionResult.ACCEPTED
+    }
+
+    LaunchedEffect(continuousNotice, tab, language) {
+        val notice = continuousNotice ?: return@LaunchedEffect
+        if (tab != InvoiceTab.SCANNER) return@LaunchedEffect
+        val title = when {
+            notice.entry.alreadySaved -> language.text("الفاتورة محفوظة بالفعل", "This invoice is already saved")
+            !notice.invoice.passed -> language.text("تم الحفظ للمراجعة", "Saved for review")
+            else -> language.text("تم حفظ الفاتورة", "Invoice saved")
+        }
+        val seller = notice.invoice.value(1).ifBlank { language.text("بائع غير معروف", "Unknown seller") }
+        val total = notice.invoice.value(4).ifBlank { language.text("غير موجود", "Missing") }
+        snackbar.currentSnackbarData?.dismiss()
+        val action = snackbar.showSnackbar(
+            message = "$title\n$seller · $total",
+            actionLabel = language.text("عرض النتيجة", "View result"),
+            duration = SnackbarDuration.Short,
+        )
+        if (action == SnackbarResult.ActionPerformed) showResult(notice.invoice, notice.entry)
+        if (continuousNotice === notice) continuousNotice = null
     }
 
     fun openSavedInvoice(id: Long) {
@@ -178,6 +217,21 @@ fun InvoiceCheckScreen(
 
     val detection = remember(history) {
         object : InvoiceDetection {
+            private val deliveryGate = InvoiceCameraDeliveryGate()
+
+            override fun acceptCameraFrame(rawCodes: List<String>, nowMillis: Long): Boolean {
+                if (tab != InvoiceTab.SCANNER || importBusy) return false
+                val continuous = continuousEnabled
+                for (raw in deliveryGate.newlyVisible(rawCodes, nowMillis)) {
+                    val result = inspect(raw, continuous)
+                    if (!continuous) {
+                        if (result == InvoiceDetectionResult.ACCEPTED) return true
+                        if (result == InvoiceDetectionResult.SAVE_FAILED) return false
+                    }
+                }
+                return false
+            }
+
             override fun accept(raw: String): InvoiceDetectionResult =
                 if (tab == InvoiceTab.SCANNER && !importBusy) inspect(raw) else InvoiceDetectionResult.INACTIVE
 
@@ -213,6 +267,7 @@ fun InvoiceCheckScreen(
                 bottomBar = {
                     InvoiceResultNavigation(tab, camera != null, backupActions != null, statisticsSource != null,
                         backupBusy || importBusy) {
+                        if (it != tab) continuousNotice = null
                         tab = it
                     }
                 },
@@ -249,6 +304,12 @@ fun InvoiceCheckScreen(
                     } else if (tab == InvoiceTab.SCANNER && camera != null) {
                         InvoiceScannerPanel(
                             camera = { camera(detection) },
+                            continuousEnabled = continuousEnabled,
+                            continuousAdded = continuousAdded,
+                            onContinuousChange = { enabled ->
+                                continuousEnabled = enabled
+                                continuousNotice = null
+                            },
                             selectPhoto = selectPhoto?.let { action -> { if (!importBusy) action(detection) } },
                             selectPhotoEnabled = !importBusy,
                             importFiles = importFiles?.let { open ->
@@ -296,7 +357,9 @@ fun InvoiceCheckScreen(
 @Composable
 private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (() -> Unit)?, selectPhotoEnabled: Boolean,
                                 importFiles: (() -> Unit)?, importBusy: Boolean, importProgress: String,
-                                importSummary: InvoiceFilesResult?, cancelImport: (() -> Unit)?) {
+                                importSummary: InvoiceFilesResult?, cancelImport: (() -> Unit)?,
+                                continuousEnabled: Boolean, continuousAdded: Int,
+                                onContinuousChange: (Boolean) -> Unit) {
     val language = LocalInvoiceLanguage.current
     Column(Modifier.fillMaxSize().testTag("invoice-scanner")) {
         Row(
@@ -315,6 +378,30 @@ private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (()
                     Text(language.text("اختيار صورة", "Choose photo"))
                 }
             }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(language.text("المسح المستمر", "Continuous scanning"), style = MaterialTheme.typography.titleSmall)
+                if (continuousEnabled) {
+                    Text(
+                        language.text("فواتير جديدة: $continuousAdded", "New invoices: $continuousAdded"),
+                        Modifier.testTag("invoice-continuous-count"),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+            Switch(
+                checked = continuousEnabled,
+                onCheckedChange = onContinuousChange,
+                enabled = !importBusy,
+                modifier = Modifier.testTag("invoice-continuous-toggle").semantics {
+                    contentDescription = language.text("المسح المستمر", "Continuous scanning")
+                },
+            )
         }
         if (importFiles != null) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
