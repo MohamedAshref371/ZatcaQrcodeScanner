@@ -19,22 +19,24 @@ final class InvoiceCsvIntegrationTests: XCTestCase {
             annotation: InvoiceAnnotationFields(number: "INV-1", category: 0, note: "=SUM(1,2)")))
 
         let filtered = try export(history, to: folder.appendingPathComponent("filtered.csv"), seller: "Alpha")
-        XCTAssertEqual(filtered, "\u{FEFF}\"رقم الفاتورة\",\"اسم البائع\",\"الرقم الضريبي\",\"تاريخ الفاتورة\",\"إجمالي الفاتورة\",\"الضريبة\",\"التصنيف\",\"ملاحظة\"\r\n" +
-            "\"INV-1\",\"Alpha\",\"300000000000003\",\"2026-10-20T10:30:00\",\"23.00\",\"3.00\",\"\",\"'=SUM(1,2)\"")
+        let expected = "\u{FEFF}\"رقم الفاتورة\",\"اسم البائع\",\"الرقم الضريبي\",\"تاريخ الفاتورة\",\"إجمالي الفاتورة\",\"الضريبة\",\"التصنيف\",\"ملاحظة\"\r\n" +
+            "\"INV-1\",\"Alpha\",\"300000000000003\",\"2026-10-20T10:30:00\",\"23.00\",\"3.00\",\"\",\"'=SUM(1,2)\""
+        XCTAssertEqual(filtered, Data(expected.utf8))
 
-        let all = try export(history, to: folder.appendingPathComponent("all.csv"), seller: "")
+        let allBytes = try export(history, to: folder.appendingPathComponent("all.csv"), seller: "")
+        let all = String(decoding: allBytes, as: UTF8.self)
         XCTAssertTrue(all.components(separatedBy: "\r\n")[0].contains("\"Hash الفاتورة\""))
         XCTAssertTrue(all.contains("\"hash-value\""))
         XCTAssertEqual(all.components(separatedBy: "\r\n").count, 3)
     }
 
-    private func export(_ history: SQLiteInvoiceHistory, to url: URL, seller: String) throws -> String {
+    private func export(_ history: SQLiteInvoiceHistory, to url: URL, seller: String) throws -> Data {
         XCTAssertTrue(FileManager.default.createFile(atPath: url.path, contents: nil))
         let file = try FileHandle(forWritingTo: url)
         try history.writeHistoryCsv(filter: InvoiceHistoryQuery(seller: seller, vat: seller,
             invoiceFrom: "", invoiceTo: "", checkedFrom: Int64.min, checkedBefore: Int64.max), to: file)
         try file.close()
-        return try String(contentsOf: url, encoding: .utf8)
+        return try Data(contentsOf: url)
     }
 
     private func payload(_ fields: [String]) -> String {
