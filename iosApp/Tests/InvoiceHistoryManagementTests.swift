@@ -65,6 +65,42 @@ final class InvoiceHistoryManagementTests: XCTestCase {
         }
     }
 
+    func testStatisticsGroupAppliesAllFiltersToPaginationAndExport() throws {
+        try withHistory { history, folder in
+            let first = try save("Alpha", day: "2026-10-20", checkedAt: 100, to: history)
+            let newest = try save("Alpha", day: "2026-10-21", checkedAt: 200, to: history)
+            _ = try save("Alpha Retail", day: "2026-10-20", checkedAt: 300, to: history)
+            _ = try save("Alpha", day: "2026-10-19", checkedAt: 400, to: history)
+            _ = try save("Alpha", day: "2026-10-22", checkedAt: 500, vat: "٣١٢٠٠٠٠٠٠٠٠٠٠٠٣", to: history)
+
+            let rows = InvoiceStatisticsRowFilter(seller: "ALPHA", vat: "", excludedVat: "312")
+            let group = InvoiceStatisticsHistoryFilter(rows: rows, sellerKey: "Alpha", vatKey: nil,
+                missingInvoiceDate: false)
+            let filter = InvoiceHistoryQuery(seller: "", vat: "", invoiceFrom: "2026-10-20",
+                invoiceTo: "2026-10-22", checkedFrom: .min, checkedBefore: .max, category: -1,
+                annotationTerm: "", statistics: group)
+            let page = try XCTUnwrap(history.page(beforeId: .max, limit: 1, filter: filter))
+            XCTAssertEqual(page.rows.map(\.id), [newest.id])
+            XCTAssertTrue(page.hasMore)
+            let last = try XCTUnwrap(history.page(beforeId: newest.id, limit: 1, filter: filter))
+            XCTAssertEqual(last.rows.map(\.id), [first.id])
+            XCTAssertFalse(last.hasMore)
+            XCTAssertNil(history.previewDeletion(filter: filter))
+
+            let url = folder.appendingPathComponent("group.csv")
+            try Data().write(to: url)
+            let file = try FileHandle(forWritingTo: url)
+            try history.writeHistoryCsv(filter: filter, language: .english, to: file)
+            try file.close()
+            let csv = try String(contentsOf: url, encoding: .utf8)
+            XCTAssertTrue(csv.contains("2026-10-20"))
+            XCTAssertTrue(csv.contains("2026-10-21"))
+            XCTAssertFalse(csv.contains("2026-10-19"))
+            XCTAssertFalse(csv.contains("2026-10-22"))
+            XCTAssertFalse(csv.contains("Alpha Retail"))
+        }
+    }
+
     private func withHistory(_ run: (SQLiteInvoiceHistory, URL) throws -> Void) throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -78,15 +114,15 @@ final class InvoiceHistoryManagementTests: XCTestCase {
             checkedFrom: checkedFrom, checkedBefore: checkedBefore, category: category, annotationTerm: annotation)
     }
 
-    private func save(_ seller: String, day: String, checkedAt: Int64, to history: SQLiteInvoiceHistory) throws -> InvoiceHistoryEntry {
+    private func save(_ seller: String, day: String, checkedAt: Int64, vat: String = "300000000000003", to history: SQLiteInvoiceHistory) throws -> InvoiceHistoryEntry {
         var bytes = Data()
-        for (index, field) in [seller, "300000000000003", day + "T10:30:00", "23.00", "3.00"].enumerated() {
+        for (index, field) in [seller, vat, day + "T10:30:00", "23.00", "3.00"].enumerated() {
             let value = Data(field.utf8)
             bytes.append(contentsOf: [UInt8(index + 1), UInt8(value.count)])
             bytes.append(value)
         }
         let raw = bytes.base64EncodedString()
         return try XCTUnwrap(history.save(raw: raw, normalizedPayload: raw, seller: seller,
-            vat: "300000000000003", total: "23.00", tax: "3.00", invoiceDay: day, checkedAt: checkedAt))
+            vat: vat, total: "23.00", tax: "3.00", invoiceDay: day, checkedAt: checkedAt))
     }
 }

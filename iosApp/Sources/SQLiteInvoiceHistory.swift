@@ -163,6 +163,29 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         }
     }
 
+    // The accumulator groups trimmed Kotlin strings. Use the same whitespace set for drill-down.
+    private static let groupingWhitespace = "\u{0009}\u{000A}\u{000B}\u{000C}\u{000D}\u{001C}\u{001D}\u{001E}\u{001F}\u{0020}\u{00A0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}"
+
+    private static let statisticsPredicate: String = {
+        var normalizedVat = "vat"
+        for digits in ["٠١٢٣٤٥٦٧٨٩", "۰۱۲۳۴۵۶۷۸۹"] {
+            for (index, digit) in digits.enumerated() {
+                normalizedVat = "replace(\(normalizedVat), '\(digit)', '\(index)')"
+            }
+        }
+        return """
+            (:stats_seller = '' OR instr(seller_search, :stats_seller) > 0)
+            AND (:stats_vat = '' OR instr(vat, :stats_vat) > 0)
+            AND (:stats_excluded_vat = '' OR instr(\(normalizedVat), :stats_excluded_vat) = 0)
+            """
+    }()
+
+    private static let historyGroupPredicate = """
+        (:stats_seller_key IS NULL OR trim(seller, :stats_whitespace) = :stats_seller_key)
+        AND (:stats_vat_key IS NULL OR trim(vat, :stats_whitespace) = :stats_vat_key)
+        AND (:stats_unknown_date = 0 OR invoice_day = '')
+        """
+
     private static let historyPredicate = """
         (?1 = '' OR instr(seller_search, ?1) > 0 OR (?2 <> '' AND instr(vat, ?2) > 0))
         AND ((?3 = '' AND ?4 = '') OR (invoice_day <> ''
@@ -176,8 +199,9 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         return try? withDatabase { db in
             try statement(db, """
                 SELECT id, seller, vat, total, checked_at, invoice_number, category, payload_key FROM invoices
-                WHERE id < ?9 AND \(Self.historyPredicate)
-                ORDER BY id DESC LIMIT ?10
+                WHERE \(Self.historyPredicate) AND \(Self.statisticsPredicate) AND \(Self.historyGroupPredicate)
+                    AND id < :history_before
+                ORDER BY id DESC LIMIT :history_limit
                 """) { query in
                 try bindHistoryPage(query, beforeId: beforeId, limit: Int64(limit) + 1, filter: filter)
                 var rows: [InvoiceHistorySummary] = []
@@ -243,8 +267,9 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                                    filter: InvoiceHistoryQuery) throws -> [CsvHistoryRow] {
         try statement(db, """
             SELECT id, raw, invoice_number, category, note FROM invoices
-            WHERE id < ?9 AND \(Self.historyPredicate)
-            ORDER BY id DESC LIMIT ?10
+            WHERE \(Self.historyPredicate) AND \(Self.statisticsPredicate) AND \(Self.historyGroupPredicate)
+                AND id < :history_before
+            ORDER BY id DESC LIMIT :history_limit
             """) { query in
             try bindHistoryPage(query, beforeId: beforeId, limit: 200, filter: filter)
             var rows: [CsvHistoryRow] = []
@@ -263,8 +288,30 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
     private func bindHistoryPage(_ query: OpaquePointer, beforeId: Int64, limit: Int64,
                                  filter: InvoiceHistoryQuery) throws {
         try bindHistoryFilter(query, filter: filter)
-        try requireOK(sqlite3_bind_int64(query, 9, beforeId))
-        try requireOK(sqlite3_bind_int64(query, 10, limit))
+        let statistics = filter.statistics
+        try bindStatisticsFilter(statistics?.rows, to: query)
+        try bindOptional(statistics?.sellerKey, to: query, named: ":stats_seller_key")
+        try bindOptional(statistics?.vatKey, to: query, named: ":stats_vat_key")
+        try bind(Self.groupingWhitespace, to: query, at: sqlite3_bind_parameter_index(query, ":stats_whitespace"))
+        let missingDate = sqlite3_bind_parameter_index(query, ":stats_unknown_date")
+        try requireOK(sqlite3_bind_int(query, missingDate, statistics?.missingInvoiceDate == true ? 1 : 0))
+        try requireOK(sqlite3_bind_int64(query, sqlite3_bind_parameter_index(query, ":history_before"), beforeId))
+        try requireOK(sqlite3_bind_int64(query, sqlite3_bind_parameter_index(query, ":history_limit"), limit))
+    }
+
+    private func bindStatisticsFilter(_ filter: InvoiceStatisticsRowFilter?, to query: OpaquePointer) throws {
+        try bind(filter?.seller.lowercased() ?? "", to: query, at: sqlite3_bind_parameter_index(query, ":stats_seller"))
+        try bind(filter?.vat ?? "", to: query, at: sqlite3_bind_parameter_index(query, ":stats_vat"))
+        try bind(filter?.excludedVat ?? "", to: query, at: sqlite3_bind_parameter_index(query, ":stats_excluded_vat"))
+    }
+
+    private func bindOptional(_ value: String?, to query: OpaquePointer, named name: String) throws {
+        let index = sqlite3_bind_parameter_index(query, name)
+        if let value {
+            try bind(value, to: query, at: index)
+        } else {
+            try requireOK(sqlite3_bind_null(query, index))
+        }
     }
 
     private func bindHistoryFilter(_ query: OpaquePointer, filter: InvoiceHistoryQuery) throws {
@@ -312,6 +359,7 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
     }
 
     private func isBoundedPeriod(_ filter: InvoiceHistoryQuery) -> Bool {
+        guard filter.statistics == nil else { return false }
         if filter.invoiceFrom.isEmpty && filter.invoiceTo.isEmpty {
             return filter.checkedFrom != .min && filter.checkedBefore != .max && filter.checkedFrom < filter.checkedBefore
         }
@@ -369,10 +417,12 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                 SELECT seller, vat, invoice_day, total, tax, category FROM invoices
                 WHERE ((?1 = '' AND ?2 = '') OR (invoice_day <> ''
                     AND (?1 = '' OR invoice_day >= ?1) AND (?2 = '' OR invoice_day <= ?2)))
+                    AND \(Self.statisticsPredicate)
                 ORDER BY id
                 """) { statement in
                 try bind(query.from, to: statement, at: 1)
                 try bind(query.to, to: statement, at: 2)
+                try bindStatisticsFilter(query.filter, to: statement)
                 var status = sqlite3_step(statement)
                 while status == SQLITE_ROW {
                     builder.add(seller: columnText(statement, at: 0), vat: columnText(statement, at: 1),

@@ -37,6 +37,9 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
+import kotlinx.datetime.minus
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 internal enum class HistoryDateSource {
     INVOICE, CHECK;
@@ -54,9 +57,10 @@ internal data class InvoiceHistoryFilter(
     val to: LocalDate? = null,
     val category: Int? = null,
     val annotationTerm: String = "",
+    val statistics: InvoiceStatisticsHistoryFilter? = null,
 ) {
     private val hasDates get() = from != null || to != null
-    val isActive get() = term.isNotBlank() || hasDates || category != null || annotationTerm.isNotBlank()
+    val isActive get() = term.isNotBlank() || hasDates || category != null || annotationTerm.isNotBlank() || statistics != null
 
     fun summary(language: InvoiceLanguage): String {
         val labels = listOfNotNull(
@@ -88,11 +92,12 @@ internal data class InvoiceHistoryFilter(
             checkedBefore = if (!byInvoice && to != null) (to + DatePeriod(days = 1)).atStartOfDayIn(zone).toEpochMilliseconds() else Long.MAX_VALUE,
             category = category ?: -1,
             annotationTerm = annotationTerm.trim(),
+            statistics = statistics,
         )
     }
 }
 
-private fun String.asciiDigits(): String = map { it.digitToIntOrNull()?.digitToChar() ?: it }.joinToString("")
+internal fun String.asciiDigits(): String = map { it.digitToIntOrNull()?.digitToChar() ?: it }.joinToString("")
 private val datePattern = Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 private fun parseFilterDate(text: String): LocalDate? {
@@ -104,7 +109,9 @@ internal enum class HistoryDateDialogMode { HISTORY, INVOICE_ONLY, DELETE }
 
 @Composable
 internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: () -> Unit,
-    mode: HistoryDateDialogMode = HistoryDateDialogMode.HISTORY, onApply: (InvoiceHistoryFilter) -> Unit) {
+    mode: HistoryDateDialogMode = HistoryDateDialogMode.HISTORY,
+    extraFilters: (@Composable () -> Unit)? = null,
+    onApply: (InvoiceHistoryFilter) -> Unit) {
     val language = LocalInvoiceLanguage.current
     var source by remember { mutableStateOf(filter.dateSource) }
     var from by remember { mutableStateOf(filter.from?.toString().orEmpty()) }
@@ -121,11 +128,12 @@ internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: (
         onDismissRequest = onDismiss,
         title = { Text(when (mode) {
             HistoryDateDialogMode.HISTORY -> language.text("تصفية السجل", "Filter history")
-            HistoryDateDialogMode.INVOICE_ONLY -> language.text("تصفية بالتاريخ", "Filter by date")
+            HistoryDateDialogMode.INVOICE_ONLY -> language.text("فلاتر الإحصاءات", "Statistics filters")
             HistoryDateDialogMode.DELETE -> language.text("حدد فترة الحذف", "Choose a date range to delete")
         }) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                extraFilters?.invoke()
                 if (mode != HistoryDateDialogMode.INVOICE_ONLY) HistoryDateSource.entries.forEach { choice ->
                     Row(
                         Modifier.fillMaxWidth().selectable(
@@ -136,6 +144,18 @@ internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: (
                     ) {
                         RadioButton(selected = source == choice, onClick = null)
                         Text(choice.label(language))
+                    }
+                }
+                if (mode != HistoryDateDialogMode.DELETE) {
+                    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+                    val periods = invoiceDateShortcuts(today, language, mode == HistoryDateDialogMode.INVOICE_ONLY)
+                    val selected = periods.indexOfFirst { it.from == start && it.to == end }
+                    InvoiceSettingChoice(language.text("الفترات الجاهزة", "Date shortcuts"),
+                        if (selected >= 0) selected.toString() else language.text("فترة مخصصة", "Custom range"),
+                        periods.mapIndexed { index, period -> index.toString() to period.label }) {
+                        val period = periods[it.toInt()]
+                        from = period.from.toString()
+                        to = period.to.toString()
                     }
                 }
                 HistoryDateField(from, { from = it }, language.text("من", "From"), "invoice-history-from", startInvalid)
@@ -170,7 +190,7 @@ internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: (
                         Text(language.text("مسح الفلاتر", "Clear filters"))
                     }
                 } else if (mode == HistoryDateDialogMode.INVOICE_ONLY) {
-                    TextButton(onClick = { onApply(filter.copy(from = null, to = null)) }) {
+                    TextButton(onClick = { from = ""; to = "" }) {
                         Text(language.text("مسح التاريخ", "Clear dates"))
                     }
                 }
@@ -189,6 +209,31 @@ internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: (
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(language.text("إلغاء", "Cancel")) } },
+    )
+}
+
+private data class InvoiceDateShortcut(val label: String, val from: LocalDate, val to: LocalDate)
+
+private fun invoiceDateShortcuts(today: LocalDate, language: InvoiceLanguage, statistics: Boolean): List<InvoiceDateShortcut> {
+    val month = LocalDate(today.year, today.monthNumber, 1)
+    val lastMonth = month - DatePeriod(months = 1)
+    val yesterday = today - DatePeriod(days = 1)
+    fun period(label: String, start: LocalDate, duration: DatePeriod) =
+        InvoiceDateShortcut(label, start, start + duration - DatePeriod(days = 1))
+    if (!statistics) return listOf(
+        InvoiceDateShortcut(language.text("اليوم", "Today"), today, today),
+        InvoiceDateShortcut(language.text("أمس", "Yesterday"), yesterday, yesterday),
+        InvoiceDateShortcut(language.text("آخر 7 أيام", "Last 7 days"), today - DatePeriod(days = 6), today),
+        InvoiceDateShortcut(language.text("هذا الشهر", "This month"), month, today),
+        period(language.text("الشهر السابق", "Last month"), lastMonth, DatePeriod(months = 1)),
+    )
+    val quarter = LocalDate(today.year, (today.monthNumber - 1) / 3 * 3 + 1, 1)
+    return listOf(
+        period(language.text("هذا الشهر", "This month"), month, DatePeriod(months = 1)),
+        period(language.text("الشهر السابق", "Last month"), lastMonth, DatePeriod(months = 1)),
+        period(language.text("هذا الربع", "This quarter"), quarter, DatePeriod(months = 3)),
+        period(language.text("الربع السابق", "Last quarter"), quarter - DatePeriod(months = 3), DatePeriod(months = 3)),
+        period(language.text("هذه السنة", "This year"), LocalDate(today.year, 1, 1), DatePeriod(years = 1)),
     )
 }
 

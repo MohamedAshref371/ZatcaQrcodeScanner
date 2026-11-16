@@ -57,7 +57,12 @@ data class InvoiceHistoryQuery(
     val checkedBefore: Long,
     val category: Int,
     val annotationTerm: String,
-)
+    val statistics: InvoiceStatisticsHistoryFilter?,
+) {
+    constructor(seller: String, vat: String, invoiceFrom: String, invoiceTo: String, checkedFrom: Long,
+        checkedBefore: Long, category: Int, annotationTerm: String) :
+        this(seller, vat, invoiceFrom, invoiceTo, checkedFrom, checkedBefore, category, annotationTerm, null)
+}
 
 data class InvoiceHistoryDeletionPreview(val count: Long, val token: String)
 
@@ -195,9 +200,28 @@ internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceH
 }
 
 @Composable
+internal fun InvoiceStatisticsHistoryScreen(history: InvoiceHistoryStore, group: InvoiceStatisticsDrillDown,
+    onBack: () -> Unit, onOpen: (Long) -> Unit, exportEnabled: Boolean, onExport: () -> Unit) {
+    val language = LocalInvoiceLanguage.current
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            TextButton(onClick = onBack, modifier = Modifier.testTag("invoice-statistics-back")) {
+                Text(language.text("العودة إلى الإحصاءات", "Back to statistics"))
+            }
+            Text(group.title, style = MaterialTheme.typography.titleLarge)
+        }
+        key(group.filter) {
+            InvoiceHistoryResults(history, group.filter, onOpen, actionsEnabled = exportEnabled,
+                exportAvailable = exportEnabled, onExport = onExport, onDeleteInvoice = {},
+                onDeletePeriod = null, readOnly = true)
+        }
+    }
+}
+
+@Composable
 private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter, onOpen: (Long) -> Unit,
     actionsEnabled: Boolean, exportAvailable: Boolean, onExport: () -> Unit, onDeleteInvoice: (InvoiceHistorySummary) -> Unit,
-    onDeletePeriod: () -> Unit) {
+    onDeletePeriod: (() -> Unit)?, readOnly: Boolean = false) {
     val language = LocalInvoiceLanguage.current
     var page by remember(history) { mutableStateOf<InvoiceHistoryPage?>(null) }
     var rows by remember(history) { mutableStateOf(emptyList<InvoiceHistorySummary>()) }
@@ -227,7 +251,7 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onExport, enabled = actionsEnabled && exportAvailable && rows.isNotEmpty() && !loadFailed,
                     modifier = Modifier.testTag("invoice-history-export-csv")) { Text(language.text("تصدير CSV", "Export CSV")) }
-                TextButton(onClick = onDeletePeriod, enabled = actionsEnabled,
+                if (onDeletePeriod != null) TextButton(onClick = onDeletePeriod, enabled = actionsEnabled,
                     modifier = Modifier.testTag("invoice-history-delete-period")) {
                     Text(language.text("حذف حسب الفترة", "Delete by date range"), color = MaterialTheme.colorScheme.error)
                 }
@@ -251,7 +275,7 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
                 seller = seller, vat = vat, annotation = annotation,
                 total = language.text("إجمالي الفاتورة: $total", "Invoice total: $total"),
                 status = null, passed = false, checkedAt = language.text("تاريخ الفحص: $checkedAt", "Checked: $checkedAt"),
-                onOpen = { onOpen(row.id) }, onDelete = { onDeleteInvoice(row) },
+                onOpen = { onOpen(row.id) }, onDelete = if (readOnly) null else ({ onDeleteInvoice(row) }),
                 deleteDescription = language.text("حذف فاتورة $seller", "Delete invoice from $seller"),
                 deleteEnabled = actionsEnabled, modifier = Modifier.testTag("invoice-history-row"),
             )

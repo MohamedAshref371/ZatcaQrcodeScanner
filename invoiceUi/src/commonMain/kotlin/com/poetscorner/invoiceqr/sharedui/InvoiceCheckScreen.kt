@@ -74,6 +74,7 @@ fun InvoiceCheckScreen(
     var savedEntry by remember { mutableStateOf<InvoiceHistoryEntry?>(null) }
     var historyFilter by remember { mutableStateOf(InvoiceHistoryFilter()) }
     var statisticsSettings by remember { mutableStateOf(InvoiceStatisticsSettings()) }
+    var statisticsGroup by remember { mutableStateOf<InvoiceStatisticsDrillDown?>(null) }
     var backupBusy by remember { mutableStateOf(false) }
     var csvBusy by remember { mutableStateOf(false) }
     var importBusy by remember { mutableStateOf(false) }
@@ -289,6 +290,7 @@ fun InvoiceCheckScreen(
                 Box(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
                     val invoice = result
                     val entry = savedEntry
+                    val group = statisticsGroup
                     if (tab == InvoiceTab.SETTINGS && backupActions != null) {
                         InvoiceBackupSettings(backupBusy || csvBusy || importBusy,
                             languagePreference = languagePreference,
@@ -319,9 +321,17 @@ fun InvoiceCheckScreen(
                             },
                             onExport = { transferBackup(backupActions::exportBackup) },
                             onImport = { transferBackup(backupActions::importBackup) })
+                    } else if (tab == InvoiceTab.STATISTICS && group != null) {
+                        InvoiceStatisticsHistoryScreen(history, group,
+                            onBack = { statisticsGroup = null }, onOpen = ::openSavedInvoice,
+                            exportEnabled = csvActions != null && !csvBusy && !backupBusy && !importBusy,
+                            onExport = {
+                                csvActions?.let { actions -> transferCsv { actions.exportHistoryCsv(group.filter.toQuery(), language, it) } }
+                            })
                     } else if (tab == InvoiceTab.STATISTICS && statisticsSource != null) {
                         InvoiceStatisticsScreen(statisticsSource, statisticsSettings,
                             onChange = { statisticsSettings = it },
+                            onOpenGroup = { statisticsGroup = it },
                             exportEnabled = csvActions != null && !csvBusy && !backupBusy && !importBusy,
                             onExport = { snapshot, label, net ->
                                 csvActions?.let { actions -> transferCsv { actions.exportStatisticsCsv(snapshot, label, net, language, it) } }

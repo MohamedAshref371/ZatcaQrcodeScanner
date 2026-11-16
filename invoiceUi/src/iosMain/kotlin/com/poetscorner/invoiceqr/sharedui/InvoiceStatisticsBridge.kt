@@ -17,7 +17,7 @@ class InvoiceStatisticsBuilder(private val query: InvoiceStatisticsQuery) {
     fun finish(): InvoiceStatisticsSnapshot {
         val result = accumulator.finish()
         return InvoiceStatisticsSnapshot(result.summary.toDisplay(), result.groups.map {
-            InvoiceStatisticsSection(title(it.key), it.totals.toDisplay())
+            InvoiceStatisticsSection(title(it.key), it.totals.toDisplay(), it.key)
         })
     }
 

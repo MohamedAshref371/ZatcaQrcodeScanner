@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,12 +12,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,16 +32,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.KeyboardType
 import com.poetscorner.invoiceqr.shared.InvoiceAnnotationRules
 import com.poetscorner.invoiceqr.shared.InvoiceStatisticsOptions
 import com.poetscorner.invoiceqr.shared.StatisticsCategoryCalculation
 import com.poetscorner.invoiceqr.shared.StatisticsGrouping
+import com.poetscorner.invoiceqr.shared.InvoiceStatisticsKey
+import com.poetscorner.invoiceqr.shared.StatisticsSort
 
 class InvoiceStatisticsQuery internal constructor(
     internal val options: InvoiceStatisticsOptions,
     val from: String,
     val to: String,
     val language: InvoiceLanguage,
+    val filter: InvoiceStatisticsRowFilter,
 )
 
 data class InvoiceStatisticsAmounts(
@@ -50,7 +57,9 @@ data class InvoiceStatisticsAmounts(
     val ignored: Int,
 )
 
-data class InvoiceStatisticsSection(val title: String, val amounts: InvoiceStatisticsAmounts)
+data class InvoiceStatisticsSection internal constructor(
+    val title: String, val amounts: InvoiceStatisticsAmounts, internal val key: InvoiceStatisticsKey,
+)
 data class InvoiceStatisticsSnapshot(val summary: InvoiceStatisticsAmounts, val groups: List<InvoiceStatisticsSection>)
 
 fun interface InvoiceStatisticsObserver {
@@ -64,20 +73,35 @@ interface InvoiceStatisticsSource {
 internal data class InvoiceStatisticsSettings(
     val dates: InvoiceHistoryFilter = InvoiceHistoryFilter(),
     val grouping: StatisticsGrouping = StatisticsGrouping.SELLER,
+    val sort: StatisticsSort = StatisticsSort.GROUP,
+    val descending: Boolean = false,
+    val seller: String = "",
+    val vat: String = "",
+    val excludeVat: Boolean = false,
     val calculations: Map<Int, StatisticsCategoryCalculation> = emptyMap(),
-)
+) {
+    val rowFilter get() = InvoiceStatisticsRowFilter(
+        seller.trim(), if (excludeVat) "" else vat.trim().asciiDigits(),
+        if (excludeVat) vat.trim().asciiDigits() else "",
+    )
+    val filtered get() = seller.isNotBlank() || vat.isNotBlank() || dates.isActive
+}
 
 @Composable
 internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: InvoiceStatisticsSettings,
-    onChange: (InvoiceStatisticsSettings) -> Unit, exportEnabled: Boolean = false,
+    onChange: (InvoiceStatisticsSettings) -> Unit,
+    onOpenGroup: (InvoiceStatisticsDrillDown) -> Unit,
+    exportEnabled: Boolean = false,
     onExport: (InvoiceStatisticsSnapshot, String, Boolean) -> Unit = { _, _, _ -> }) {
     val language = LocalInvoiceLanguage.current
     var retries by remember { mutableIntStateOf(0) }
-    var showDates by remember { mutableStateOf(false) }
+    var showFilters by remember { mutableStateOf(false) }
     var showCalculations by remember { mutableStateOf(false) }
     val query = remember(settings, retries, language) {
-        InvoiceStatisticsQuery(InvoiceStatisticsOptions(grouping = settings.grouping, categoryCalculations = settings.calculations),
-            settings.dates.from?.toString().orEmpty(), settings.dates.to?.toString().orEmpty(), language)
+        InvoiceStatisticsQuery(
+            InvoiceStatisticsOptions(settings.grouping, settings.sort, settings.descending, settings.calculations),
+            settings.dates.from?.toString().orEmpty(), settings.dates.to?.toString().orEmpty(), language, settings.rowFilter,
+        )
     }
     val snapshot = remember(query) { mutableStateOf<InvoiceStatisticsSnapshot?>(null) }
     val loading = remember(query) { mutableStateOf(true) }
@@ -103,7 +127,25 @@ internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: 
                     modifier = Modifier.testTag("invoice-statistics-export-csv")) { Text(language.text("تصدير CSV", "Export CSV")) }
                 StatisticsChoice(language.text("التجميع حسب", "Group by"), settings.grouping, StatisticsGrouping.entries.filterNot { it == StatisticsGrouping.HALF_YEAR },
                     { statisticsGroupingLabel(it, language) }, "invoice-statistics-group") { onChange(settings.copy(grouping = it)) }
-                TextButton(onClick = { showDates = true }) { Text(settings.dates.dateSummary(language)) }
+                StatisticsChoice(language.text("الترتيب حسب", "Sort by"), settings.sort, StatisticsSort.entries,
+                    { statisticsSortLabel(it, settings.grouping, language) }, "invoice-statistics-sort") { onChange(settings.copy(sort = it)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { onChange(settings.copy(descending = !settings.descending)) },
+                        modifier = Modifier.testTag("invoice-statistics-direction")) {
+                        Text(if (settings.descending) language.text("تنازلي", "Descending") else language.text("تصاعدي", "Ascending"))
+                    }
+                    TextButton(onClick = { showFilters = true }, modifier = Modifier.testTag("invoice-statistics-filters")) {
+                        Text(language.text("الفلاتر", "Filters"))
+                    }
+                }
+                if (settings.filtered) {
+                    if (settings.seller.isNotBlank()) Text(language.text("البائع: ${settings.seller}", "Seller: ${settings.seller}"))
+                    if (settings.vat.isNotBlank()) Text(statisticsVatLabel(settings.excludeVat, language) + " · " + settings.vat)
+                    if (settings.dates.isActive) Text(settings.dates.dateSummary(language))
+                    TextButton(onClick = { onChange(settings.copy(dates = InvoiceHistoryFilter(), seller = "", vat = "", excludeVat = false)) }) {
+                        Text(language.text("مسح الفلاتر", "Clear filters"))
+                    }
+                }
                 if (settings.grouping != StatisticsGrouping.CATEGORY) {
                     TextButton(onClick = { showCalculations = true }, modifier = Modifier.testTag("invoice-statistics-calculations")) {
                         Text(language.text("طريقة احتساب التصنيفات", "How categories affect totals"))
@@ -120,13 +162,15 @@ internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: 
             result.summary.count == 0 -> item { Text(language.text("لا توجد فواتير للفترة المختارة", "No invoices in the selected period")) }
             else -> {
                 item { StatisticsCard(language.text("الإجماليات", "Totals"), result.summary, Modifier.testTag("invoice-statistics-summary"), summary = true) }
-                items(result.groups) { group -> StatisticsCard(group.title, group.amounts) }
+                items(result.groups) { group ->
+                    StatisticsCard(group.title, group.amounts, onOpen = { onOpenGroup(settings.drillDown(group.title, group.key)) })
+                }
             }
         }
     }
-    if (showDates) InvoiceHistoryDateDialog(settings.dates, onDismiss = { showDates = false }, mode = HistoryDateDialogMode.INVOICE_ONLY) {
-        onChange(settings.copy(dates = it))
-        showDates = false
+    if (showFilters) StatisticsFiltersDialog(settings, onDismiss = { showFilters = false }) {
+        onChange(it)
+        showFilters = false
     }
     if (showCalculations) StatisticsCalculationDialog(settings.calculations, onDismiss = { showCalculations = false }) {
         onChange(settings.copy(calculations = it))
@@ -145,9 +189,42 @@ private fun statisticsGroupingLabel(grouping: StatisticsGrouping, language: Invo
     StatisticsGrouping.YEAR -> language.text("السنة", "Year")
 }
 
+private fun statisticsSortLabel(sort: StatisticsSort, grouping: StatisticsGrouping, language: InvoiceLanguage) =
+    when (sort) {
+        StatisticsSort.GROUP -> statisticsGroupingLabel(grouping, language)
+        StatisticsSort.COUNT -> language.text("عدد الفواتير", "Invoice count")
+        StatisticsSort.TOTAL -> language.text("الإجمالي شامل الضريبة", "Total including VAT")
+        StatisticsSort.TAX -> language.text("الضريبة", "VAT")
+    }
+
+private fun statisticsVatLabel(excluded: Boolean, language: InvoiceLanguage) =
+    if (excluded) language.text("استبعاد الرقم الضريبي", "Exclude VAT number")
+    else language.text("الرقم الضريبي", "VAT number")
+
+@Composable
+private fun StatisticsFiltersDialog(settings: InvoiceStatisticsSettings, onDismiss: () -> Unit,
+    onApply: (InvoiceStatisticsSettings) -> Unit) {
+    val language = LocalInvoiceLanguage.current
+    var seller by remember { mutableStateOf(settings.seller) }
+    var vat by remember { mutableStateOf(settings.vat) }
+    var exclude by remember { mutableStateOf(settings.excludeVat) }
+    InvoiceHistoryDateDialog(settings.dates, onDismiss = onDismiss, mode = HistoryDateDialogMode.INVOICE_ONLY,
+        extraFilters = {
+            OutlinedTextField(seller, { seller = it }, label = { Text(language.text("البائع", "Seller")) },
+                modifier = Modifier.fillMaxWidth().testTag("invoice-statistics-seller"), singleLine = true)
+            InvoiceSettingChoice(language.text("فلتر الرقم الضريبي", "VAT filter"), exclude.toString(),
+                listOf("false" to language.text("تضمين", "Include"), "true" to language.text("استبعاد", "Exclude"))) {
+                exclude = it.toBoolean()
+            }
+            OutlinedTextField(vat, { vat = it }, label = { Text(statisticsVatLabel(exclude, language)) },
+                modifier = Modifier.fillMaxWidth().testTag("invoice-statistics-vat"), singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+        }) { dates -> onApply(settings.copy(seller = seller.trim(), vat = vat.trim().asciiDigits(), excludeVat = exclude, dates = dates)) }
+}
+
 @Composable
 private fun StatisticsCard(title: String, amounts: InvoiceStatisticsAmounts, modifier: Modifier = Modifier,
-    summary: Boolean = false) {
+    summary: Boolean = false, onOpen: (() -> Unit)? = null) {
     val language = LocalInvoiceLanguage.current
     val included = amounts.count - amounts.ignored
     val missing = language.text("غير متاح", "Unavailable")
@@ -165,7 +242,8 @@ private fun StatisticsCard(title: String, amounts: InvoiceStatisticsAmounts, mod
         total = if (included > 0 && amounts.missingTotal == included) missing else amounts.total,
         vatLabel = language.text("إجمالي الضريبة", "Total VAT"),
         vat = if (included > 0 && amounts.missingTax == included) missing else amounts.tax,
-        notices = notices, modifier = modifier, summary = summary,
+        notices = notices, modifier = modifier, summary = summary, onOpen = onOpen,
+        actionLabel = language.text("عرض الفواتير", "View invoices"),
     )
 }
 
