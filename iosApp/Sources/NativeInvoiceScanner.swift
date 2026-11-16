@@ -92,7 +92,7 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
     func loadBreakdown(query: InvoiceGroupBreakdownQuery, observer: InvoiceGroupBreakdownObserver) {
         statisticsQueue.async {
             let result = try? SQLiteInvoiceHistory().breakdown(query)
-            DispatchQueue.main.async { observer.complete(result: result) }
+            DispatchQueue.main.async { observer.complete(result__: result) }
         }
     }
 

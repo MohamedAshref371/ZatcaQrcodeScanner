@@ -21,12 +21,13 @@ jobs:
           persist-credentials: false
       - name: Build the Kotlin iPhone Release framework
         run: bash ./gradlew --stacktrace :invoiceUi:linkReleaseFrameworkIosArm64
+      - name: Prepare the pinned ZXing package
+        run: bash iosApp/prepare-zxing.sh
       - name: Generate the Xcode project
         run: |
           if ! command -v xcodegen >/dev/null; then
             brew install xcodegen
           fi
-          bash iosApp/prepare-zxing.sh
           xcodegen generate --spec iosApp/project.yml
       - name: Install ML Kit for the iPhone device build
         run: |

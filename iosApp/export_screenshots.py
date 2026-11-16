@@ -14,7 +14,7 @@ expected = (
     "12-statistics-calculations", "13-statistics-breakdown", "14-statistics-group-invoices",
     "15-invoice-advanced", "16-settings", "17-settings-zxing", "18-settings-language",
     "19-settings-appearance", "20-settings-backup", "21-invoice-verification",
-    "22-invoice-checks", "23-invoice-raw",
+    "22-invoice-checks", "23-invoice-raw", "24-history-delete-period",
 )
 found = set()
 for test in manifest:

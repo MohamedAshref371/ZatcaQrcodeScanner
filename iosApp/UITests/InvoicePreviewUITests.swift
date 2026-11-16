@@ -254,6 +254,12 @@ final class InvoicePreviewUITests: XCTestCase {
         element("invoice-history-dates", in: app).tap()
         XCTAssertTrue(element("invoice-history-date-apply", in: app).waitForExistence(timeout: 10))
         attachScreenshot("09-history-filters", of: app)
+        element("invoice-history-date-apply", in: app).tap()
+        let deletePeriod = element("invoice-history-delete-period", in: app)
+        XCTAssertTrue(deletePeriod.waitForExistence(timeout: 10))
+        deletePeriod.tap()
+        XCTAssertTrue(element("invoice-history-date-apply", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("24-history-delete-period", of: app)
     }
 
     func testCaptureStatisticsAndGroup() {
