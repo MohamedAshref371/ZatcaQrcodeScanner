@@ -163,18 +163,23 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         }
     }
 
+    private static let historyPredicate = """
+        (?1 = '' OR instr(seller_search, ?1) > 0 OR (?2 <> '' AND instr(vat, ?2) > 0))
+        AND ((?3 = '' AND ?4 = '') OR (invoice_day <> ''
+          AND (?3 = '' OR invoice_day >= ?3) AND (?4 = '' OR invoice_day <= ?4)))
+        AND checked_at >= ?5 AND checked_at < ?6
+        AND (?7 < 0 OR category = ?7)
+        AND (?8 = '' OR invoice_contains(invoice_number, ?8) OR invoice_contains(note, ?8))
+        """
+
     func page(beforeId: Int64, limit: Int32, filter: InvoiceHistoryQuery) -> InvoiceHistoryPage? {
         return try? withDatabase { db in
             try statement(db, """
-                SELECT id, seller, vat, total, checked_at, invoice_number, category FROM invoices
-                WHERE id < ?1
-                  AND (?3 = '' OR instr(seller_search, ?3) > 0 OR (?4 <> '' AND instr(vat, ?4) > 0))
-                  AND ((?5 = '' AND ?6 = '') OR (invoice_day <> ''
-                    AND (?5 = '' OR invoice_day >= ?5) AND (?6 = '' OR invoice_day <= ?6)))
-                  AND checked_at >= ?7 AND checked_at < ?8
-                ORDER BY id DESC LIMIT ?2
+                SELECT id, seller, vat, total, checked_at, invoice_number, category, payload_key FROM invoices
+                WHERE id < ?9 AND \(Self.historyPredicate)
+                ORDER BY id DESC LIMIT ?10
                 """) { query in
-                try bindHistoryFilter(query, beforeId: beforeId, limit: Int64(limit) + 1, filter: filter)
+                try bindHistoryPage(query, beforeId: beforeId, limit: Int64(limit) + 1, filter: filter)
                 var rows: [InvoiceHistorySummary] = []
                 while true {
                     switch sqlite3_step(query) {
@@ -187,7 +192,8 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                             total: columnText(query, at: 3),
                             checkedAt: sqlite3_column_int64(query, 4),
                             number: columnText(query, at: 5),
-                            category: sqlite3_column_int(query, 6)
+                            category: sqlite3_column_int(query, 6),
+                            identity: columnText(query, at: 7)
                         ))
                     case SQLITE_DONE:
                         return InvoiceHistoryPage(rows: rows, hasMore: false)
@@ -237,14 +243,10 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                                    filter: InvoiceHistoryQuery) throws -> [CsvHistoryRow] {
         try statement(db, """
             SELECT id, raw, invoice_number, category, note FROM invoices
-            WHERE id < ?1
-              AND (?3 = '' OR instr(seller_search, ?3) > 0 OR (?4 <> '' AND instr(vat, ?4) > 0))
-              AND ((?5 = '' AND ?6 = '') OR (invoice_day <> ''
-                AND (?5 = '' OR invoice_day >= ?5) AND (?6 = '' OR invoice_day <= ?6)))
-              AND checked_at >= ?7 AND checked_at < ?8
-            ORDER BY id DESC LIMIT ?2
+            WHERE id < ?9 AND \(Self.historyPredicate)
+            ORDER BY id DESC LIMIT ?10
             """) { query in
-            try bindHistoryFilter(query, beforeId: beforeId, limit: 200, filter: filter)
+            try bindHistoryPage(query, beforeId: beforeId, limit: 200, filter: filter)
             var rows: [CsvHistoryRow] = []
             var status = sqlite3_step(query)
             while status == SQLITE_ROW {
@@ -258,16 +260,82 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         }
     }
 
-    private func bindHistoryFilter(_ query: OpaquePointer, beforeId: Int64, limit: Int64,
-                                   filter: InvoiceHistoryQuery) throws {
-        try requireOK(sqlite3_bind_int64(query, 1, beforeId))
-        try requireOK(sqlite3_bind_int64(query, 2, limit))
-        try bind(filter.seller.lowercased(), to: query, at: 3)
-        try bind(filter.vat, to: query, at: 4)
-        try bind(filter.invoiceFrom, to: query, at: 5)
-        try bind(filter.invoiceTo, to: query, at: 6)
-        try requireOK(sqlite3_bind_int64(query, 7, filter.checkedFrom))
-        try requireOK(sqlite3_bind_int64(query, 8, filter.checkedBefore))
+    private func bindHistoryPage(_ query: OpaquePointer, beforeId: Int64, limit: Int64,
+                                 filter: InvoiceHistoryQuery) throws {
+        try bindHistoryFilter(query, filter: filter)
+        try requireOK(sqlite3_bind_int64(query, 9, beforeId))
+        try requireOK(sqlite3_bind_int64(query, 10, limit))
+    }
+
+    private func bindHistoryFilter(_ query: OpaquePointer, filter: InvoiceHistoryQuery) throws {
+        try bind(filter.seller.lowercased(), to: query, at: 1)
+        try bind(filter.vat, to: query, at: 2)
+        try bind(filter.invoiceFrom, to: query, at: 3)
+        try bind(filter.invoiceTo, to: query, at: 4)
+        try requireOK(sqlite3_bind_int64(query, 5, filter.checkedFrom))
+        try requireOK(sqlite3_bind_int64(query, 6, filter.checkedBefore))
+        try requireOK(sqlite3_bind_int(query, 7, filter.category))
+        try bind(filter.annotationTerm.lowercased(), to: query, at: 8)
+    }
+
+    func deleteInvoice(id: Int64, identity: String, checkedAt: Int64) -> Bool {
+        (try? withDatabase { db in
+            try statement(db, "DELETE FROM invoices WHERE id = ? AND payload_key = ? AND checked_at = ?") { query in
+                try requireOK(sqlite3_bind_int64(query, 1, id))
+                try bind(identity, to: query, at: 2)
+                try requireOK(sqlite3_bind_int64(query, 3, checkedAt))
+                guard sqlite3_step(query) == SQLITE_DONE else { throw StorageError.sqlite }
+                return sqlite3_changes(db) == 1
+            }
+        }) ?? false
+    }
+
+    func previewDeletion(filter: InvoiceHistoryQuery) -> InvoiceHistoryDeletionPreview? {
+        guard isBoundedPeriod(filter) else { return nil }
+        return try? withDatabase { try deletionPreview($0, filter: filter) }
+    }
+
+    func deletePeriod(filter: InvoiceHistoryQuery, preview: InvoiceHistoryDeletionPreview) -> InvoiceHistoryDeletionResult {
+        guard isBoundedPeriod(filter), preview.count > 0 else { return .failed }
+        return (try? withDatabase { db in
+            try transaction(db, begin: "BEGIN IMMEDIATE") {
+                let current = try deletionPreview(db, filter: filter)
+                guard preview.count == current.count, preview.token == current.token else { return .changed }
+                try statement(db, "DELETE FROM invoices WHERE \(Self.historyPredicate)") { query in
+                    try bindHistoryFilter(query, filter: filter)
+                    guard sqlite3_step(query) == SQLITE_DONE,
+                          sqlite3_changes64(db) == preview.count else { throw StorageError.sqlite }
+                }
+                return .deleted
+            }
+        }) ?? .failed
+    }
+
+    private func isBoundedPeriod(_ filter: InvoiceHistoryQuery) -> Bool {
+        if filter.invoiceFrom.isEmpty && filter.invoiceTo.isEmpty {
+            return filter.checkedFrom != .min && filter.checkedBefore != .max && filter.checkedFrom < filter.checkedBefore
+        }
+        return !filter.invoiceFrom.isEmpty && !filter.invoiceTo.isEmpty && filter.invoiceFrom <= filter.invoiceTo
+    }
+
+    private func deletionPreview(_ db: OpaquePointer, filter: InvoiceHistoryQuery) throws -> InvoiceHistoryDeletionPreview {
+        try statement(db, "SELECT id, payload_key, checked_at FROM invoices WHERE \(Self.historyPredicate) ORDER BY id") { query in
+            try bindHistoryFilter(query, filter: filter)
+            var count: Int64 = 0
+            var hash = SHA256()
+            var status = sqlite3_step(query)
+            while status == SQLITE_ROW {
+                let id = sqlite3_column_int64(query, 0)
+                let key = columnText(query, at: 1)
+                let checkedAt = sqlite3_column_int64(query, 2)
+                hash.update(data: Data("\(id):\(key):\(checkedAt)\n".utf8))
+                count += 1
+                status = sqlite3_step(query)
+            }
+            guard status == SQLITE_DONE else { throw StorageError.sqlite }
+            let token = Data(hash.finalize()).base64EncodedString()
+            return InvoiceHistoryDeletionPreview(count: count, token: token)
+        }
     }
 
     func entry(id: Int64) -> InvoiceHistoryEntry? {
@@ -346,6 +414,17 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         do {
             try requireOK(status)
             try requireOK(sqlite3_busy_timeout(opened, 1000))
+            try requireOK(sqlite3_create_function_v2(opened, "invoice_contains", 2,
+                SQLITE_UTF8 | SQLITE_DETERMINISTIC, nil, { context, count, values in
+                    guard count == 2, let values,
+                          let value = sqlite3_value_text(values[0]),
+                          let term = sqlite3_value_text(values[1]) else {
+                        sqlite3_result_int(context, 0)
+                        return
+                    }
+                    let matches = String(cString: value).lowercased().contains(String(cString: term))
+                    sqlite3_result_int(context, matches ? 1 : 0)
+                }, nil, nil, nil))
             try requireOK(sqlite3_exec(opened, """
                 CREATE TABLE IF NOT EXISTS invoices (
                     id INTEGER PRIMARY KEY,

@@ -297,7 +297,18 @@ fun InvoiceCheckScreen(
                             })
                     } else if (tab == InvoiceTab.HISTORY) {
                         InvoiceHistoryScreen(history, historyFilter, { historyFilter = it }, ::openSavedInvoice,
-                            exportEnabled = csvActions != null && !csvBusy && !backupBusy && !importBusy,
+                            actionsEnabled = !csvBusy && !backupBusy && !importBusy,
+                            exportAvailable = csvActions != null,
+                            onDeleted = {
+                                savedEntry?.let { displayed ->
+                                    val current = history.entry(displayed.id)
+                                    if (current == null || current.raw != displayed.raw || current.checkedAt != displayed.checkedAt) {
+                                        savedEntry = null
+                                        result = null
+                                    }
+                                }
+                            },
+                            onMessage = ::showMessage,
                             onExport = {
                                 csvActions?.let { actions -> transferCsv { actions.exportHistoryCsv(historyFilter.toQuery(), language, it) } }
                             })

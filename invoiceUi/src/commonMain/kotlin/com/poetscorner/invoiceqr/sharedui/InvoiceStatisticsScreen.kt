@@ -125,7 +125,7 @@ internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: 
             }
         }
     }
-    if (showDates) InvoiceHistoryDateDialog(settings.dates, onDismiss = { showDates = false }, invoiceOnly = true) {
+    if (showDates) InvoiceHistoryDateDialog(settings.dates, onDismiss = { showDates = false }, mode = HistoryDateDialogMode.INVOICE_ONLY) {
         onChange(settings.copy(dates = it))
         showDates = false
     }

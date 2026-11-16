@@ -3,6 +3,7 @@ package com.poetscorner.invoiceqr.sharedui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextDirection
@@ -44,6 +46,7 @@ data class InvoiceHistorySummary(
     val checkedAt: Long,
     val number: String,
     val category: Int,
+    val identity: String,
 )
 
 data class InvoiceHistoryPage(val rows: List<InvoiceHistorySummary>, val hasMore: Boolean)
@@ -55,13 +58,22 @@ data class InvoiceHistoryQuery(
     val invoiceTo: String,
     val checkedFrom: Long,
     val checkedBefore: Long,
+    val category: Int,
+    val annotationTerm: String,
 )
+
+data class InvoiceHistoryDeletionPreview(val count: Long, val token: String)
+
+enum class InvoiceHistoryDeletionResult { DELETED, CHANGED, FAILED }
 
 interface InvoiceHistoryStore {
     fun save(raw: String, normalizedPayload: String, seller: String, vat: String, total: String, tax: String,
         invoiceDay: String, checkedAt: Long): InvoiceHistoryEntry?
     fun page(beforeId: Long, limit: Int, filter: InvoiceHistoryQuery): InvoiceHistoryPage?
     fun entry(id: Long): InvoiceHistoryEntry?
+    fun deleteInvoice(id: Long, identity: String, checkedAt: Long): Boolean
+    fun previewDeletion(filter: InvoiceHistoryQuery): InvoiceHistoryDeletionPreview?
+    fun deletePeriod(filter: InvoiceHistoryQuery, preview: InvoiceHistoryDeletionPreview): InvoiceHistoryDeletionResult
     fun updateAnnotation(id: Long, annotation: InvoiceAnnotationFields): Boolean
 }
 
@@ -80,9 +92,19 @@ private const val historyPageSize = 50
 @Composable
 internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter,
     onFilter: (InvoiceHistoryFilter) -> Unit, onOpen: (Long) -> Unit,
-    exportEnabled: Boolean = false, onExport: () -> Unit = {}) {
+    actionsEnabled: Boolean, exportAvailable: Boolean, onDeleted: () -> Unit, onMessage: (String) -> Unit,
+    onExport: () -> Unit) {
     val language = LocalInvoiceLanguage.current
-    var showDates by remember { mutableStateOf(false) }
+    var showFilters by remember { mutableStateOf(false) }
+    var selectedInvoice by remember { mutableStateOf<InvoiceHistorySummary?>(null) }
+    var showDeletePeriod by remember { mutableStateOf(false) }
+    var deletion by remember { mutableStateOf<InvoiceHistoryDeletionSelection?>(null) }
+    var revision by remember { mutableStateOf(0) }
+
+    fun refreshAfterDeletion() {
+        revision++
+        onDeleted()
+    }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -94,25 +116,91 @@ internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceH
                 label = { Text(language.text("اسم البائع أو الرقم الضريبي", "Seller name or VAT number")) },
                 singleLine = true,
             )
-            TextButton(onClick = { showDates = true }, modifier = Modifier.testTag("invoice-history-dates")) {
-                Text(filter.dateSummary(language))
+            TextButton(onClick = { showFilters = true }, modifier = Modifier.testTag("invoice-history-dates")) {
+                Text(filter.summary(language))
             }
         }
-        key(filter) {
-            InvoiceHistoryResults(history, filter, onOpen, exportEnabled, onExport)
+        key(filter, revision) {
+            InvoiceHistoryResults(history, filter, onOpen, actionsEnabled, exportAvailable, onExport,
+                onDeleteInvoice = { selectedInvoice = it }, onDeletePeriod = { showDeletePeriod = true })
         }
     }
-    if (showDates) {
-        InvoiceHistoryDateDialog(filter, onDismiss = { showDates = false }) {
+    if (showFilters) {
+        InvoiceHistoryDateDialog(filter, onDismiss = { showFilters = false }, mode = HistoryDateDialogMode.HISTORY) {
             onFilter(it)
-            showDates = false
+            showFilters = false
         }
+    }
+    selectedInvoice?.let { row ->
+        InvoiceDeleteConfirmation(
+            title = language.text("حذف الفاتورة", "Delete invoice"),
+            message = listOf(
+                language.text("هل تريد حذف هذه الفاتورة من السجل؟", "Delete this invoice from history?"),
+                row.seller,
+                row.number,
+            ).filter { it.isNotBlank() }.joinToString("\n"),
+            onDismiss = { selectedInvoice = null },
+            onConfirm = if (!actionsEnabled) null else ({
+                selectedInvoice = null
+                if (history.deleteInvoice(row.id, row.identity, row.checkedAt)) {
+                    refreshAfterDeletion()
+                    onMessage(language.text("تم حذف الفاتورة", "Invoice deleted"))
+                } else {
+                    revision++
+                    onMessage(language.text("تعذّر حذف الفاتورة", "Could not delete the invoice"))
+                }
+            }),
+        )
+    }
+    if (showDeletePeriod) {
+        InvoiceHistoryDateDialog(InvoiceHistoryFilter(), onDismiss = { showDeletePeriod = false },
+            mode = HistoryDateDialogMode.DELETE) { range ->
+            showDeletePeriod = false
+            val query = range.toQuery()
+            val preview = history.previewDeletion(query)
+            if (preview != null) {
+                deletion = InvoiceHistoryDeletionSelection(query, range.dateSummary(language), preview)
+            } else {
+                onMessage(language.text("تعذّر حساب الفواتير في الفترة", "Could not count invoices in the period"))
+            }
+        }
+    }
+    deletion?.let { selection ->
+        val count = selection.preview.count
+        InvoiceDeleteConfirmation(
+            title = language.text("الحذف حسب الفترة", "Delete by date range"),
+            message = listOf(
+                selection.label,
+                language.text("عدد الفواتير المطابقة: $count", "Matching invoices: $count"),
+                language.text("يشمل الحذف كل الفواتير في الفترة المحددة.", "This applies to all invoices in the selected range."),
+            ).joinToString("\n"),
+            onDismiss = { deletion = null },
+            onConfirm = if (count == 0L || !actionsEnabled) null else ({
+                when (history.deletePeriod(selection.query, selection.preview)) {
+                    InvoiceHistoryDeletionResult.DELETED -> {
+                        deletion = null
+                        refreshAfterDeletion()
+                        onMessage(language.text("تم الحذف. عدد الفواتير: $count", "Invoices deleted: $count"))
+                    }
+                    InvoiceHistoryDeletionResult.CHANGED -> {
+                        revision++
+                        deletion = history.previewDeletion(selection.query)?.let { selection.copy(preview = it) }
+                        onMessage(language.text("تغيّر السجل. راجع العدد قبل الحذف.", "History changed. Review the count before deleting."))
+                    }
+                    InvoiceHistoryDeletionResult.FAILED -> {
+                        deletion = null
+                        onMessage(language.text("تعذّر حذف الفواتير", "Could not delete the invoices"))
+                    }
+                }
+            }),
+        )
     }
 }
 
 @Composable
 private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter, onOpen: (Long) -> Unit,
-    exportEnabled: Boolean, onExport: () -> Unit) {
+    actionsEnabled: Boolean, exportAvailable: Boolean, onExport: () -> Unit, onDeleteInvoice: (InvoiceHistorySummary) -> Unit,
+    onDeletePeriod: () -> Unit) {
     val language = LocalInvoiceLanguage.current
     var page by remember(history) { mutableStateOf<InvoiceHistoryPage?>(null) }
     var rows by remember(history) { mutableStateOf(emptyList<InvoiceHistorySummary>()) }
@@ -129,7 +217,7 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
     }
 
     LaunchedEffect(history) {
-        if (filter.term.isNotBlank()) delay(200)
+        if (filter.term.isNotBlank() || filter.annotationTerm.isNotBlank()) delay(200)
         loadMore()
     }
 
@@ -139,8 +227,14 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            TextButton(onClick = onExport, enabled = exportEnabled && rows.isNotEmpty() && !loadFailed,
-                modifier = Modifier.testTag("invoice-history-export-csv")) { Text(language.text("تصدير CSV", "Export CSV")) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onExport, enabled = actionsEnabled && exportAvailable && rows.isNotEmpty() && !loadFailed,
+                    modifier = Modifier.testTag("invoice-history-export-csv")) { Text(language.text("تصدير CSV", "Export CSV")) }
+                TextButton(onClick = onDeletePeriod, enabled = actionsEnabled,
+                    modifier = Modifier.testTag("invoice-history-delete-period")) {
+                    Text(language.text("حذف حسب الفترة", "Delete by date range"), color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
         if (rows.isEmpty() && page != null) {
             item {
@@ -160,8 +254,15 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
                     }
                     if (row.number.isNotBlank()) Text(language.text("رقم الفاتورة: ${row.number}", "Invoice number: ${row.number}"), style = MaterialTheme.typography.bodySmall)
                     if (row.category != 0) Text(invoiceCategoryLabel(row.category, language), style = MaterialTheme.typography.bodySmall)
-                    Text(language.text("تاريخ الفحص: ${formatInvoiceCheckTime(row.checkedAt, language)}", "Checked: ${formatInvoiceCheckTime(row.checkedAt, language)}"),
-                        style = MaterialTheme.typography.bodySmall)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        val checkedAt = formatInvoiceCheckTime(row.checkedAt, language)
+                        Text(language.text("تاريخ الفحص: $checkedAt", "Checked: $checkedAt"),
+                            Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { onDeleteInvoice(row) }, enabled = actionsEnabled,
+                            modifier = Modifier.testTag("invoice-history-delete-one")) {
+                            Text(language.text("حذف", "Delete"), color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 }
             }
         }

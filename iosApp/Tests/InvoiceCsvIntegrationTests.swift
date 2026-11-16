@@ -40,7 +40,8 @@ final class InvoiceCsvIntegrationTests: XCTestCase {
         XCTAssertTrue(FileManager.default.createFile(atPath: url.path, contents: nil))
         let file = try FileHandle(forWritingTo: url)
         try history.writeHistoryCsv(filter: InvoiceHistoryQuery(seller: seller, vat: seller,
-            invoiceFrom: "", invoiceTo: "", checkedFrom: Int64.min, checkedBefore: Int64.max), language: language, to: file)
+            invoiceFrom: "", invoiceTo: "", checkedFrom: Int64.min, checkedBefore: Int64.max,
+            category: -1, annotationTerm: ""), language: language, to: file)
         try file.close()
         return try Data(contentsOf: url)
     }
