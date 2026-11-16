@@ -13,6 +13,7 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
     private var photoDetection: InvoiceDetection?
     private let backupDocuments = InvoiceBackupDocuments()
     private let csvDocuments = InvoiceCsvDocuments()
+    private let fileDocuments = InvoiceFileDocuments()
     private let statisticsQueue = DispatchQueue(label: "com.poetscorner.invoiceqr.statistics", qos: .userInitiated)
     private static let photoLog = Logger(subsystem: "com.poetscorner.invoiceqr.preview", category: "photo-scan")
 
@@ -74,6 +75,14 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         picker.modalPresentationStyle = .fullScreen
         photoDetection = detection
         presenter.present(picker, animated: true)
+    }
+
+    func importFiles(observer: InvoiceFilesObserver) {
+        fileDocuments.open(from: presenter, observer: observer)
+    }
+
+    func cancelFileImport() {
+        fileDocuments.cancel()
     }
 
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {

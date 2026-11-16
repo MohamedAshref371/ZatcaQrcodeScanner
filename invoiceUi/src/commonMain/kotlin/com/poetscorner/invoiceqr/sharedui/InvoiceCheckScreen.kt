@@ -51,6 +51,8 @@ fun InvoiceCheckScreen(
     history: InvoiceHistoryStore,
     camera: (@Composable (InvoiceDetection) -> Unit)? = null,
     selectPhoto: ((InvoiceDetection) -> Unit)? = null,
+    importFiles: ((InvoiceFilesObserver) -> Unit)? = null,
+    cancelFileImport: (() -> Unit)? = null,
     shareInvoice: ((String) -> Boolean)? = null,
     backupActions: InvoiceBackupActions? = null,
     statisticsSource: InvoiceStatisticsSource? = null,
@@ -66,6 +68,9 @@ fun InvoiceCheckScreen(
     var statisticsSettings by remember { mutableStateOf(InvoiceStatisticsSettings()) }
     var backupBusy by remember { mutableStateOf(false) }
     var csvBusy by remember { mutableStateOf(false) }
+    var importBusy by remember { mutableStateOf(false) }
+    var importProgress by remember { mutableStateOf("") }
+    var importSummary by remember { mutableStateOf<InvoiceFilesResult?>(null) }
 
     fun showMessage(message: String) {
         if (snackbar.currentSnackbarData?.visuals?.message == message) return
@@ -74,7 +79,7 @@ fun InvoiceCheckScreen(
     }
 
     fun transferBackup(transfer: (InvoiceBackupObserver) -> Unit) {
-        if (backupBusy || csvBusy) return
+        if (backupBusy || csvBusy || importBusy) return
         backupBusy = true
         transfer { result ->
             backupBusy = false
@@ -83,7 +88,7 @@ fun InvoiceCheckScreen(
     }
 
     fun transferCsv(transfer: (InvoiceCsvObserver) -> Unit) {
-        if (csvBusy || backupBusy) return
+        if (csvBusy || backupBusy || importBusy) return
         csvBusy = true
         transfer { status ->
             csvBusy = false
@@ -93,6 +98,26 @@ fun InvoiceCheckScreen(
                 InvoiceCsvStatus.CANCELLED -> Unit
             }
         }
+    }
+
+    fun startFileImport() {
+        if (importBusy || backupBusy || csvBusy) return
+        importBusy = true
+        importProgress = ""
+        importSummary = null
+        importFiles?.invoke(object : InvoiceFilesObserver {
+            override fun progress(file: Int, total: Int, page: Int, pages: Int) {
+                importProgress = if (pages > 0) "ملف $file من $total، صفحة $page من $pages" else "ملف $file من $total"
+            }
+
+            override fun complete(result: InvoiceFilesResult) {
+                importBusy = false
+                importProgress = ""
+                if (result.totalFiles == 0 && result.cancelled) return
+                importSummary = result
+                showMessage(if (result.cancelled) "توقف الاستيراد" else "اكتمل الاستيراد")
+            }
+        })
     }
 
     fun showResult(parsed: ParsedInvoice, saved: InvoiceHistoryEntry) {
@@ -133,7 +158,7 @@ fun InvoiceCheckScreen(
     val detection = remember(history) {
         object : InvoiceDetection {
             override fun accept(raw: String): InvoiceDetectionResult =
-                if (tab == InvoiceTab.SCANNER) inspect(raw) else InvoiceDetectionResult.INACTIVE
+                if (tab == InvoiceTab.SCANNER && !importBusy) inspect(raw) else InvoiceDetectionResult.INACTIVE
 
             override fun reportPhotoIssue(foundQr: Boolean) {
                 if (tab == InvoiceTab.SCANNER) {
@@ -162,7 +187,8 @@ fun InvoiceCheckScreen(
                     )
                 },
                 bottomBar = {
-                    InvoiceResultNavigation(tab, camera != null, backupActions != null, statisticsSource != null, backupBusy) {
+                    InvoiceResultNavigation(tab, camera != null, backupActions != null, statisticsSource != null,
+                        backupBusy || importBusy) {
                         tab = it
                     }
                 },
@@ -172,25 +198,32 @@ fun InvoiceCheckScreen(
                     val invoice = result
                     val entry = savedEntry
                     if (tab == InvoiceTab.SETTINGS && backupActions != null) {
-                        InvoiceBackupSettings(backupBusy || csvBusy,
+                        InvoiceBackupSettings(backupBusy || csvBusy || importBusy,
                             onExport = { transferBackup(backupActions::exportBackup) },
                             onImport = { transferBackup(backupActions::importBackup) })
                     } else if (tab == InvoiceTab.STATISTICS && statisticsSource != null) {
                         InvoiceStatisticsScreen(statisticsSource, statisticsSettings,
-                            onChange = { statisticsSettings = it }, exportEnabled = csvActions != null && !csvBusy && !backupBusy,
+                            onChange = { statisticsSettings = it },
+                            exportEnabled = csvActions != null && !csvBusy && !backupBusy && !importBusy,
                             onExport = { snapshot, label, net ->
                                 csvActions?.let { actions -> transferCsv { actions.exportStatisticsCsv(snapshot, label, net, it) } }
                             })
                     } else if (tab == InvoiceTab.HISTORY) {
                         InvoiceHistoryScreen(history, historyFilter, { historyFilter = it }, ::openSavedInvoice,
-                            exportEnabled = csvActions != null && !csvBusy && !backupBusy,
+                            exportEnabled = csvActions != null && !csvBusy && !backupBusy && !importBusy,
                             onExport = {
                                 csvActions?.let { actions -> transferCsv { actions.exportHistoryCsv(historyFilter.toQuery(), it) } }
                             })
                     } else if (tab == InvoiceTab.SCANNER && camera != null) {
                         InvoiceScannerPanel(
                             camera = { camera(detection) },
-                            selectPhoto = selectPhoto?.let { action -> { action(detection) } },
+                            selectPhoto = selectPhoto?.let { action -> { if (!importBusy) action(detection) } },
+                            selectPhotoEnabled = !importBusy,
+                            importFiles = if (importFiles != null) ({ startFileImport() }) else null,
+                            importBusy = importBusy,
+                            importProgress = importProgress,
+                            importSummary = importSummary,
+                            cancelImport = cancelFileImport,
                         )
                     } else if (invoice == null || entry == null) {
                         InvoiceManualEntry(
@@ -227,7 +260,9 @@ fun InvoiceCheckScreen(
 }
 
 @Composable
-private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (() -> Unit)?) {
+private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (() -> Unit)?, selectPhotoEnabled: Boolean,
+                                importFiles: (() -> Unit)?, importBusy: Boolean, importProgress: String,
+                                importSummary: InvoiceFilesResult?, cancelImport: (() -> Unit)?) {
     Column(Modifier.fillMaxSize().testTag("invoice-scanner")) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -240,9 +275,31 @@ private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (()
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (selectPhoto != null) {
-                FilledTonalButton(onClick = selectPhoto, modifier = Modifier.testTag("invoice-scan-photo")) {
+                FilledTonalButton(onClick = selectPhoto, enabled = selectPhotoEnabled,
+                    modifier = Modifier.testTag("invoice-scan-photo")) {
                     Text("اختيار صورة")
                 }
+            }
+        }
+        if (importFiles != null) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                FilledTonalButton(onClick = importFiles, enabled = !importBusy,
+                    modifier = Modifier.testTag("invoice-import-files")) { Text("استيراد صور أو PDF") }
+                if (importBusy && cancelImport != null) {
+                    TextButton(onClick = cancelImport, modifier = Modifier.testTag("invoice-import-cancel")) { Text("إلغاء") }
+                }
+            }
+            if (importProgress.isNotEmpty()) Text(importProgress, Modifier.padding(horizontal = 16.dp),
+                style = MaterialTheme.typography.bodySmall)
+            if (importSummary != null) {
+                Text("${importSummary.processedFiles} من ${importSummary.totalFiles} ملفات: " +
+                    "أضيفت ${importSummary.added}، مكررة ${importSummary.duplicates}، " +
+                    "تحتاج مراجعة ${importSummary.needsReview}، QR غير صالح ${importSummary.invalidQr}، " +
+                    "غير مقروءة ${importSummary.unreadable}، فشل الحفظ ${importSummary.saveFailed}" +
+                    if (importSummary.cancelled) " (توقف)" else "",
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodySmall)
             }
         }
         Box(Modifier.fillMaxWidth().weight(1f)) { camera() }

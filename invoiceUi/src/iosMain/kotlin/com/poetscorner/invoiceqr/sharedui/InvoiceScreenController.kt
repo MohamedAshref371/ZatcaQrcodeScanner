@@ -10,6 +10,8 @@ interface InvoiceScannerHost : InvoiceBackupActions, InvoiceStatisticsSource, In
     fun makeCamera(detection: InvoiceDetection): UIViewController
     fun releaseCamera(controller: UIViewController)
     fun selectPhoto(detection: InvoiceDetection)
+    fun importFiles(observer: InvoiceFilesObserver)
+    fun cancelFileImport()
     fun shareInvoice(summary: String): Boolean
 }
 
@@ -24,6 +26,8 @@ fun invoiceScreenController(host: InvoiceScannerHost, history: InvoiceHistorySto
             )
         },
         selectPhoto = host::selectPhoto,
+        importFiles = host::importFiles,
+        cancelFileImport = host::cancelFileImport,
         shareInvoice = host::shareInvoice,
         backupActions = host,
         statisticsSource = host,

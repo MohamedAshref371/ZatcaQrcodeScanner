@@ -34,6 +34,33 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         }
     }
 
+    /// Commit one selected file at a time. An interrupted file rolls back all of its inserts.
+    func importCandidates(_ candidates: [InvoiceImportCandidate], cancelled: () -> Bool) throws -> (added: Int, duplicates: Int, needsReview: Int) {
+        try withDatabase { db in
+            try transaction(db, begin: "BEGIN IMMEDIATE") {
+                var added = 0
+                var duplicates = 0
+                var needsReview = 0
+                for candidate in candidates {
+                    if cancelled() { throw CancellationError() }
+                    let row = InvoiceBackupRow(raw: candidate.raw,
+                        checkedAt: Int64(Date().timeIntervalSince1970 * 1000),
+                        invoiceNumber: "", category: 0, note: "")
+                    if try insert(row, key: payloadKey(candidate.normalizedPayload), seller: candidate.seller,
+                                  vat: candidate.vat, total: candidate.total, tax: candidate.tax,
+                                  invoiceDay: candidate.invoiceDay, into: db) {
+                        added += 1
+                        if !candidate.passed { needsReview += 1 }
+                    } else {
+                        duplicates += 1
+                    }
+                }
+                if cancelled() { throw CancellationError() }
+                return (added, duplicates, needsReview)
+            }
+        }
+    }
+
     private func payloadKey(_ normalized: String) -> String {
         SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
     }
