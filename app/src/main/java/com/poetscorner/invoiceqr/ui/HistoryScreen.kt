@@ -1,6 +1,6 @@
 package com.poetscorner.invoiceqr.ui
 
-import androidx.compose.foundation.BorderStroke
+import com.poetscorner.invoiceqr.sharedui.InvoiceHistoryRowCard
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
@@ -23,7 +23,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.R
@@ -170,48 +169,25 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
         }
         // Slots belong to positions so new results can replace their contents in place.
         itemsIndexed(state.entries, key = { index, _ -> "history_card_$index" }, contentType = { _, _ -> "history_card" }) { index, row ->
-            Card(onClick = { onOpen(row) }, enabled = !state.loading && !state.failed,
-                modifier = Modifier.fillMaxWidth().testTag("history_card_$index"),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
-                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(row.seller.ifBlank { stringResource(R.string.unknown_seller) },
-                            modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
-                        if (row.vat.isNotBlank()) Text(stringResource(R.string.history_vat, row.vat),
-                            style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (row.invoiceNumber.isNotBlank()) Text(listOfNotNull(
-                            stringResource(R.string.invoice_number) + ": " + row.invoiceNumber,
-                            row.category.takeIf { it != 0 }?.let { stringResource(InvoiceCategories.label(it)) }
-                        ).joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        else if (row.category != 0) Text(
-                            stringResource(R.string.invoice_category) + ": " +
-                                stringResource(InvoiceCategories.label(row.category)),
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(stringResource(R.string.history_invoice_total,
-                            row.total.ifBlank { stringResource(R.string.missing) }),
-                            style = MaterialTheme.typography.titleSmall)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            val statusColor = if (row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                            AppIcon(if (row.passed) R.drawable.ic_check else R.drawable.ic_info,
-                                modifier = Modifier.size(16.dp), tint = statusColor)
-                            Text(if (row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed),
-                                style = MaterialTheme.typography.labelMedium, color = statusColor)
-                        }
-                    }
-                    if (groupTitle == null) IconButton(onClick = { onDelete(row) }, enabled = !state.loading && !state.failed) {
-                        AppIcon(R.drawable.ic_delete, description = stringResource(R.string.history_delete_invoice_action,
-                            row.seller.ifBlank { stringResource(R.string.unknown_seller) }),
-                            tint = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
+            val seller = row.seller.ifBlank { stringResource(R.string.unknown_seller) }
+            val annotation = if (row.invoiceNumber.isNotBlank()) listOfNotNull(
+                stringResource(R.string.invoice_number) + ": " + row.invoiceNumber,
+                if (row.category != 0) stringResource(InvoiceCategories.label(row.category)) else null,
+            ).joinToString(" · ") else if (row.category != 0) {
+                stringResource(R.string.invoice_category) + ": " + stringResource(InvoiceCategories.label(row.category))
+            } else null
+            InvoiceHistoryRowCard(
+                seller = seller,
+                vat = if (row.vat.isNotBlank()) stringResource(R.string.history_vat, row.vat) else null,
+                annotation = annotation,
+                total = stringResource(R.string.history_invoice_total, row.total.ifBlank { stringResource(R.string.missing) }),
+                status = if (row.passed) stringResource(R.string.history_passed, row.phase) else stringResource(R.string.history_failed),
+                passed = row.passed, checkedAt = null, onOpen = { onOpen(row) },
+                deleteDescription = stringResource(R.string.history_delete_invoice_action, seller),
+                onDelete = if (groupTitle == null) ({ onDelete(row) }) else null,
+                enabled = !state.loading && !state.failed,
+                modifier = Modifier.testTag("history_card_$index"),
+            )
         }
         if (state.loadingMore) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         if (state.failed) item {

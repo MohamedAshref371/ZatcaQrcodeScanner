@@ -5,16 +5,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,10 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextDirection
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -36,17 +29,22 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.res.stringResource
 import com.poetscorner.invoiceqr.BuildConfig
 import com.poetscorner.invoiceqr.selectedInvoiceUris
 import com.poetscorner.invoiceqr.R
-import com.poetscorner.invoiceqr.sharedui.InvoiceAnnotationDialog
+import com.poetscorner.invoiceqr.sharedui.InvoiceAnnotationCard
+import com.poetscorner.invoiceqr.sharedui.InvoiceResultCheck
+import com.poetscorner.invoiceqr.sharedui.InvoiceResultField
+import com.poetscorner.invoiceqr.sharedui.InvoiceResultLabels
+import com.poetscorner.invoiceqr.sharedui.InvoiceResultView
+import com.poetscorner.invoiceqr.sharedui.InvoiceSettingChoice
+import com.poetscorner.invoiceqr.sharedui.InvoiceSettingToggle
+import com.poetscorner.invoiceqr.sharedui.InvoiceVerificationCard
+import com.poetscorner.invoiceqr.sharedui.InvoiceVerificationRow
 import com.poetscorner.invoiceqr.sharedui.InvoiceAnnotationFields
 import com.poetscorner.invoiceqr.sharedui.InvoiceAnnotationLabels
-import com.poetscorner.invoiceqr.sharedui.InvoiceFieldCard
 import com.poetscorner.invoiceqr.sharedui.InvoiceManualEntry
-import com.poetscorner.invoiceqr.sharedui.InvoiceSummaryCard
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
@@ -526,222 +524,105 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
 private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotation) -> Unit,
     onShare: () -> Unit, again: () -> Unit) {
     val invoice = result.invoice
-    val checkedAt = result.checkedAt
     val locale = LocalConfiguration.current.locales[0]
-    val checkedAtText = remember(checkedAt, locale) {
-        DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, locale).format(Date(checkedAt))
+    val context = LocalContext.current
+    val checkedAtText = remember(result.checkedAt, locale) {
+        DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, locale).format(Date(result.checkedAt))
     }
-    var advanced by rememberSaveable(invoice.raw) { mutableStateOf(false) }
-    var checks by rememberSaveable(invoice.raw) { mutableStateOf(false) }
-    var raw by rememberSaveable(invoice.raw) { mutableStateOf(false) }
     val relevantChecks = invoice.checks.filter { invoice.phase2 || it.phase == 1 }
-    LazyColumn(Modifier.testTag("result_list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { InvoiceSummaryCard(invoice.passed) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    IconTile(if (invoice.passed) R.drawable.ic_check else R.drawable.ic_info,
-                        container = MaterialTheme.colorScheme.surfaceContainerLowest,
-                        tint = if (invoice.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-                    Text(if(invoice.passed) stringResource(R.string.result_passed) else stringResource(R.string.result_failed),
-                        Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                    IconButton(onClick = onShare) {
-                        AppIcon(R.drawable.ic_share, description = stringResource(R.string.share_invoice))
-                    }
-                }
-                Text(stringResource(R.string.invoice_summary, stringResource(invoice.type.label), stringResource(if (invoice.phase2) R.string.phase_two else R.string.phase_one)))
-                invoice.error?.let { Text(it.localized()) }
-                if (!invoice.passed) Text(stringResource(R.string.result_review_hint), style = MaterialTheme.typography.bodyMedium)
-                relevantChecks.filterNot { it.passed }.forEach { check ->
-                    Text(stringResource(R.string.check_status, "✕", check.label.localized(), check.phase),
-                        style = MaterialTheme.typography.bodySmall)
-                }
-                Text(stringResource(R.string.result_checked_at, checkedAtText), style = MaterialTheme.typography.bodySmall)
-        } }
-        item { Text(stringResource(R.string.structural_disclaimer), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (result.scanId != null) item {
-            InvoiceAnnotationCard(result.annotation, onSaveAnnotation)
-        }
-        item {
-            Text(stringResource(R.string.invoice_details_heading),
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        }
-        items((1..if (invoice.phase2) 6 else 5).toList()) { tag -> InvoiceField(invoice, tag) }
-        if (invoice.phase2) {
-            item {
-                OutlinedButton(onClick = { advanced = !advanced }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(if (advanced) R.string.result_hide_advanced else R.string.result_show_advanced))
-                }
-            }
-            if (advanced) items((7..9).toList()) { tag -> InvoiceField(invoice, tag) }
-        }
-        item { VerificationLevels(invoice) }
-        item {
-            TextButton(onClick = { checks = !checks }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(if (checks) R.string.result_hide_checks else R.string.check_details))
-            }
-        }
-        if (checks) {
-            item {
-                Text(stringResource(R.string.phase_one_report, stringResource(if (invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }) R.string.checks_passed else R.string.checks_failed)))
-                if (invoice.phase2) Text(stringResource(R.string.phase_two_report, stringResource(if (invoice.error == null && relevantChecks.all { it.passed }) R.string.structural_passed else R.string.checks_failed)))
-            }
-            items(relevantChecks) { check -> Text(stringResource(R.string.check_status, if(check.passed) "✓" else "✕", check.label.localized(), check.phase), color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
-        }
-        item {
-            TextButton(onClick = { raw = !raw }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(if (raw) R.string.result_hide_raw else R.string.raw_qr))
-            }
-        }
-        if (raw) item {
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                RawQrText(invoice.raw, Modifier.fillMaxWidth())
-            }
-        }
-        item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.scan_again)) } }
-    }
-}
-
-@Composable
-private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (InvoiceAnnotation) -> Unit) {
-    var editing by rememberSaveable { mutableStateOf(false) }
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.invoice_your_data), style = MaterialTheme.typography.titleSmall)
-                if (annotation.invoiceNumber.isNotBlank() || annotation.category != 0 || annotation.note.isNotBlank()) {
-                    val numberText = annotation.invoiceNumber.takeIf { it.isNotBlank() }
-                        ?.let { stringResource(R.string.invoice_number) + ": " + it }
-                    val categoryText = annotation.category.takeIf { it != 0 }
-                        ?.let { stringResource(InvoiceCategories.label(it)) }
-                    if (numberText != null && categoryText != null) {
-                        BoxWithConstraints(Modifier.fillMaxWidth()) {
-                            val combined = "$numberText · $categoryText"
-                            val fits = rememberTextMeasurer().measure(combined,
-                                style = MaterialTheme.typography.bodySmall, maxLines = 1,
-                                softWrap = false).size.width <= with(LocalDensity.current) { maxWidth.roundToPx() }
-                            if (fits) Text(combined, maxLines = 1, style = MaterialTheme.typography.bodySmall)
-                            else Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(numberText, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodySmall)
-                                Text(categoryText, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    } else {
-                        numberText?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall) }
-                        categoryText?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall) }
-                    }
-                    if (annotation.note.isNotBlank()) Text(annotation.note, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            val editDescription = stringResource(R.string.invoice_edit_details_action)
-            TextButton(onClick = { editing = true },
-                modifier = Modifier.semantics { contentDescription = editDescription }) {
-                Text(stringResource(R.string.invoice_edit_details))
-            }
+    val fields = (1..if (invoice.phase2) 9 else 5).map { tag ->
+        val value = invoice.value(tag)
+        if (tag == 3) {
+            InvoiceResultField(tag, invoiceTimestampTitle(context, value), value, value.isNotBlank(),
+                dateLines = invoiceTimestampFields(context, value).map { (title, text) -> "$title: $text" })
+        } else {
+            InvoiceResultField(
+                tag, stringResource(ZatcaParser.names.getValue(tag)),
+                if (value.isNotBlank()) value else stringResource(
+                    if (tag == 9 && invoice.type == InvoiceType.STANDARD) R.string.stamp_optional else R.string.missing),
+                value.isNotBlank(),
+                footer = when (tag) {
+                    6, 7 -> stringResource(R.string.base64_original)
+                    8, 9 -> stringResource(R.string.base64_binary)
+                    else -> null
+                },
+            )
         }
     }
-    if (editing) InvoiceAnnotationDialog(
-        initial = InvoiceAnnotationFields(annotation.invoiceNumber, annotation.category, annotation.note),
-        labels = InvoiceAnnotationLabels(
-            stringResource(R.string.invoice_your_data), stringResource(R.string.invoice_number),
-            stringResource(R.string.invoice_category), stringResource(R.string.invoice_note),
-            stringResource(R.string.invoice_save_details), stringResource(R.string.cancel),
+    val reports = buildList {
+        add(stringResource(R.string.phase_one_report, stringResource(
+            if (invoice.error == null && relevantChecks.filter { it.phase == 1 }.all { it.passed })
+                R.string.checks_passed else R.string.checks_failed)))
+        if (invoice.phase2) add(stringResource(R.string.phase_two_report, stringResource(
+            if (invoice.error == null && relevantChecks.all { it.passed }) R.string.structural_passed else R.string.checks_failed)))
+    }
+    InvoiceResultView(
+        raw = invoice.raw, passed = invoice.passed, phaseTwo = invoice.phase2,
+        labels = InvoiceResultLabels(
+            status = stringResource(if (invoice.passed) R.string.result_passed else R.string.result_failed),
+            summary = stringResource(R.string.invoice_summary, stringResource(invoice.type.label),
+                stringResource(if (invoice.phase2) R.string.phase_two else R.string.phase_one)),
+            checkedAt = stringResource(R.string.result_checked_at, checkedAtText),
+            disclaimer = stringResource(R.string.structural_disclaimer),
+            fields = stringResource(R.string.invoice_details_heading), share = stringResource(R.string.share_invoice),
+            copyVat = stringResource(R.string.copy_vat), again = stringResource(R.string.scan_again),
+            showAdvanced = stringResource(R.string.result_show_advanced), hideAdvanced = stringResource(R.string.result_hide_advanced),
+            showChecks = stringResource(R.string.check_details), hideChecks = stringResource(R.string.result_hide_checks),
+            showVerification = stringResource(R.string.verification_levels),
+            hideVerification = stringResource(R.string.verification_hide_levels),
+            showRaw = stringResource(R.string.raw_qr), hideRaw = stringResource(R.string.result_hide_raw),
         ),
-        categoryLabel = { stringResource(InvoiceCategories.label(it)) },
-        onDismiss = { editing = false },
-        onSave = { fields ->
-            onSave(InvoiceAnnotation(fields.number, fields.category, fields.note))
-            true
-        },
-    )
+        fields = fields,
+        checks = relevantChecks.map { check -> InvoiceResultCheck(check.passed,
+            stringResource(R.string.check_status, if (check.passed) "✓" else "✕", check.label.localized(), check.phase)) },
+        verification = verificationRows(invoice), reports = reports,
+        error = invoice.error?.localized(), reviewHint = stringResource(R.string.result_review_hint),
+        onShare = onShare, onCopyVat = { copyVat(context, it) }, onAgain = again, listTag = "result_list",
+        annotations = if (result.scanId == null) null else ({
+            val annotation = result.annotation
+            InvoiceAnnotationCard(
+                fields = InvoiceAnnotationFields(annotation.invoiceNumber, annotation.category, annotation.note),
+                labels = InvoiceAnnotationLabels(
+                    stringResource(R.string.invoice_your_data), stringResource(R.string.invoice_number),
+                    stringResource(R.string.invoice_category), stringResource(R.string.invoice_note),
+                    stringResource(R.string.invoice_save_details), stringResource(R.string.cancel),
+                ),
+                categoryLabel = { stringResource(InvoiceCategories.label(it)) },
+                editLabel = stringResource(R.string.invoice_edit_details),
+                editDescription = stringResource(R.string.invoice_edit_details_action),
+                onSave = { fields -> onSaveAnnotation(InvoiceAnnotation(fields.number, fields.category, fields.note)); true },
+            )
+        }),
+    ) {
+        RawQrText(invoice.raw, Modifier.fillMaxWidth())
+    }
 }
 
+// Retained as an entry point for Android's verification-level UI tests.
 @Composable
 internal fun VerificationLevels(invoice: Invoice) {
-    var expanded by rememberSaveable(invoice.raw) { mutableStateOf(false) }
-    TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(if (expanded) R.string.verification_hide_levels else R.string.verification_levels))
-    }
-    if (!expanded) return
+    InvoiceVerificationCard(invoice.raw, stringResource(R.string.verification_levels),
+        stringResource(R.string.verification_hide_levels), verificationRows(invoice))
+}
+
+@Composable
+private fun verificationRows(invoice: Invoice): List<InvoiceVerificationRow> {
     val corePassed = invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }
     val phaseTwoPassed = invoice.error == null && invoice.checks.filter { it.phase == 2 }.all { it.passed }
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            VerificationLevelRow(R.string.verification_qr_structure,
-                if (invoice.error == null) R.string.verification_local_passed else R.string.verification_local_failed)
-            VerificationLevelRow(R.string.verification_core_fields,
-                if (corePassed) R.string.verification_local_passed else R.string.verification_local_failed)
-            VerificationLevelRow(R.string.verification_phase_two_fields, when {
-                !invoice.phase2 -> R.string.verification_not_present
-                phaseTwoPassed -> R.string.verification_local_passed
-                else -> R.string.verification_local_failed
-            })
-            VerificationLevelRow(R.string.verification_signature,
-                if (invoice.phase2) R.string.verification_not_checked else R.string.verification_not_present)
-            VerificationLevelRow(R.string.verification_official, R.string.verification_not_checked)
-        }
-    }
-}
-
-@Composable
-private fun VerificationLevelRow(label: Int, status: Int) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(label), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(stringResource(status), style = MaterialTheme.typography.bodySmall,
-            color = if (status == R.string.verification_local_failed) MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun InvoiceField(invoice: Invoice, tag: Int) {
-    val context = LocalContext.current
-    if (tag == 3) {
-        InvoiceFieldCard {
-            SelectionContainer {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(invoiceTimestampTitle(context, invoice.value(tag)), style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    invoiceTimestampFields(context, invoice.value(tag)).forEach { (title, value) ->
-                        val line = "$title: $value"
-                        Text(line, style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-            }
-        }
-        return
-    }
-    InvoiceFieldCard {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(ZatcaParser.names.getValue(tag)), style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        CompositionLocalProvider(LocalLayoutDirection provides
-            (if (tag == 2) LayoutDirection.Ltr else LocalLayoutDirection.current)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SelectionContainer(Modifier.weight(1f)) {
-                Text(invoice.value(tag).ifBlank {
-                    if (tag == 9 && invoice.type == InvoiceType.STANDARD) stringResource(R.string.stamp_optional) else stringResource(R.string.missing)
-                }, style = (if (tag == 4) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge).let {
-                    if (tag >= 2 && invoice.value(tag).isNotBlank()) it.copy(textDirection = TextDirection.Ltr) else it
-                }, fontWeight = if (tag == 1 || tag == 4) FontWeight.Bold else FontWeight.Normal)
-            }
-            if (tag == 2) IconButton(onClick = { copyVat(context, invoice.value(2)) }, enabled = invoice.value(2).isNotBlank()) {
-                AppIcon(R.drawable.ic_copy, description = stringResource(R.string.copy_vat))
-            }
-        }
-        }
-        if (tag in 6..7) Text(stringResource(R.string.base64_original), style = MaterialTheme.typography.labelSmall)
-        if (tag >= 8) Text(stringResource(R.string.base64_binary), style = MaterialTheme.typography.labelSmall)
-    } }
+    val passed = stringResource(R.string.verification_local_passed)
+    val failed = stringResource(R.string.verification_local_failed)
+    val missing = stringResource(R.string.verification_not_present)
+    val unchecked = stringResource(R.string.verification_not_checked)
+    return listOf(
+        InvoiceVerificationRow(stringResource(R.string.verification_qr_structure),
+            if (invoice.error == null) passed else failed, invoice.error != null),
+        InvoiceVerificationRow(stringResource(R.string.verification_core_fields),
+            if (corePassed) passed else failed, !corePassed),
+        InvoiceVerificationRow(stringResource(R.string.verification_phase_two_fields),
+            if (!invoice.phase2) missing else if (phaseTwoPassed) passed else failed, invoice.phase2 && !phaseTwoPassed),
+        InvoiceVerificationRow(stringResource(R.string.verification_signature), if (invoice.phase2) unchecked else missing),
+        InvoiceVerificationRow(stringResource(R.string.verification_official), unchecked),
+    )
 }
 
 @Composable
@@ -774,17 +655,17 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
             }) { v -> update { it.copy(resolution = v) } }
         }
         item { Choice(stringResource(R.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(R.string.speed_normal), "FAST" to stringResource(R.string.speed_fast), "FASTEST" to stringResource(R.string.speed_fastest)), singleLine = true) { v -> update { it.copy(speed = v) } } }
-        item { Toggle(stringResource(R.string.scan_crop), s.cropEnabled) { v -> update { it.copy(cropEnabled = v) } } }
+        item { InvoiceSettingToggle(stringResource(R.string.scan_crop), s.cropEnabled) { v -> update { it.copy(cropEnabled = v) } } }
         item { Text(stringResource(R.string.settings_advanced), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { ScanEnginePicker(s.scanEngine, mlKitModule, onEngine, onDownloadMlKit) }
         if (s.scanEngine == ScanEngine.ZXING) {
-            item { Toggle(stringResource(R.string.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
-            item { Toggle(stringResource(R.string.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }
-            item { Toggle(stringResource(R.string.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
-            item { Toggle(stringResource(R.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
+            item { InvoiceSettingToggle(stringResource(R.string.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
+            item { InvoiceSettingToggle(stringResource(R.string.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }
+            item { InvoiceSettingToggle(stringResource(R.string.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
+            item { InvoiceSettingToggle(stringResource(R.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
             item { Choice(stringResource(R.string.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(R.string.bin_local), "GLOBAL_HISTOGRAM" to stringResource(R.string.bin_global), "FIXED_THRESHOLD" to stringResource(R.string.bin_fixed), "BOOL_CAST" to stringResource(R.string.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
-            item { Toggle(stringResource(R.string.multi_frame_recovery), s.multiFrameRecovery) { v ->
+            item { InvoiceSettingToggle(stringResource(R.string.multi_frame_recovery), s.multiFrameRecovery) { v ->
                 update { it.copy(multiFrameRecovery = v) }
             } }
         }
@@ -799,7 +680,7 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         } }
         item { Choice(stringResource(R.string.appearance), s.theme, listOf("SYSTEM" to stringResource(R.string.theme_system), "LIGHT" to stringResource(R.string.theme_light), "DARK" to stringResource(R.string.theme_dark)), singleLine = true) { v -> update { it.copy(theme = v) } } }
         if (portraitLockSupported) {
-            item { Toggle(stringResource(R.string.lock_portrait), s.lockPortrait) { v -> update { it.copy(lockPortrait = v) } } }
+            item { InvoiceSettingToggle(stringResource(R.string.lock_portrait), s.lockPortrait) { v -> update { it.copy(lockPortrait = v) } } }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -844,83 +725,10 @@ private fun Context.activity(): Activity? = when (this) {
     else -> null
 }
 @Composable
-private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.medium) {
-        Row(Modifier.fillMaxWidth().toggleable(checked, role = Role.Switch, onValueChange = onChange)
-            .padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            Switch(checked, onCheckedChange = null)
-        }
-    }
-}
-@Composable
-internal fun Choice(label: String, selected: String, values: List<Pair<String,String>>,
+internal fun Choice(label: String, selected: String, values: List<Pair<String, String>>,
     singleLine: Boolean = false, border: BorderStroke? = null, equalWidth: Boolean = false,
-    warningDescription: String? = null,
-    onChange: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    val largeText = LocalDensity.current.fontScale >= 1.5f
-    val selectedLabel = values.firstOrNull { it.first == selected }?.second ?: selected
-    Box {
-        Surface(onClick = { expanded = true }, color = MaterialTheme.colorScheme.surfaceContainerLowest,
-            shape = MaterialTheme.shapes.medium, border = border,
-            modifier = Modifier.semantics { stateDescription = selectedLabel }) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (largeText) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(label, style = MaterialTheme.typography.bodyLarge)
-                            if (warningDescription != null) AppIcon(R.drawable.ic_warning,
-                                modifier = Modifier.size(20.dp), description = warningDescription,
-                                tint = Color(0xFFF9A825))
-                        }
-                        Text(selectedLabel, style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary)
-                    }
-                } else if (equalWidth) {
-                    Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(values.firstOrNull { it.first == selected }?.second ?: selected,
-                            Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.End,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        AppIcon(R.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                } else if (singleLine) {
-                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(label, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (warningDescription != null) {
-                            AppIcon(R.drawable.ic_warning, modifier = Modifier.size(20.dp),
-                                description = warningDescription, tint = Color(0xFFF9A825))
-                        }
-                    }
-                    Text(values.firstOrNull { it.first == selected }?.second ?: selected,
-                        if (warningDescription != null) Modifier else Modifier.weight(1.35f),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.End,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                } else Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(label, style = MaterialTheme.typography.bodyLarge)
-                    Text(values.firstOrNull { it.first == selected }?.second ?: selected,
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                }
-                if (!equalWidth) AppIcon(R.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            values.forEach { (key, title) -> DropdownMenuItem(text = { Text(title) },
-                onClick = { onChange(key); expanded = false },
-                modifier = Modifier.semantics { this.selected = key == selected }) }
-        }
-    }
-}
+    warningDescription: String? = null, onChange: (String) -> Unit) =
+    InvoiceSettingChoice(label, selected, values, singleLine, border, equalWidth, warningDescription, onChange)
 
 @Composable
 private fun SettingsAction(label: String, icon: Int, onClick: () -> Unit) {

@@ -9,6 +9,7 @@ import android.graphics.Point
 import androidx.camera.core.ImageProxy
 import zxingcpp.BarcodeReader
 import kotlin.math.max
+import com.poetscorner.invoiceqr.shared.normalizeQrLuma
 
 /** Camera-only recovery. The image proxy is copied before CameraX closes it; no frame reaches storage. */
 internal class MultiFrameQrRecovery {
@@ -139,23 +140,7 @@ internal class MultiFrameQrRecovery {
             Canvas(warped).drawBitmap(source, matrix, Paint(Paint.FILTER_BITMAP_FLAG))
             val colors = IntArray(SIDE * SIDE)
             warped.getPixels(colors, 0, SIDE, 0, 0, SIDE, SIDE)
-            val histogram = IntArray(256)
-            for (color in colors) histogram[Color.red(color)]++
-            fun percentile(fraction: Double): Int {
-                val target = (colors.size * fraction).toInt()
-                var count = 0
-                for (level in histogram.indices) {
-                    count += histogram[level]
-                    if (count > target) return level
-                }
-                return 255
-            }
-            val low = percentile(0.05)
-            val high = percentile(0.95)
-            if (high - low < 50) return null
-            return ByteArray(colors.size) { index ->
-                (((Color.red(colors[index]) - low) * 255) / (high - low)).coerceIn(0, 255).toByte()
-            }
+            return normalizeQrLuma(ByteArray(colors.size) { Color.red(colors[it]).toByte() })
         } finally {
             warped.recycle()
         }

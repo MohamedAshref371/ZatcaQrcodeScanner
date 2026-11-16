@@ -7,7 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,8 +18,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.shared.ParsedInvoice
@@ -83,6 +80,10 @@ fun InvoiceCheckScreen(
     var importProgress by remember { mutableStateOf("") }
     var importSummary by remember { mutableStateOf<InvoiceFilesResult?>(null) }
     var scanEngine by remember(scannerSettings) { mutableStateOf(scannerSettings?.selectedEngine() ?: InvoiceQrEngine.ZXING) }
+    var zxingSettings by remember(scannerSettings) { mutableStateOf(scannerSettings?.zxingSettings() ?: InvoiceZxingSettings()) }
+    var scanSpeed by remember(scannerSettings) { mutableStateOf(scannerSettings?.scanSpeed() ?: "NORMAL") }
+    var appearanceMode by remember(scannerSettings) { mutableStateOf(scannerSettings?.appearanceMode() ?: "SYSTEM") }
+    var appearanceColor by remember(scannerSettings) { mutableStateOf(scannerSettings?.appearanceColor() ?: "DEFAULT") }
     var cropEnabled by remember(scannerSettings) { mutableStateOf(scannerSettings?.cropEnabled() ?: true) }
     var cameraZoom by remember { mutableFloatStateOf(0f) }
     var cameraTorch by remember { mutableStateOf(false) }
@@ -246,7 +247,13 @@ fun InvoiceCheckScreen(
         }
     }
 
-    InvoiceAppTheme(standardInvoiceColors(isSystemInDarkTheme())) {
+    val darkTheme = when (appearanceMode) {
+        "LIGHT" -> false
+        "DARK" -> true
+        else -> isSystemInDarkTheme()
+    }
+    InvoiceAppTheme(standardInvoiceColors(darkTheme, goldenTheme = appearanceColor == "GOLD",
+        purpleTheme = appearanceColor == "PURPLE", blueTheme = appearanceColor == "BLUE")) {
         CompositionLocalProvider(
             LocalInvoiceLanguage provides language,
             LocalLayoutDirection provides if (language == InvoiceLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr,
@@ -297,6 +304,17 @@ fun InvoiceCheckScreen(
                                     engine = scanEngine, mlKitAvailable = scannerSettings.mlKitAvailable(), cropEnabled = cropEnabled,
                                     onEngine = { scannerSettings.setEngine(it); scanEngine = it },
                                     onCrop = { scannerSettings.setCropEnabled(it); cropEnabled = it },
+                                    zxingSettings = zxingSettings,
+                                    onZxingChange = { scannerSettings.setZxingSettings(it); zxingSettings = it },
+                                    scanSpeed = scanSpeed,
+                                    onScanSpeed = { scannerSettings.setScanSpeed(it); scanSpeed = it },
+                                )
+                            },
+                            appearanceOptions = {
+                                if (scannerSettings != null) InvoiceAppearanceOptions(
+                                    appearanceMode, appearanceColor,
+                                    onMode = { scannerSettings.setAppearanceMode(it); appearanceMode = it },
+                                    onColor = { scannerSettings.setAppearanceColor(it); appearanceColor = it },
                                 )
                             },
                             onExport = { transferBackup(backupActions::exportBackup) },
@@ -328,7 +346,8 @@ fun InvoiceCheckScreen(
                     } else if (tab == InvoiceTab.SCANNER && camera != null) {
                         InvoiceScannerPanel(
                             camera = { camera(detection, it) },
-                            scanEngine = scanEngine, cropEnabled = cropEnabled,
+                            scanEngine = scanEngine, cropEnabled = cropEnabled, zxing = zxingSettings,
+                            intervalMillis = when (scanSpeed) { "FAST" -> 100; "FASTEST" -> 50; else -> 300 },
                             zoom = cameraZoom, onZoom = { cameraZoom = it },
                             torch = cameraTorch, onTorch = { cameraTorch = !cameraTorch },
                             zoomEnabled = scannerSettings?.cameraAvailable() == true,
@@ -386,7 +405,8 @@ fun InvoiceCheckScreen(
 @Composable
 private fun InvoiceScannerPanel(
     camera: @Composable (InvoiceCameraConfiguration) -> Unit,
-    scanEngine: InvoiceQrEngine, cropEnabled: Boolean, zoom: Float, onZoom: (Float) -> Unit,
+    scanEngine: InvoiceQrEngine, cropEnabled: Boolean, zxing: InvoiceZxingSettings, intervalMillis: Int,
+    zoom: Float, onZoom: (Float) -> Unit,
     torch: Boolean, onTorch: () -> Unit, zoomEnabled: Boolean, torchEnabled: Boolean,
     selectPhoto: (() -> Unit)?, selectPhotoEnabled: Boolean, importFiles: (() -> Unit)?,
     importBusy: Boolean, importProgress: String, importSummary: InvoiceFilesResult?, cancelImport: (() -> Unit)?,
@@ -460,7 +480,8 @@ private fun InvoiceScannerPanel(
         },
     ) { guide, width, height ->
         if (!importBusy) camera(InvoiceCameraConfiguration(guide.left.toFloat() / width, guide.top.toFloat() / height,
-            guide.size.toFloat() / width, guide.size.toFloat() / height, cropEnabled, zoom, torch, scanEngine))
+            guide.size.toFloat() / width, guide.size.toFloat() / height, cropEnabled, zoom, torch, scanEngine,
+            zxing, intervalMillis))
     }
 }
 
@@ -536,135 +557,89 @@ private fun InvoiceIconTile(
     }
 }
 
+@Suppress("DEPRECATION")
 @Composable
 private fun InvoiceResult(invoice: ParsedInvoice, entry: InvoiceHistoryEntry, onShare: (() -> Unit)?,
     onSaveAnnotation: (InvoiceAnnotationFields) -> Boolean, onAgain: () -> Unit) {
     val language = LocalInvoiceLanguage.current
-    val phase = if (invoice.phase2) language.text("المرحلة الثانية", "Phase two") else language.text("المرحلة الأولى", "Phase one")
-    val type = if (invoice.isSimplified) language.text("فاتورة ضريبية مبسطة", "Simplified tax invoice") else language.text("فاتورة ضريبية", "Tax invoice")
-    val colors = MaterialTheme.colorScheme
-    var advanced by remember(invoice.raw) { mutableStateOf(false) }
-    Column(
-        Modifier.fillMaxSize().testTag("invoice-result-list").verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        InvoiceSummaryCard(invoice.passed) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                InvoiceIconTile(
-                    if (invoice.passed) CheckIcon else InfoIcon,
-                    container = colors.surfaceContainerLowest,
-                    tint = if (invoice.passed) colors.primary else colors.error,
-                )
-                Text(
-                    invoiceResultStatus(invoice, language),
-                    Modifier.weight(1f).testTag("invoice-status"),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                if (onShare != null) {
-                    IconButton(onClick = onShare, modifier = Modifier.testTag("invoice-share")) {
-                        Icon(ShareIcon, language.text("مشاركة ملخص الفاتورة", "Share invoice summary"))
-                    }
-                }
-            }
-            Text("$type · $phase")
-            invoice.relevantChecks().filterNot { it.passed }.forEach { check ->
-                Text("✕ ${invoiceCheckLabel(check, language)}", style = MaterialTheme.typography.bodySmall)
-            }
-            Text(language.text("تاريخ الفحص: ${formatInvoiceCheckTime(entry.checkedAt, language)}", "Checked: ${formatInvoiceCheckTime(entry.checkedAt, language)}"),
-                Modifier.testTag("invoice-checked-at"), style = MaterialTheme.typography.bodySmall)
-        }
-        Text(
-            language.text("يفحص التطبيق بنية QR وحقول الفاتورة محليًا، ولا يتحقق من صحة التوقيع أو اعتماد الفاتورة رسميًا.", "The app checks QR structure and invoice fields locally. Signature validity and official acceptance require separate verification."),
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.onSurfaceVariant,
-        )
-        Text(
-            language.text("تفاصيل الفاتورة", "Invoice details"),
-            Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp).testTag("invoice-result"),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        for (tag in 1..if (invoice.phase2) 6 else 5) {
-            if (tag == 3) InvoiceDateCard(invoice.value(tag))
-            else InvoiceValueCard(tag, invoiceFieldName(tag, language), invoice.value(tag))
-        }
-        IosInvoiceAnnotations(entry, onSaveAnnotation)
-        if (invoice.phase2) {
-            OutlinedButton(onClick = { advanced = !advanced },
-                modifier = Modifier.fillMaxWidth().testTag("invoice-advanced")) {
-                Text(if (advanced) language.text("إخفاء الحقول المتقدمة", "Hide advanced fields") else language.text("عرض الحقول المتقدمة", "Show advanced fields"))
-            }
-            if (advanced) {
-                for (tag in 7..9) {
-                    val value = if (tag == 9 && !invoice.isSimplified) language.text("اختياري للفاتورة الضريبية", "Optional for a tax invoice") else invoice.value(tag)
-                    InvoiceValueCard(tag, invoiceFieldName(tag, language), value)
-                }
-            }
-        }
-        InvoiceVerificationDetails(invoice)
-        InvoiceRawQr(invoice.raw)
-        Button(onClick = onAgain, modifier = Modifier.fillMaxWidth()) { Text(language.text("فحص فاتورة أخرى", "Check another invoice")) }
-    }
-}
-
-@Suppress("DEPRECATION")
-@Composable
-private fun InvoiceValueCard(tag: Int, title: String, value: String) {
-    val language = LocalInvoiceLanguage.current
     val clipboard = LocalClipboardManager.current
-    InvoiceFieldCard {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            InvoiceFieldLabel(title)
-            val direction = if (tag == 2) LayoutDirection.Ltr else LocalLayoutDirection.current
-            CompositionLocalProvider(LocalLayoutDirection provides direction) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SelectionContainer(Modifier.weight(1f)) {
-                        val style = if (tag == 4) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge
-                        Text(
-                            value.ifBlank { language.text("غير موجود", "Missing") },
-                            Modifier.testTag("invoice-field-$tag"),
-                            style = if (tag >= 2 && value.isNotBlank()) style.copy(textDirection = TextDirection.Ltr) else style,
-                            fontWeight = if (tag == 1 || tag == 4) FontWeight.Bold else FontWeight.Normal,
-                        )
-                    }
-                    if (tag == 2) {
-                        IconButton(onClick = { clipboard.setText(AnnotatedString(value)) }, enabled = value.isNotBlank()) {
-                            Icon(CopyIcon, language.text("نسخ الرقم الضريبي", "Copy VAT number"))
-                        }
-                    }
-                }
-            }
-        }
+    val phase = if (invoice.phase2) language.text("المرحلة الثانية", "Phase two") else language.text("المرحلة الأولى", "Phase one")
+    val type = if (invoice.isSimplified) language.text("فاتورة ضريبية مبسطة", "Simplified tax invoice")
+        else language.text("فاتورة ضريبية", "Tax invoice")
+    val checkedAt = formatInvoiceCheckTime(entry.checkedAt, language)
+    val relevantChecks = invoice.relevantChecks()
+    InvoiceResultView(
+        raw = invoice.raw, passed = invoice.passed, phaseTwo = invoice.phase2,
+        labels = InvoiceResultLabels(
+            status = invoiceResultStatus(invoice, language),
+            summary = "$type · $phase",
+            checkedAt = language.text("تاريخ الفحص: $checkedAt", "Checked: $checkedAt"),
+            disclaimer = language.text(
+                "يفحص التطبيق بنية QR وحقول الفاتورة محليًا، ولا يتحقق من صحة التوقيع أو اعتماد الفاتورة رسميًا.",
+                "The app checks QR structure and invoice fields locally. Signature validity and official acceptance require separate verification."),
+            fields = language.text("تفاصيل الفاتورة", "Invoice details"),
+            share = language.text("مشاركة ملخص الفاتورة", "Share invoice summary"),
+            copyVat = language.text("نسخ الرقم الضريبي", "Copy VAT number"),
+            again = language.text("فحص فاتورة أخرى", "Check another invoice"),
+            showAdvanced = language.text("عرض الحقول المتقدمة", "Show advanced fields"),
+            hideAdvanced = language.text("إخفاء الحقول المتقدمة", "Hide advanced fields"),
+            showChecks = language.text("تفاصيل الفحوص", "Check details"),
+            hideChecks = language.text("إخفاء تفاصيل الفحوص", "Hide check details"),
+            showVerification = language.text("مستويات التحقق", "Verification levels"),
+            hideVerification = language.text("إخفاء مستويات التحقق", "Hide verification levels"),
+            showRaw = language.text("عرض نص QR الأصلي", "Show original QR text"),
+            hideRaw = language.text("إخفاء نص QR الأصلي", "Hide original QR text"),
+        ),
+        fields = (1..if (invoice.phase2) 9 else 5).map { tag -> resultField(invoice, tag, language) },
+        checks = relevantChecks.map { check ->
+            val prefix = if (check.passed) "✓" else "✕"
+            InvoiceResultCheck(check.passed, "$prefix ${invoiceCheckLabel(check, language)} · ${check.phase}")
+        },
+        verification = invoiceVerificationRows(invoice, language),
+        reports = emptyList(),
+        error = null, reviewHint = language.text("راجع الحقول التي لم تجتز الفحص.", "Review the fields that did not pass."),
+        onShare = onShare, onCopyVat = { clipboard.setText(AnnotatedString(it)) }, onAgain = onAgain,
+        listTag = "invoice-result-list", annotations = { IosInvoiceAnnotations(entry, onSaveAnnotation) },
+    ) {
+        InvoiceRawQrContent(invoice.raw)
     }
 }
 
-@Composable
-private fun InvoiceDateCard(value: String) {
-    val language = LocalInvoiceLanguage.current
-    val time = remember(value) { runCatching { ZatcaInvoiceParser.parseTimestamp(value) }.getOrNull() }
-    val title = when {
-        time == null -> language.text("التاريخ والوقت", "Date and time")
-        value.endsWith('Z') -> language.text("التاريخ والوقت (توقيت عالمي)", "Date and time (UTC)")
-        else -> language.text("التاريخ والوقت (توقيت محلي)", "Date and time (local time)")
-    }
-    InvoiceFieldCard {
-        SelectionContainer {
-            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                InvoiceFieldLabel(title)
-                val date = if (time == null) value.ifBlank { language.text("غير موجود", "Missing") }
-                    else if (language == InvoiceLanguage.ARABIC) {
-                        "${weekdays[time.date.dayOfWeek.ordinal]} ${time.dayOfMonth} ${months[time.monthNumber - 1]} ${time.year}"
-                    } else time.date.toString()
-                Text(language.text("التاريخ: $date", "Date: $date"), Modifier.testTag("invoice-field-3"), style = MaterialTheme.typography.bodyLarge)
-                if (time != null) Text(language.text("الوقت: ${displayTime(time, language)}", "Time: ${displayTime(time, language)}"), style = MaterialTheme.typography.bodyLarge)
+private fun resultField(invoice: ParsedInvoice, tag: Int, language: InvoiceLanguage): InvoiceResultField {
+    val value = invoice.value(tag)
+    val missing = language.text("غير موجود", "Missing")
+    if (tag == 3) {
+        val time = runCatching { ZatcaInvoiceParser.parseTimestamp(value) }.getOrNull()
+        val title = when {
+            time == null -> language.text("التاريخ والوقت", "Date and time")
+            value.endsWith('Z') -> language.text("التاريخ والوقت (توقيت عالمي)", "Date and time (UTC)")
+            else -> language.text("التاريخ والوقت (توقيت محلي)", "Date and time (local time)")
+        }
+        val date = when {
+            time == null -> value.ifBlank { missing }
+            language == InvoiceLanguage.ARABIC ->
+                "${weekdays[time.date.dayOfWeek.ordinal]} ${time.dayOfMonth} ${months[time.monthNumber - 1]} ${time.year}"
+            else -> time.date.toString()
+        }
+        val lines = buildList {
+            add(language.text("التاريخ: $date", "Date: $date"))
+            if (time != null) {
+                val formatted = displayTime(time, language)
+                add(language.text("الوقت: $formatted", "Time: $formatted"))
             }
         }
+        return InvoiceResultField(tag, title, value, value.isNotBlank(), dateLines = lines)
     }
-}
-
-@Composable
-private fun InvoiceFieldLabel(title: String) {
-    Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    return InvoiceResultField(
+        tag, invoiceFieldName(tag, language), value.ifBlank {
+            if (tag == 9 && !invoice.isSimplified) language.text("اختياري للفاتورة الضريبية", "Optional for a tax invoice") else missing
+        }, value.isNotBlank(),
+        footer = when (tag) {
+            6, 7 -> language.text("نص Base64 الأصلي", "Original Base64 text")
+            8, 9 -> language.text("البيانات الثنائية بصيغة Base64", "Binary data encoded in Base64")
+            else -> null
+        },
+    )
 }
 
 private val weekdays = listOf("الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد")

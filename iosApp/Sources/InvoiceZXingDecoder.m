@@ -2,15 +2,25 @@
 @import ZXingCpp;
 
 @implementation InvoiceZXingDecoder
-+ (NSArray<NSString *> *)readImage:(CGImageRef)image maxSymbols:(NSInteger)maxSymbols
++ (NSArray<NSString *> *)readImage:(CGImageRef)image
+                       maxSymbols:(NSInteger)maxSymbols
+                          harder:(BOOL)harder
+                          rotate:(BOOL)rotate
+                        inverted:(BOOL)inverted
+                       binarizer:(NSInteger)binarizer
 {
     ZXIReaderOptions *options = [ZXIReaderOptions new];
     options.formats = @[@(QR_CODE)];
-    options.tryHarder = YES;
-    options.tryRotate = YES;
-    options.tryInvert = NO;
+    options.tryHarder = harder;
+    options.tryRotate = rotate;
+    options.tryInvert = inverted;
     options.tryDownscale = YES;
-    options.binarizer = ZXIBinarizerLocalAverage;
+    switch (binarizer) {
+        case 1: options.binarizer = ZXIBinarizerGlobalHistogram; break;
+        case 2: options.binarizer = ZXIBinarizerFixedThreshold; break;
+        case 3: options.binarizer = ZXIBinarizerBoolCast; break;
+        default: options.binarizer = ZXIBinarizerLocalAverage; break;
+    }
     options.textMode = ZXITextModePlain;
     options.maxNumberOfSymbols = maxSymbols;
     options.returnErrors = NO;

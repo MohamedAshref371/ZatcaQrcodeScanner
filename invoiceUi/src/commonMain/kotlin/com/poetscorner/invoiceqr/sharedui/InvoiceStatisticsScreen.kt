@@ -28,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.shared.InvoiceAnnotationRules
 import com.poetscorner.invoiceqr.shared.InvoiceStatisticsOptions
@@ -120,7 +119,7 @@ internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: 
             }
             result.summary.count == 0 -> item { Text(language.text("لا توجد فواتير للفترة المختارة", "No invoices in the selected period")) }
             else -> {
-                item { StatisticsCard(language.text("الإجماليات", "Totals"), result.summary, Modifier.testTag("invoice-statistics-summary")) }
+                item { StatisticsCard(language.text("الإجماليات", "Totals"), result.summary, Modifier.testTag("invoice-statistics-summary"), summary = true) }
                 items(result.groups) { group -> StatisticsCard(group.title, group.amounts) }
             }
         }
@@ -147,27 +146,27 @@ private fun statisticsGroupingLabel(grouping: StatisticsGrouping, language: Invo
 }
 
 @Composable
-private fun StatisticsCard(title: String, amounts: InvoiceStatisticsAmounts, modifier: Modifier = Modifier) {
+private fun StatisticsCard(title: String, amounts: InvoiceStatisticsAmounts, modifier: Modifier = Modifier,
+    summary: Boolean = false) {
     val language = LocalInvoiceLanguage.current
-    InvoiceFieldCard {
-        Column(modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            val included = amounts.count - amounts.ignored
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(language.text("عدد الفواتير: ${amounts.count}", "Invoices: ${amounts.count}"))
-            StatisticsAmount(language.text("إجمالي المبالغ", "Total amount"), amounts.total, included, amounts.missingTotal)
-            StatisticsAmount(language.text("إجمالي الضريبة", "Total VAT"), amounts.tax, included, amounts.missingTax)
-            if (amounts.ignored > 0) Text(language.text("مستبعدة من المبالغ: ${amounts.ignored}", "Excluded from totals: ${amounts.ignored}"), style = MaterialTheme.typography.bodySmall)
-        }
+    val included = amounts.count - amounts.ignored
+    val missing = language.text("غير متاح", "Unavailable")
+    val notices = buildList {
+        if (amounts.missingTotal > 0) add(language.text(
+            "فواتير بدون إجمالي صالح: ${amounts.missingTotal}", "Invoices without a valid total: ${amounts.missingTotal}"))
+        if (amounts.missingTax > 0) add(language.text(
+            "فواتير بدون ضريبة صالحة: ${amounts.missingTax}", "Invoices without valid VAT: ${amounts.missingTax}"))
+        if (amounts.ignored > 0) add(language.text(
+            "مستبعدة من المبالغ: ${amounts.ignored}", "Excluded from totals: ${amounts.ignored}"))
     }
-}
-
-@Composable
-private fun StatisticsAmount(label: String, amount: String, included: Int, missing: Int) {
-    val language = LocalInvoiceLanguage.current
-    Text(label, style = MaterialTheme.typography.labelMedium)
-    Text(if (included > 0 && missing == included) language.text("غير متاح", "Unavailable") else amount,
-        style = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.ContentOrLtr))
-    if (missing > 0) Text(language.text("قيم مفقودة أو غير صالحة: $missing", "Missing or invalid values: $missing"), style = MaterialTheme.typography.bodySmall)
+    InvoiceStatisticsCard(
+        title = title, count = language.text("عدد الفواتير: ${amounts.count}", "Invoices: ${amounts.count}"),
+        totalLabel = language.text("إجمالي المبالغ", "Total amount"),
+        total = if (included > 0 && amounts.missingTotal == included) missing else amounts.total,
+        vatLabel = language.text("إجمالي الضريبة", "Total VAT"),
+        vat = if (included > 0 && amounts.missingTax == included) missing else amounts.tax,
+        notices = notices, modifier = modifier, summary = summary,
+    )
 }
 
 @Composable

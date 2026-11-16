@@ -50,6 +50,7 @@ internal fun InvoiceBackupSettings(
     languagePreference: InvoiceLanguagePreference,
     onLanguageChange: ((InvoiceLanguagePreference) -> Unit)?,
     scannerOptions: @Composable () -> Unit = {},
+    appearanceOptions: @Composable () -> Unit = {},
     onExport: () -> Unit,
     onImport: () -> Unit,
 ) {
@@ -82,6 +83,7 @@ internal fun InvoiceBackupSettings(
                 }
             }
         }
+        appearanceOptions()
         InvoiceFieldCard {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(language.text("النسخ الاحتياطي والاستعادة", "Backup and restore"), style = MaterialTheme.typography.titleMedium)
@@ -101,26 +103,54 @@ internal fun InvoiceBackupSettings(
 
 @Composable
 internal fun InvoiceScannerOptions(engine: InvoiceQrEngine, mlKitAvailable: Boolean, cropEnabled: Boolean,
-    onEngine: (InvoiceQrEngine) -> Unit, onCrop: (Boolean) -> Unit) {
+    onEngine: (InvoiceQrEngine) -> Unit, onCrop: (Boolean) -> Unit, zxingSettings: InvoiceZxingSettings,
+    onZxingChange: (InvoiceZxingSettings) -> Unit, scanSpeed: String, onScanSpeed: (String) -> Unit) {
     val language = LocalInvoiceLanguage.current
-    InvoiceFieldCard {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(language.text("محرك القراءة", "Scan engine"), style = MaterialTheme.typography.titleMedium)
-            InvoiceQrEngine.entries.forEach { option ->
-                val enabled = option != InvoiceQrEngine.ML_KIT || mlKitAvailable
-                Row(Modifier.fillMaxWidth().selectable(engine == option, enabled = enabled, role = Role.RadioButton,
-                    onClick = { onEngine(option) }), verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = engine == option, onClick = null, enabled = enabled)
-                    Text(if (option == InvoiceQrEngine.ZXING) "ZXing" else "Google ML Kit",
-                        Modifier.padding(start = 8.dp))
-                }
-            }
-            if (!mlKitAvailable) Text(language.text("Google ML Kit متاح في نسخة الآيفون الفعلي.",
-                "Google ML Kit is available in the iPhone device build."), style = MaterialTheme.typography.bodySmall)
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(language.text("تحديد منطقة المسح", "Crop scan area"), Modifier.weight(1f))
-                androidx.compose.material3.Switch(checked = cropEnabled, onCheckedChange = onCrop)
-            }
+    Text(language.text("الكاميرا", "Camera"), style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary)
+    InvoiceSettingChoice(language.text("تكرار المسح", "Scan frequency"), scanSpeed, listOf(
+        "NORMAL" to language.text("عادي · كل 300ms", "Normal · every 300 ms"),
+        "FAST" to language.text("سريع · كل 100ms", "Fast · every 100 ms"),
+        "FASTEST" to language.text("سريع جدا · كل 50ms", "Very fast · every 50ms"),
+    ), singleLine = true, onChange = onScanSpeed)
+    InvoiceSettingToggle(language.text("تحديد منطقة المسح", "Crop scan area"), cropEnabled, onCrop)
+    InvoiceSettingChoice(language.text("محرك القراءة", "Scan engine"), engine.name,
+        listOf("ZXING" to "ZXing") + (if (mlKitAvailable) listOf("ML_KIT" to "Google ML Kit") else emptyList()),
+        singleLine = true) { onEngine(InvoiceQrEngine.valueOf(it)) }
+    if (!mlKitAvailable) Text(language.text("Google ML Kit متاح في نسخة الآيفون الفعلي.",
+        "Google ML Kit is available in the iPhone device build."), style = MaterialTheme.typography.bodySmall)
+    if (engine == InvoiceQrEngine.ZXING) {
+        InvoiceSettingToggle(language.text("Try harder · بحث مكثّف", "Try harder"), zxingSettings.harder) {
+            onZxingChange(zxingSettings.copy(harder = it))
         }
+        InvoiceSettingToggle(language.text("Try rotate · دوران ±90°", "Try rotate · ±90°"), zxingSettings.rotate) {
+            onZxingChange(zxingSettings.copy(rotate = it))
+        }
+        InvoiceSettingToggle(language.text("Try inverted · ألوان معكوسة", "Try inverted"), zxingSettings.inverted) {
+            onZxingChange(zxingSettings.copy(inverted = it))
+        }
+        InvoiceSettingChoice(language.text("Binarizer · التحويل الثنائي", "Binarizer"), zxingSettings.binarizer, listOf(
+            "LOCAL_AVERAGE" to language.text("المتوسط المحلي (Local average)", "Local average"),
+            "GLOBAL_HISTOGRAM" to language.text("توزيع الإضاءة العام (Global histogram)", "Global histogram"),
+            "FIXED_THRESHOLD" to language.text("حد فصل ثابت (Fixed threshold)", "Fixed threshold"),
+            "BOOL_CAST" to language.text("فصل عند الصفر (Bool cast)", "Bool cast"),
+        )) { onZxingChange(zxingSettings.copy(binarizer = it)) }
+        if (cropEnabled) InvoiceSettingToggle(
+            language.text("استعادة رموز QR من عدة إطارات", "Recover QR codes from multiple frames"),
+            zxingSettings.multiFrameRecovery,
+        ) { onZxingChange(zxingSettings.copy(multiFrameRecovery = it)) }
     }
+}
+
+@Composable
+internal fun InvoiceAppearanceOptions(mode: String, color: String, onMode: (String) -> Unit, onColor: (String) -> Unit) {
+    val language = LocalInvoiceLanguage.current
+    InvoiceSettingChoice(language.text("ألوان التطبيق", "App theme"), color, listOf(
+        "DEFAULT" to language.text("الافتراضي", "Default"), "GOLD" to language.text("ذهبي", "Gold"),
+        "PURPLE" to language.text("بنفسجي", "Purple"), "BLUE" to language.text("أزرق", "Blue"),
+    ), singleLine = true, onChange = onColor)
+    InvoiceSettingChoice(language.text("المظهر", "Appearance"), mode, listOf(
+        "SYSTEM" to language.text("حسب الجهاز", "System"), "LIGHT" to language.text("فاتح", "Light"),
+        "DARK" to language.text("داكن", "Dark"),
+    ), singleLine = true, onChange = onMode)
 }

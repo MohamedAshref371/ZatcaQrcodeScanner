@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr.ui
 
+import com.poetscorner.invoiceqr.sharedui.InvoiceStatisticsCard
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -317,55 +318,30 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Mo
     summary: Boolean = false, net: Boolean = false, onClick: (() -> Unit)? = null) {
     val locale = LocalConfiguration.current.locales[0]
     val money = remember(locale) { NumberFormat.getNumberInstance(locale).apply { minimumFractionDigits = 2; maximumFractionDigits = 2 } }
-    val actionLabel = stringResource(R.string.stats_view_invoices)
-    Card(modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(
-        onClickLabel = actionLabel, role = Role.Button, onClick = onClick) else Modifier),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, if (summary) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-            else MaterialTheme.colorScheme.outlineVariant),
-        colors = CardDefaults.cardColors(containerColor =
-            if (summary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.stats_count, totals.count), style = MaterialTheme.typography.bodyMedium,
-                    color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
-            }
-            val contributingCount = totals.count - totals.ignoredCount
-            val total = if (contributingCount > 0 && totals.missingTotal == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.total)
-            val tax = if (contributingCount > 0 && totals.missingTax == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.tax)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.Bottom) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(if (net) {
-                        if (totals.missingTotal > 0) R.string.stats_available_net_total else R.string.stats_net_total
-                    } else if (totals.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax),
-                        style = MaterialTheme.typography.labelMedium)
-                    Text(total, style = MaterialTheme.typography.headlineSmall,
-                        color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(if (net) {
-                        if (totals.missingTax > 0) R.string.stats_available_net_tax else R.string.stats_net_tax
-                    } else if (totals.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax),
-                        style = MaterialTheme.typography.labelMedium)
-                    Text(tax, style = MaterialTheme.typography.titleMedium)
-                }
-            }
-            if (totals.missingTotal > 0) Text(stringResource(R.string.stats_excluded_total, totals.missingTotal),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            if (totals.missingTax > 0) Text(stringResource(R.string.stats_excluded_tax, totals.missingTax),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            if (summary && totals.count > 0) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f))
-                Text(stringResource(R.string.stats_groups_hint), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-            }
-        }
+    val contributing = totals.count - totals.ignoredCount
+    val total = if (contributing > 0 && totals.missingTotal == contributing) stringResource(R.string.history_total_unavailable)
+        else money.format(totals.total)
+    val tax = if (contributing > 0 && totals.missingTax == contributing) stringResource(R.string.history_total_unavailable)
+        else money.format(totals.tax)
+    val totalLabel = stringResource(if (net) {
+        if (totals.missingTotal > 0) R.string.stats_available_net_total else R.string.stats_net_total
+    } else if (totals.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax)
+    val taxLabel = stringResource(if (net) {
+        if (totals.missingTax > 0) R.string.stats_available_net_tax else R.string.stats_net_tax
+    } else if (totals.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax)
+    val notices = buildList {
+        if (totals.missingTotal > 0) add(stringResource(R.string.stats_excluded_total, totals.missingTotal))
+        if (totals.missingTax > 0) add(stringResource(R.string.stats_excluded_tax, totals.missingTax))
     }
+    InvoiceStatisticsCard(
+        title = title, count = stringResource(R.string.stats_count, totals.count),
+        totalLabel = totalLabel, total = total, vatLabel = taxLabel, vat = tax, notices = notices,
+        modifier = modifier, summary = summary,
+        summaryHint = if (summary && totals.count > 0) stringResource(R.string.stats_groups_hint) else null,
+        onOpen = onClick, actionLabel = stringResource(R.string.stats_view_invoices),
+    )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions: suspend (String) -> List<String>,
     onDismiss: () -> Unit, onApply: (StatisticsRequest) -> Unit) {

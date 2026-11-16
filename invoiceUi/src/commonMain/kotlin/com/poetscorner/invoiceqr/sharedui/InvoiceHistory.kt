@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -21,10 +20,8 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.shared.ParsedInvoice
 import com.poetscorner.invoiceqr.shared.ZatcaInvoiceParser
@@ -243,28 +240,21 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
             }
         }
         items(rows, key = { it.id }) { row ->
-            Card(onClick = { onOpen(row.id) }, modifier = Modifier.fillMaxWidth().testTag("invoice-history-row")) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(row.seller.ifBlank { language.text("اسم البائع غير موجود", "Seller name missing") }, style = MaterialTheme.typography.titleMedium)
-                    if (row.vat.isNotBlank()) {
-                        Text(row.vat, style = MaterialTheme.typography.bodyMedium.copy(textDirection = TextDirection.Ltr))
-                    }
-                    if (row.total.isNotBlank()) {
-                        Text(language.text("الإجمالي: ${row.total}", "Total: ${row.total}"), style = MaterialTheme.typography.bodyMedium)
-                    }
-                    if (row.number.isNotBlank()) Text(language.text("رقم الفاتورة: ${row.number}", "Invoice number: ${row.number}"), style = MaterialTheme.typography.bodySmall)
-                    if (row.category != 0) Text(invoiceCategoryLabel(row.category, language), style = MaterialTheme.typography.bodySmall)
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        val checkedAt = formatInvoiceCheckTime(row.checkedAt, language)
-                        Text(language.text("تاريخ الفحص: $checkedAt", "Checked: $checkedAt"),
-                            Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { onDeleteInvoice(row) }, enabled = actionsEnabled,
-                            modifier = Modifier.testTag("invoice-history-delete-one")) {
-                            Text(language.text("حذف", "Delete"), color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
-            }
+            val seller = row.seller.ifBlank { language.text("اسم البائع غير موجود", "Seller name missing") }
+            val vat = row.vat.takeIf { it.isNotBlank() }?.let { language.text("الرقم الضريبي: $it", "VAT number: $it") }
+            val number = row.number.takeIf { it.isNotBlank() }?.let { language.text("رقم الفاتورة: $it", "Invoice number: $it") }
+            val category = row.category.takeIf { it != 0 }?.let { invoiceCategoryLabel(it, language) }
+            val annotation = listOfNotNull(number, category).joinToString(" · ").takeIf { it.isNotBlank() }
+            val total = row.total.ifBlank { language.text("غير موجود", "Missing") }
+            val checkedAt = formatInvoiceCheckTime(row.checkedAt, language)
+            InvoiceHistoryRowCard(
+                seller = seller, vat = vat, annotation = annotation,
+                total = language.text("إجمالي الفاتورة: $total", "Invoice total: $total"),
+                status = null, passed = false, checkedAt = language.text("تاريخ الفحص: $checkedAt", "Checked: $checkedAt"),
+                onOpen = { onOpen(row.id) }, onDelete = { onDeleteInvoice(row) },
+                deleteDescription = language.text("حذف فاتورة $seller", "Delete invoice from $seller"),
+                deleteEnabled = actionsEnabled, modifier = Modifier.testTag("invoice-history-row"),
+            )
         }
         if (loadFailed) {
             item {

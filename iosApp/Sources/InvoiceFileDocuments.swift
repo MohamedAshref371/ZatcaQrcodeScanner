@@ -64,8 +64,9 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
 
     private func process(_ urls: [URL], fromInbox: Bool) {
         let engine = InvoiceQrReader.selected
+        let zxing = InvoiceQrReader.zxingSettings
         queue.async { [self] in
-            let reader = InvoiceQrReader(engine: engine)
+            let reader = InvoiceQrReader(engine: engine, zxing: zxing)
             var added: Int32 = 0
             var duplicates: Int32 = 0
             var needsReview: Int32 = 0

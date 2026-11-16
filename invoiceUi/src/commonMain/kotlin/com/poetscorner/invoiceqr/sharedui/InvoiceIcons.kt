@@ -42,6 +42,18 @@ internal val ScannerImageIcon = invoiceIcon("Image",
 internal val ScannerFlashIcon = invoiceIcon("Flash",
     "M13,2 L5,14 L11,14 L10,22 L19,9 L13,9 Z")
 
+internal val InvoiceDeleteIcon = invoiceIcon("Delete",
+    "M4,6 L20,6 M9,6 L9,3 L15,3 L15,6 M6,6 L7,21 L17,21 L18,6 M10,10 L10,17 M14,10 L14,17")
+
+internal val InvoiceExpandIcon = invoiceIcon("Expand",
+    "M6,9 L12,15 L18,9")
+
+internal val InvoiceWarningIcon = invoiceIcon("Warning",
+    "M12,2 L22,20 H2 Z M12,9 V13 M12,16 V16.1")
+
+internal val InvoiceSearchIcon = invoiceIcon("Search",
+    "M17,10 A7,7 0,1 1,3,10 A7,7 0,1 1,17,10 M15,15 L21,21")
+
 private fun invoiceIcon(name: String, path: String): ImageVector =
     ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
         .addPath(

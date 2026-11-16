@@ -2,13 +2,10 @@ package com.poetscorner.invoiceqr.sharedui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,8 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.shared.InvoiceCheck
 import com.poetscorner.invoiceqr.shared.InvoiceCheckKind
@@ -69,79 +64,42 @@ internal fun invoiceShareSummary(invoice: ParsedInvoice, language: InvoiceLangua
     append(language.text("القبول الرسمي: ${officialStatus(language)}", "Official acceptance: ${officialStatus(language)}"))
 }
 
-@Composable
-internal fun InvoiceVerificationDetails(invoice: ParsedInvoice) {
-    val language = LocalInvoiceLanguage.current
-    var levels by remember(invoice.raw) { mutableStateOf(false) }
-    var checks by remember(invoice.raw) { mutableStateOf(false) }
-    TextButton(onClick = { levels = !levels }, modifier = Modifier.fillMaxWidth().testTag("invoice-levels")) {
-        Text(if (levels) language.text("إخفاء مستويات التحقق", "Hide verification levels") else language.text("مستويات التحقق", "Verification levels"))
-    }
-    if (levels) {
-        InvoiceFieldCard {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                VerificationLevel(language.text("بنية رمز QR", "QR structure"), localStatus(invoice.error == null, language))
-                VerificationLevel(language.text("حقول المرحلة الأولى", "Phase one fields"), localStatus(invoice.checks.filter { it.phase == 1 }.all { it.passed }, language))
-                VerificationLevel(language.text("حقول المرحلة الثانية", "Phase two fields"),
-                    if (invoice.phase2) localStatus(invoice.checks.filter { it.phase == 2 }.all { it.passed }, language) else language.text("غير موجودة", "Missing"))
-                VerificationLevel(language.text("التحقق من التوقيع", "Signature verification"), signatureStatus(invoice, language))
-                VerificationLevel(language.text("القبول الرسمي", "Official acceptance"), officialStatus(language))
-            }
-        }
-    }
-    TextButton(onClick = { checks = !checks }, modifier = Modifier.fillMaxWidth().testTag("invoice-checks")) {
-        Text(if (checks) language.text("إخفاء تفاصيل الفحوص", "Hide check details") else language.text("تفاصيل الفحوص", "Check details"))
-    }
-    if (checks) {
-        InvoiceFieldCard {
-            Column(Modifier.fillMaxWidth().padding(16.dp).testTag("invoice-check-details"),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                invoice.relevantChecks().forEach { check ->
-                    VerificationLevel(invoiceCheckLabel(check, language), localStatus(check.passed, language))
-                }
-            }
-        }
-    }
-}
-
-private fun localStatus(passed: Boolean, language: InvoiceLanguage) = if (passed) language.text("اجتاز", "Passed") else language.text("لم يجتز", "Failed")
-
-@Composable
-private fun VerificationLevel(label: String, status: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(status, style = MaterialTheme.typography.bodySmall)
-    }
+internal fun invoiceVerificationRows(invoice: ParsedInvoice, language: InvoiceLanguage): List<InvoiceVerificationRow> {
+    val core = invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }
+    val phaseTwo = invoice.error == null && invoice.checks.filter { it.phase == 2 }.all { it.passed }
+    val passed = language.text("اجتاز", "Passed")
+    val failed = language.text("لم يجتز", "Failed")
+    return listOf(
+        InvoiceVerificationRow(language.text("بنية رمز QR", "QR structure"),
+            if (invoice.error == null) passed else failed, invoice.error != null),
+        InvoiceVerificationRow(language.text("حقول المرحلة الأولى", "Phase one fields"), if (core) passed else failed, !core),
+        InvoiceVerificationRow(language.text("حقول المرحلة الثانية", "Phase two fields"),
+            if (!invoice.phase2) language.text("غير موجودة", "Missing") else if (phaseTwo) passed else failed,
+            invoice.phase2 && !phaseTwo),
+        InvoiceVerificationRow(language.text("التحقق من التوقيع", "Signature verification"), signatureStatus(invoice, language)),
+        InvoiceVerificationRow(language.text("القبول الرسمي", "Official acceptance"), officialStatus(language)),
+    )
 }
 
 @Suppress("DEPRECATION")
 @Composable
-internal fun InvoiceRawQr(raw: String) {
+internal fun InvoiceRawQrContent(raw: String) {
     val language = LocalInvoiceLanguage.current
-    var expanded by remember(raw) { mutableStateOf(false) }
     var copied by remember(raw) { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
-    TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth().testTag("invoice-raw")) {
-        Text(if (expanded) language.text("إخفاء نص QR الأصلي", "Hide original QR text") else language.text("عرض نص QR الأصلي", "Show original QR text"))
-    }
-    if (expanded) {
-        val previewLimit = 4096
-        InvoiceFieldCard {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = {
-                    clipboard.setText(AnnotatedString(raw))
-                    copied = true
-                }, modifier = Modifier.testTag("invoice-copy-raw")) {
-                    Text(if (copied) language.text("تم النسخ", "Copied") else language.text("نسخ النص الكامل", "Copy full text"))
-                }
-                Text(
-                    raw.take(previewLimit).toList().joinToString("\u200B"),
-                    Modifier.testTag("invoice-raw-text"),
-                    fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr),
-                )
-                if (raw.length > previewLimit) Text(language.text("المعروض أول $previewLimit حرفًا. زر النسخ ينسخ النص الكامل.", "Showing the first $previewLimit characters. Copy includes the full text."))
+    val previewLimit = 4096
+    InvoiceFieldCard {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                clipboard.setText(AnnotatedString(raw))
+                copied = true
+            }, modifier = Modifier.testTag("invoice-copy-raw")) {
+                Text(if (copied) language.text("تم النسخ", "Copied") else language.text("نسخ النص الكامل", "Copy full text"))
             }
+            InvoiceRawQrText(raw.take(previewLimit), Modifier.fillMaxWidth().testTag("invoice-raw-text"))
+            if (raw.length > previewLimit) Text(language.text(
+                "المعروض أول $previewLimit حرفًا. زر النسخ ينسخ النص الكامل.",
+                "Showing the first $previewLimit characters. Copy includes the full text."))
         }
     }
 }
