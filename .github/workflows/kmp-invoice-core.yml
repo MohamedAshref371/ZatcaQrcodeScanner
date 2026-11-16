@@ -5,22 +5,73 @@ on:
     branches:
       - kmp-invoice-core
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Select platform checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      android: ${{ steps.select.outputs.android }}
+      ios: ${{ steps.select.outputs.ios }}
+      revision: ${{ steps.select.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/kmp-invoice-core' && 'kmp-invoice-core' || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check changed paths
+        id: select
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          revision="$(git rev-parse HEAD)"
+          changed_paths="$RUNNER_TEMP/kmp-changed-paths"
+          android=false
+          ios=false
+          if [[ "$GITHUB_EVENT_NAME" != push ]] ||
+             ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null ||
+             ! git diff --no-renames --name-only -z "$BEFORE_SHA" "$revision" -- > "$changed_paths"; then
+            android=true
+            ios=true
+          else
+            while IFS= read -r -d '' path; do
+              case "$path" in
+                app/*)
+                  android=true
+                  ;;
+                iosApp/*|.github/workflows/package-iphone-sideload.yml)
+                  ios=true
+                  ;;
+                README.md|README-ar.md|docs/*|publishing/*)
+                  ;;
+                *)
+                  android=true
+                  ios=true
+                  ;;
+              esac
+            done < "$changed_paths"
+          fi
+          printf 'android=%s\nios=%s\nrevision=%s\n' "$android" "$ios" "$revision" >> "$GITHUB_OUTPUT"
+
   android:
     name: Android unit tests
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    concurrency:
+      group: kmp-android-${{ github.event_name == 'push' && github.ref || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ needs.changes.outputs.revision }}
           persist-credentials: false
       - uses: gradle/actions/setup-gradle@v6
         with:
@@ -45,11 +96,17 @@ jobs:
 
   ios:
     name: iPhone simulator and shared tests
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    concurrency:
+      group: kmp-ios-${{ github.event_name == 'push' && github.ref || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'push' }}
     runs-on: macos-26
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ needs.changes.outputs.revision }}
           persist-credentials: false
       - uses: gradle/actions/setup-gradle@v6
         with:
@@ -60,6 +117,7 @@ jobs:
           xcodebuild -version
           xcrun simctl list devices available
       - name: Link the iPhone device framework
+        if: github.event_name == 'workflow_dispatch'
         run: bash ./gradlew --stacktrace --build-cache :invoiceUi:linkDebugFrameworkIosArm64
       - name: Generate the Xcode project
         run: |
@@ -68,6 +126,7 @@ jobs:
           fi
           xcodegen generate --spec iosApp/project.yml
       - name: Verify the iPhone device build
+        if: github.event_name == 'workflow_dispatch'
         run: >
           xcodebuild build
           -project iosApp/InvoicePreview.xcodeproj
@@ -96,13 +155,18 @@ jobs:
           xcrun simctl boot "$simulator_id"
       - name: Link the simulator framework
         run: bash ./gradlew --stacktrace --build-cache :invoiceUi:linkDebugFrameworkIosSimulatorArm64
-      - name: Run the invoice screen UI tests
+      - name: Test the iPhone simulator app
         run: |
           simulator_id="$(cat iosApp/build/simulator-id)"
-          swift iosApp/generate_qr_fixture.swift iosApp/build/invoice-qr.png
           xcrun simctl bootstatus "$simulator_id" -b
-          xcrun simctl addmedia "$simulator_id" iosApp/build/invoice-qr.png
-          xcodebuild test \
+          test_selection=()
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            swift iosApp/generate_qr_fixture.swift iosApp/build/invoice-qr.png
+            xcrun simctl addmedia "$simulator_id" iosApp/build/invoice-qr.png
+          else
+            test_selection+=(-only-testing:InvoicePreviewTests)
+          fi
+          xcodebuild test "${test_selection[@]}" \
             -project iosApp/InvoicePreview.xcodeproj \
             -scheme InvoicePreview \
             -destination "platform=iOS Simulator,id=$simulator_id" \
@@ -111,19 +175,21 @@ jobs:
             -resultBundlePath iosApp/build/InvoicePreview.xcresult \
             CODE_SIGNING_ALLOWED=NO
       - name: Export the invoice screenshots
+        if: github.event_name == 'workflow_dispatch'
         run: |
           xcrun xcresulttool export attachments \
             --path iosApp/build/InvoicePreview.xcresult \
             --output-path iosApp/build/attachments
           python3 iosApp/export_screenshots.py iosApp/build/attachments iosApp/build/screenshots
       - name: Upload screenshots
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
           name: iphone-invoice-screenshots
           path: iosApp/build/screenshots/*.png
           if-no-files-found: error
       - name: Report photo-selection diagnostics
-        if: failure()
+        if: failure() && github.event_name == 'workflow_dispatch'
         run: |
           if [[ -f iosApp/build/simulator-id ]]; then
             xcrun simctl spawn "$(cat iosApp/build/simulator-id)" log show --last 10m --info \
