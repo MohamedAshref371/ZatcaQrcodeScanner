@@ -41,7 +41,7 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$PWD/iosApp/build/sideload" \
-            "FRAMEWORK_SEARCH_PATHS=$PWD/invoiceUi/build/bin/iosArm64/releaseFramework" \
+            "INVOICE_UI_DEVICE_FRAMEWORK_DIR=$PWD/invoiceUi/build/bin/iosArm64/releaseFramework" \
             ARCHS=arm64 CODE_SIGNING_ALLOWED=NO ENABLE_DEBUG_DYLIB=NO \
             MARKETING_VERSION=0.1.0 CURRENT_PROJECT_VERSION=1
       - name: Package and check the IPA and sample QR

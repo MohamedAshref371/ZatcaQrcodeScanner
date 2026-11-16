@@ -35,7 +35,8 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         OTHER_LDFLAGS: ["$(inherited)", "-framework", "InvoiceUI", "-lsqlite3"]
         "FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]": "$(inherited) $(SRCROOT)/../invoiceUi/build/bin/iosSimulatorArm64/debugFramework"
-        "FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]": "$(inherited) $(SRCROOT)/../invoiceUi/build/bin/iosArm64/debugFramework"
+        INVOICE_UI_DEVICE_FRAMEWORK_DIR: "$(SRCROOT)/../invoiceUi/build/bin/iosArm64/debugFramework"
+        "FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]": "$(inherited) $(INVOICE_UI_DEVICE_FRAMEWORK_DIR)"
     scheme:
       testTargets: [InvoicePreviewTests, InvoicePreviewUITests]
   InvoiceShare:
