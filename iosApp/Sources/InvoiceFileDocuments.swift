@@ -13,22 +13,34 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
     private let cancelLock = NSLock()
     private var cancelled = false
     private var observer: InvoiceFilesObserver?
-    private let maxBytes: Int64 = 64 * 1024 * 1024
 
     func open(from presenter: UIViewController?, observer: InvoiceFilesObserver) {
         guard self.observer == nil, let presenter, presenter.presentedViewController == nil else {
             observer.complete(result_: result(saveFailed: 1))
             return
         }
-        cancelLock.lock()
-        cancelled = false
-        cancelLock.unlock()
-        self.observer = observer
+        begin(observer)
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.image, .pdf], asCopy: false)
         picker.allowsMultipleSelection = true
         picker.delegate = self
         picker.modalPresentationStyle = .fullScreen
         presenter.present(picker, animated: true)
+    }
+
+    func importSharedFiles(observer: InvoiceFilesObserver) -> Bool {
+        guard self.observer == nil else { return false }
+        let files = SharedInvoiceInbox.pendingFiles()
+        guard !files.isEmpty else { return false }
+        begin(observer)
+        process(files, fromInbox: true)
+        return true
+    }
+
+    private func begin(_ observer: InvoiceFilesObserver) {
+        cancelLock.lock()
+        cancelled = false
+        cancelLock.unlock()
+        self.observer = observer
     }
 
     func cancel() {
@@ -49,6 +61,10 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
         guard !urls.isEmpty else { return finish(result(cancelled: true)) }
+        process(urls, fromInbox: false)
+    }
+
+    private func process(_ urls: [URL], fromInbox: Bool) {
         queue.async { [self] in
             var added: Int32 = 0
             var duplicates: Int32 = 0
@@ -62,12 +78,19 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
 
             for (index, source) in urls.enumerated() {
                 if isCancelled { break }
-                let staged = FileManager.default.temporaryDirectory
+                let staged = fromInbox ? source : FileManager.default.temporaryDirectory
                     .appendingPathComponent("InvoiceFile-\(UUID().uuidString)")
-                defer { try? FileManager.default.removeItem(at: staged) }
+                var removeInboxFile = false
+                defer {
+                    if !fromInbox {
+                        try? FileManager.default.removeItem(at: staged)
+                    } else if removeInboxFile {
+                        SharedInvoiceInbox.removeProcessedFile(source)
+                    }
+                }
                 do {
                     notify(file: Int32(index + 1), total: Int32(urls.count), page: 0, pages: 0)
-                    try stage(source, at: staged)
+                    if !fromInbox { try stage(source, at: staged) }
                     let declared = (try? source.resourceValues(forKeys: [.contentTypeKey]))?.contentType
                     let extensionType = UTType(filenameExtension: source.pathExtension)
                     guard let type = [declared, extensionType].compactMap({ $0 }).first(where: {
@@ -91,6 +114,7 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
                         try scanImage(staged, accept: accept)
                     }
                     if isCancelled { throw CancellationError() }
+                    removeInboxFile = true
                     if candidates.isEmpty {
                         if !foundValid { invalidQr += 1 }
                     } else {
@@ -101,8 +125,10 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
                             needsReview += Int32(counts.needsReview)
                             seen.formUnion(fileKeys)
                         } catch is CancellationError {
+                            removeInboxFile = false
                             break
                         } catch {
+                            removeInboxFile = false
                             saveFailed += Int32(candidates.count)
                         }
                     }
@@ -110,6 +136,7 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
                 } catch is CancellationError {
                     break
                 } catch {
+                    removeInboxFile = true
                     unreadable += 1
                     processed += 1
                 }
@@ -159,7 +186,7 @@ final class InvoiceFileDocuments: NSObject, UIDocumentPickerDelegate {
                 while let chunk = try input.read(upToCount: 64 * 1024), !chunk.isEmpty {
                     if isCancelled { throw CancellationError() }
                     total += Int64(chunk.count)
-                    if total > maxBytes { throw ImportError.tooLarge }
+                    if total > SharedInvoiceInbox.maxFileBytes { throw ImportError.tooLarge }
                     try output.write(contentsOf: chunk)
                 }
             } catch { readError = error }

@@ -27,6 +27,7 @@ import com.poetscorner.invoiceqr.shared.ParsedInvoice
 import com.poetscorner.invoiceqr.shared.InvoiceAnnotationRules
 import com.poetscorner.invoiceqr.shared.ZatcaInvoiceParser
 import com.poetscorner.invoiceqr.shared.normalizedInvoicePayload
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -57,6 +58,8 @@ fun InvoiceCheckScreen(
     backupActions: InvoiceBackupActions? = null,
     statisticsSource: InvoiceStatisticsSource? = null,
     csvActions: InvoiceCsvActions? = null,
+    importSharedFiles: ((InvoiceFilesObserver) -> Boolean)? = null,
+    sharedImportRequests: StateFlow<Int>? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -100,17 +103,17 @@ fun InvoiceCheckScreen(
         }
     }
 
-    fun startFileImport() {
+    fun startFileImport(start: (InvoiceFilesObserver) -> Boolean) {
         if (importBusy || backupBusy || csvBusy) return
-        importBusy = true
         importProgress = ""
-        importSummary = null
-        importFiles?.invoke(object : InvoiceFilesObserver {
+        var completed = false
+        val started = start(object : InvoiceFilesObserver {
             override fun progress(file: Int, total: Int, page: Int, pages: Int) {
                 importProgress = if (pages > 0) "ملف $file من $total، صفحة $page من $pages" else "ملف $file من $total"
             }
 
             override fun complete(result: InvoiceFilesResult) {
+                completed = true
                 importBusy = false
                 importProgress = ""
                 if (result.totalFiles == 0 && result.cancelled) return
@@ -118,6 +121,20 @@ fun InvoiceCheckScreen(
                 showMessage(if (result.cancelled) "توقف الاستيراد" else "اكتمل الاستيراد")
             }
         })
+        if (started && !completed) {
+            importBusy = true
+            importSummary = null
+            tab = InvoiceTab.SCANNER
+        }
+    }
+
+    val sharedImportRevision = sharedImportRequests?.collectAsState()?.value ?: 0
+    var handledSharedImport by remember { mutableIntStateOf(0) }
+    LaunchedEffect(sharedImportRevision, importBusy, backupBusy, csvBusy) {
+        if (sharedImportRevision != handledSharedImport && !importBusy && !backupBusy && !csvBusy) {
+            handledSharedImport = sharedImportRevision
+            importSharedFiles?.let(::startFileImport)
+        }
     }
 
     fun showResult(parsed: ParsedInvoice, saved: InvoiceHistoryEntry) {
@@ -219,7 +236,9 @@ fun InvoiceCheckScreen(
                             camera = { camera(detection) },
                             selectPhoto = selectPhoto?.let { action -> { if (!importBusy) action(detection) } },
                             selectPhotoEnabled = !importBusy,
-                            importFiles = if (importFiles != null) ({ startFileImport() }) else null,
+                            importFiles = importFiles?.let { open ->
+                                { startFileImport { observer -> open(observer); true } }
+                            },
                             importBusy = importBusy,
                             importProgress = importProgress,
                             importSummary = importSummary,

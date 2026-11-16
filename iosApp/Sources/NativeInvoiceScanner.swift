@@ -81,6 +81,10 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         fileDocuments.open(from: presenter, observer: observer)
     }
 
+    func importSharedFiles(observer: InvoiceFilesObserver) -> Bool {
+        fileDocuments.importSharedFiles(observer: observer)
+    }
+
     func cancelFileImport() {
         fileDocuments.cancel()
     }

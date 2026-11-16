@@ -7,15 +7,22 @@ settings:
     SWIFT_VERSION: "5.0"
     GENERATE_INFOPLIST_FILE: YES
     TARGETED_DEVICE_FAMILY: "1"
+    INVOICE_APP_GROUP: group.com.poetscorner.invoiceqr.preview
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
 targets:
   InvoicePreview:
     type: application
     platform: iOS
-    sources: [Sources]
+    sources: [Sources, Shared]
+    dependencies:
+      - target: InvoiceShare
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.poetscorner.invoiceqr.preview
         INFOPLIST_FILE: Info.plist
+        CODE_SIGN_ENTITLEMENTS: SharedInvoices.entitlements
         INFOPLIST_KEY_CFBundleDisplayName: قارئ فاتورة
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -24,6 +31,21 @@ targets:
         "FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]": "$(inherited) $(SRCROOT)/../invoiceUi/build/bin/iosArm64/debugFramework"
     scheme:
       testTargets: [InvoicePreviewTests, InvoicePreviewUITests]
+  InvoiceShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ShareExtension
+        excludes: [Info.plist]
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.poetscorner.invoiceqr.preview.share
+        INFOPLIST_FILE: ShareExtension/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: قارئ فاتورة
+        CODE_SIGN_ENTITLEMENTS: SharedInvoices.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
   InvoicePreviewTests:
     type: bundle.unit-test
     platform: iOS
