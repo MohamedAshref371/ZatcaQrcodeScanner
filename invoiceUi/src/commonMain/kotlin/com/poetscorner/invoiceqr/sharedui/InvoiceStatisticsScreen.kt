@@ -68,6 +68,7 @@ fun interface InvoiceStatisticsObserver {
 
 interface InvoiceStatisticsSource {
     fun loadStatistics(query: InvoiceStatisticsQuery, observer: InvoiceStatisticsObserver)
+    fun loadBreakdown(query: InvoiceGroupBreakdownQuery, observer: InvoiceGroupBreakdownObserver)
 }
 
 internal data class InvoiceStatisticsSettings(
@@ -163,7 +164,7 @@ internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: 
             else -> {
                 item { StatisticsCard(language.text("الإجماليات", "Totals"), result.summary, Modifier.testTag("invoice-statistics-summary"), summary = true) }
                 items(result.groups) { group ->
-                    StatisticsCard(group.title, group.amounts, onOpen = { onOpenGroup(settings.drillDown(group.title, group.key)) })
+                    StatisticsCard(group.title, group.amounts, Modifier.testTag("invoice-statistics-group-row"), onOpen = { onOpenGroup(settings.drillDown(group.title, group.key)) })
                 }
             }
         }
@@ -286,7 +287,7 @@ private fun StatisticsCalculationDialog(current: Map<Int, StatisticsCategoryCalc
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onApply(draft) }) { Text(language.text("تطبيق", "Apply")) } },
+        confirmButton = { TextButton(onClick = { onApply(draft) }, modifier = Modifier.testTag("invoice-statistics-apply-calculations")) { Text(language.text("تطبيق", "Apply")) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(language.text("إلغاء", "Cancel")) } },
     )
 }

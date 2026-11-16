@@ -287,6 +287,12 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
 
     private func bindHistoryPage(_ query: OpaquePointer, beforeId: Int64, limit: Int64,
                                  filter: InvoiceHistoryQuery) throws {
+        try bindGroupFilter(query, filter: filter)
+        try requireOK(sqlite3_bind_int64(query, sqlite3_bind_parameter_index(query, ":history_before"), beforeId))
+        try requireOK(sqlite3_bind_int64(query, sqlite3_bind_parameter_index(query, ":history_limit"), limit))
+    }
+
+    private func bindGroupFilter(_ query: OpaquePointer, filter: InvoiceHistoryQuery) throws {
         try bindHistoryFilter(query, filter: filter)
         let statistics = filter.statistics
         try bindStatisticsFilter(statistics?.rows, to: query)
@@ -295,8 +301,6 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
         try bind(Self.groupingWhitespace, to: query, at: sqlite3_bind_parameter_index(query, ":stats_whitespace"))
         let missingDate = sqlite3_bind_parameter_index(query, ":stats_unknown_date")
         try requireOK(sqlite3_bind_int(query, missingDate, statistics?.missingInvoiceDate == true ? 1 : 0))
-        try requireOK(sqlite3_bind_int64(query, sqlite3_bind_parameter_index(query, ":history_before"), beforeId))
-        try requireOK(sqlite3_bind_int64(query, sqlite3_bind_parameter_index(query, ":history_limit"), limit))
     }
 
     private func bindStatisticsFilter(_ filter: InvoiceStatisticsRowFilter?, to query: OpaquePointer) throws {
@@ -428,6 +432,26 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                     builder.add(seller: columnText(statement, at: 0), vat: columnText(statement, at: 1),
                                 invoiceDay: columnText(statement, at: 2), total: columnText(statement, at: 3),
                                 tax: columnText(statement, at: 4), category: sqlite3_column_int(statement, 5))
+                    status = sqlite3_step(statement)
+                }
+                guard status == SQLITE_DONE else { throw StorageError.sqlite }
+                return builder.finish()
+            }
+        }
+    }
+
+    func breakdown(_ query: InvoiceGroupBreakdownQuery) throws -> InvoiceGroupBreakdownDisplay {
+        try withDatabase { db in
+            let builder = InvoiceGroupBreakdownBuilder(query: query)
+            return try statement(db, """
+                SELECT total, tax, category FROM invoices
+                WHERE \(Self.historyPredicate) AND \(Self.statisticsPredicate) AND \(Self.historyGroupPredicate)
+                """) { statement in
+                try bindGroupFilter(statement, filter: query.filter)
+                var status = sqlite3_step(statement)
+                while status == SQLITE_ROW {
+                    builder.add(total: columnText(statement, at: 0), tax: columnText(statement, at: 1),
+                                category: sqlite3_column_int(statement, 2))
                     status = sqlite3_step(statement)
                 }
                 guard status == SQLITE_DONE else { throw StorageError.sqlite }

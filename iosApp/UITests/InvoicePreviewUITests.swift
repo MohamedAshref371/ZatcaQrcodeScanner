@@ -203,6 +203,123 @@ final class InvoicePreviewUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["0.00"].firstMatch.exists)
     }
 
+    func testCaptureScannerAndSettings() {
+        continueAfterFailure = false
+        let app = isolatedApp()
+        app.launch()
+        let choose = element("invoice-scanner-choose", in: app)
+        XCTAssertTrue(choose.waitForExistence(timeout: 15))
+        attachScreenshot("01-scanner", of: app)
+        choose.tap()
+        XCTAssertTrue(element("invoice-scan-photo", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("02-scan-sources", of: app)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.10)).tap()
+        element("invoice-settings-tab", in: app).tap()
+        XCTAssertTrue(element("invoice-settings-title", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("16-settings", of: app)
+        reveal("invoice-settings-zxing", in: app)
+        attachScreenshot("17-settings-zxing", of: app)
+        reveal("invoice-language-arabic", in: app)
+        attachScreenshot("18-settings-language", of: app)
+        reveal("invoice-settings-appearance", in: app)
+        attachScreenshot("19-settings-appearance", of: app)
+        reveal("invoice-backup-import", in: app)
+        attachScreenshot("20-settings-backup", of: app)
+    }
+
+    func testCaptureInvoiceAndHistory() {
+        continueAfterFailure = false
+        let app = isolatedApp()
+        app.launch()
+        let history = element("invoice-history-tab", in: app)
+        XCTAssertTrue(history.waitForExistence(timeout: 15))
+        history.tap()
+        XCTAssertTrue(element("invoice-history-empty", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("03-history-empty", of: app)
+        element("invoice-result-tab", in: app).tap()
+        XCTAssertTrue(element("invoice-input", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("04-manual-entry", of: app)
+        submit(base64(["متجر تجريبي", "300000000000003", "2026-10-20T10:30:00", "230.00", "30.00"]), in: app)
+        XCTAssertTrue(element("invoice-status", in: app).waitForExistence(timeout: 15), app.debugDescription)
+        attachScreenshot("05-invoice-result", of: app)
+        scrollTo("invoice-annotation-edit", in: app).tap()
+        XCTAssertTrue(element("invoice-annotation-number", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("06-invoice-edit", of: app)
+        element("invoice-annotation-save", in: app).tap()
+        scrollTo("invoice-field-4", in: app)
+        attachScreenshot("07-invoice-details", of: app)
+        history.tap()
+        XCTAssertTrue(element("invoice-history-row", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("08-history", of: app)
+        element("invoice-history-dates", in: app).tap()
+        XCTAssertTrue(element("invoice-history-date-apply", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("09-history-filters", of: app)
+    }
+
+    func testCaptureStatisticsAndGroup() {
+        continueAfterFailure = false
+        let app = isolatedApp()
+        app.launch()
+        submit(base64(["متجر تجريبي", "300000000000003", "2026-10-20T10:30:00", "230.00", "30.00"]), in: app)
+        XCTAssertTrue(element("invoice-status", in: app).waitForExistence(timeout: 15))
+        element("invoice-statistics-tab", in: app).tap()
+        XCTAssertTrue(element("invoice-statistics-summary", in: app).waitForExistence(timeout: 15))
+        attachScreenshot("10-statistics", of: app)
+        element("invoice-statistics-filters", in: app).tap()
+        XCTAssertTrue(element("invoice-statistics-seller", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("11-statistics-filters", of: app)
+        element("invoice-history-date-apply", in: app).tap()
+        reveal("invoice-statistics-calculations", in: app).tap()
+        XCTAssertTrue(element("invoice-statistics-category-0", in: app).waitForExistence(timeout: 10))
+        attachScreenshot("12-statistics-calculations", of: app)
+        element("invoice-statistics-category-0", in: app).tap()
+        let subtract = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "طرح")).firstMatch
+        XCTAssertTrue(subtract.waitForExistence(timeout: 10))
+        subtract.tap()
+        element("invoice-statistics-apply-calculations", in: app).tap()
+        reveal("invoice-statistics-group-row", in: app).tap()
+        XCTAssertTrue(element("invoice-statistics-back", in: app).waitForExistence(timeout: 10))
+        XCTAssertTrue(element("statistics_breakdown", in: app).waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(app.staticTexts["-230.00"].firstMatch.exists)
+        attachScreenshot("13-statistics-breakdown", of: app)
+        reveal("invoice-history-row", in: app)
+        attachScreenshot("14-statistics-group-invoices", of: app)
+    }
+
+    func testCaptureAdvancedInvoice() {
+        continueAfterFailure = false
+        let app = isolatedApp()
+        app.launch()
+        submit(base64(["متجر تجريبي", "300000000000003", "2026-10-20T10:30:00", "230.00", "30.00",
+                      "hash", "signature", "key", "stamp"]), in: app)
+        XCTAssertTrue(element("invoice-status", in: app).waitForExistence(timeout: 15))
+        scrollTo("invoice-advanced", in: app).tap()
+        scrollTo("invoice-field-7", in: app)
+        attachScreenshot("15-invoice-advanced", of: app)
+        scrollTo("invoice-levels", in: app).tap()
+        attachScreenshot("21-invoice-verification", of: app)
+        scrollTo("invoice-levels", in: app).tap()
+        scrollTo("invoice-checks", in: app).tap()
+        attachScreenshot("22-invoice-checks", of: app)
+        scrollTo("invoice-checks", in: app).tap()
+        scrollTo("invoice-raw", in: app).tap()
+        scrollTo("invoice-copy-raw", in: app)
+        attachScreenshot("23-invoice-raw", of: app)
+    }
+
+    @discardableResult
+    private func reveal(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
+        let target = element(identifier, in: app)
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.50, dy: 0.80))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.50, dy: 0.35))
+        for _ in 0..<7 {
+            if target.exists && target.isHittable { return target }
+            start.press(forDuration: 0.1, thenDragTo: end)
+        }
+        XCTAssertTrue(target.isHittable, "Could not reveal \(identifier). \(app.debugDescription)")
+        return target
+    }
+
     private func scrollTo(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         let target = element(identifier, in: app)
         let viewport = element("invoice-result-list", in: app).frame.insetBy(dx: 0, dy: 24)

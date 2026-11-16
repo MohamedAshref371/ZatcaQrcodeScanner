@@ -89,6 +89,13 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         }
     }
 
+    func loadBreakdown(query: InvoiceGroupBreakdownQuery, observer: InvoiceGroupBreakdownObserver) {
+        statisticsQueue.async {
+            let result = try? SQLiteInvoiceHistory().breakdown(query)
+            DispatchQueue.main.async { observer.complete(result: result) }
+        }
+    }
+
     func exportHistoryCsv(query: InvoiceHistoryQuery, language: InvoiceLanguage, observer: InvoiceCsvObserver) {
         csvDocuments.exportHistory(from: presenter, query: query, language: language, observer: observer)
     }
@@ -184,7 +191,7 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureVide
     private var viewportSize: CGSize = .zero
     private var lastFrame: TimeInterval = 0
     private var reader: InvoiceQrReader?
-    private let recovery = InvoiceIosFrameRecovery()
+    private let recovery = InvoiceCameraRecovery()
 
     init(detection: InvoiceDetection) {
         self.detection = detection
@@ -454,16 +461,13 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureVide
         }
         guard let reader else { return }
         let nowMillis = Int64(now * 1000)
-        let decoded = reader.read(image, maxSymbols: 1)
         let codes: [String]
-        if !decoded.isEmpty {
-            recovery.reset()
-            codes = decoded
-        } else if configuration.cropEnabled, configuration.engine == .zxing, configuration.zxing.multiFrameRecovery,
-                  let recovered = recover(image, at: nowMillis, reader: reader) {
-            codes = [recovered]
+        if configuration.engine == .zxing && configuration.zxing.multiFrameRecovery {
+            codes = recovery.scan(image, at: nowMillis, allowGuide: configuration.cropEnabled,
+                reader: reader, context: imageContext)
         } else {
-            codes = []
+            recovery.reset()
+            codes = reader.read(image, maxSymbols: 1)
         }
         DispatchQueue.main.async { [weak self] in
             guard let self, self.visible, !self.accepted, self.configuration == configuration else { return }
@@ -471,25 +475,4 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureVide
             if self.accepted { self.stopCamera() }
         }
     }
-    private func recover(_ image: CGImage, at nowMillis: Int64, reader: InvoiceQrReader) -> String? {
-        guard image.width >= 100, image.height >= 100 else { return nil }
-        let side = 512
-        let size = side * side
-        let colorSpace = CGColorSpaceCreateDeviceGray()
-        guard let context = CGContext(data: nil, width: side, height: side, bitsPerComponent: 8,
-            bytesPerRow: side, space: colorSpace, bitmapInfo: CGImageAlphaInfo.none.rawValue),
-            let pixels = context.data else { return nil }
-        context.setFillColor(gray: 1, alpha: 1)
-        context.fill(CGRect(x: 0, y: 0, width: side, height: side))
-        context.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
-        return recovery.offer(pixels: Data(bytes: pixels, count: size), nowMillis: nowMillis) { binary in
-            guard let provider = CGDataProvider(data: binary as CFData),
-                  let thresholded = CGImage(width: side, height: side, bitsPerComponent: 8, bitsPerPixel: 8,
-                      bytesPerRow: side, space: colorSpace, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
-                      provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else { return nil }
-            let results = reader.read(thresholded, maxSymbols: 2)
-            return results.count == 1 ? results.first : nil
-        }
-    }
-
 }

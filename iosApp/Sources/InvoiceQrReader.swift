@@ -30,14 +30,15 @@ final class InvoiceQrReader {
     static var zxingSettings: InvoiceZxingSettings {
         let values = UserDefaults.standard.dictionary(forKey: "invoiceZxingSettings") ?? [:]
         return InvoiceZxingSettings(
-            harder: values["harder"] as? Bool ?? true, rotate: values["rotate"] as? Bool ?? true,
+            harder: values["harder"] as? Bool ?? true, denoise: values["denoise"] as? Bool ?? false,
+            rotate: values["rotate"] as? Bool ?? true,
             inverted: values["inverted"] as? Bool ?? false, binarizer: values["binarizer"] as? String ?? "LOCAL_AVERAGE",
             multiFrameRecovery: values["multiFrameRecovery"] as? Bool ?? false)
     }
 
     static func save(_ settings: InvoiceZxingSettings) {
         let values: [String: Any] = [
-            "harder": settings.harder, "rotate": settings.rotate, "inverted": settings.inverted,
+            "harder": settings.harder, "denoise": settings.denoise, "rotate": settings.rotate, "inverted": settings.inverted,
             "binarizer": settings.binarizer, "multiFrameRecovery": settings.multiFrameRecovery,
         ]
         UserDefaults.standard.set(values, forKey: "invoiceZxingSettings")
@@ -76,6 +77,10 @@ final class InvoiceQrReader {
             return []
             #endif
         }
+        return readZXing(image, maxSymbols: maxSymbols, returnErrors: false).compactMap(\.text)
+    }
+
+    func readZXing(_ image: CGImage, maxSymbols: Int, returnErrors: Bool) -> [InvoiceZXingObservation] {
         let binarizer: Int
         switch zxing.binarizer {
         case "GLOBAL_HISTOGRAM": binarizer = 1
@@ -84,6 +89,7 @@ final class InvoiceQrReader {
         default: binarizer = 0
         }
         return InvoiceZXingDecoder.read(image: image, maxSymbols: maxSymbols, harder: zxing.harder,
-            rotate: zxing.rotate, inverted: zxing.inverted, binarizer: binarizer)
+            denoise: zxing.denoise, rotate: zxing.rotate, inverted: zxing.inverted,
+            binarizer: binarizer, returnErrors: returnErrors)
     }
 }

@@ -326,8 +326,8 @@ fun InvoiceCheckScreen(
                             },
                             onExport = { transferBackup(backupActions::exportBackup) },
                             onImport = { transferBackup(backupActions::importBackup) })
-                    } else if (tab == InvoiceTab.STATISTICS && group != null) {
-                        InvoiceStatisticsHistoryScreen(history, group,
+                    } else if (tab == InvoiceTab.STATISTICS && group != null && statisticsSource != null) {
+                        InvoiceStatisticsHistoryScreen(history, group, statisticsSource,
                             onBack = { statisticsGroup = null }, onOpen = ::openSavedInvoice,
                             exportEnabled = csvActions != null && !csvBusy && !backupBusy && !importBusy,
                             onExport = {

@@ -2,6 +2,7 @@ package com.poetscorner.invoiceqr.sharedui
 
 import com.poetscorner.invoiceqr.shared.InvoiceStatisticsKey
 import com.poetscorner.invoiceqr.shared.StatisticsGrouping
+import com.poetscorner.invoiceqr.shared.StatisticsCategoryCalculation
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
@@ -16,7 +17,20 @@ data class InvoiceStatisticsHistoryFilter(
     val missingInvoiceDate: Boolean = false,
 )
 
-internal data class InvoiceStatisticsDrillDown(val title: String, val filter: InvoiceHistoryFilter)
+class InvoiceGroupBreakdownQuery internal constructor(
+    val filter: InvoiceHistoryQuery,
+    internal val calculations: Map<Int, StatisticsCategoryCalculation>,
+    internal val language: InvoiceLanguage,
+)
+
+data class InvoiceGroupBreakdownDisplay(val count: Int, val amounts: InvoiceBreakdownAmounts, val sections: List<InvoiceBreakdownSection>)
+
+fun interface InvoiceGroupBreakdownObserver {
+    fun complete(result: InvoiceGroupBreakdownDisplay?)
+}
+
+internal data class InvoiceStatisticsDrillDown(val title: String, val filter: InvoiceHistoryFilter,
+    val calculations: Map<Int, StatisticsCategoryCalculation>)
 
 internal fun InvoiceStatisticsSettings.drillDown(title: String, key: InvoiceStatisticsKey): InvoiceStatisticsDrillDown {
     var filter = dates
@@ -44,5 +58,6 @@ internal fun InvoiceStatisticsSettings.drillDown(title: String, key: InvoiceStat
             InvoiceStatisticsHistoryFilter(rows, missingInvoiceDate = start == null)
         }
     }
-    return InvoiceStatisticsDrillDown(title, filter.copy(statistics = selection))
+    return InvoiceStatisticsDrillDown(title, filter.copy(statistics = selection),
+        if (grouping == StatisticsGrouping.CATEGORY) emptyMap() else calculations)
 }

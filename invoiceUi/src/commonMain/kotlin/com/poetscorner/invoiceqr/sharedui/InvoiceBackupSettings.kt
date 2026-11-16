@@ -59,7 +59,7 @@ internal fun InvoiceBackupSettings(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(language.text("الإعدادات", "Settings"), style = MaterialTheme.typography.titleLarge)
+        Text(language.text("الإعدادات", "Settings"), Modifier.testTag("invoice-settings-title"), style = MaterialTheme.typography.titleLarge)
         scannerOptions()
         if (onLanguageChange != null) InvoiceFieldCard {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
@@ -130,8 +130,13 @@ internal fun InvoiceScannerOptions(engine: InvoiceQrEngine, mlKitAvailable: Bool
     if (!mlKitAvailable) Text(language.text("Google ML Kit متاح في نسخة الآيفون الفعلي.",
         "Google ML Kit is available in the iPhone device build."), style = MaterialTheme.typography.bodySmall)
     if (engine == InvoiceQrEngine.ZXING) {
+        Text("ZXing", Modifier.testTag("invoice-settings-zxing"), style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary)
         InvoiceSettingToggle(language.text("Try harder · بحث مكثّف", "Try harder"), zxingSettings.harder) {
             onZxingChange(zxingSettings.copy(harder = it))
+        }
+        InvoiceSettingToggle(language.text("Try denoise · إزالة التشويش", "Try denoise"), zxingSettings.denoise) {
+            onZxingChange(zxingSettings.copy(denoise = it))
         }
         InvoiceSettingToggle(language.text("Try rotate · دوران ±90°", "Try rotate · ±90°"), zxingSettings.rotate) {
             onZxingChange(zxingSettings.copy(rotate = it))
@@ -145,7 +150,7 @@ internal fun InvoiceScannerOptions(engine: InvoiceQrEngine, mlKitAvailable: Bool
             "FIXED_THRESHOLD" to language.text("حد فصل ثابت (Fixed threshold)", "Fixed threshold"),
             "BOOL_CAST" to language.text("فصل عند الصفر (Bool cast)", "Bool cast"),
         )) { onZxingChange(zxingSettings.copy(binarizer = it)) }
-        if (cropEnabled) InvoiceSettingToggle(
+        InvoiceSettingToggle(
             language.text("استعادة رموز QR من عدة إطارات", "Recover QR codes from multiple frames"),
             zxingSettings.multiFrameRecovery,
         ) { onZxingChange(zxingSettings.copy(multiFrameRecovery = it)) }
@@ -155,6 +160,8 @@ internal fun InvoiceScannerOptions(engine: InvoiceQrEngine, mlKitAvailable: Bool
 @Composable
 internal fun InvoiceAppearanceOptions(mode: String, color: String, onMode: (String) -> Unit, onColor: (String) -> Unit) {
     val language = LocalInvoiceLanguage.current
+    Text(language.text("المظهر", "Appearance"), Modifier.testTag("invoice-settings-appearance"),
+        style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
     InvoiceSettingChoice(language.text("ألوان التطبيق", "App theme"), color, listOf(
         "DEFAULT" to language.text("الافتراضي", "Default"), "GOLD" to language.text("ذهبي", "Gold"),
         "PURPLE" to language.text("بنفسجي", "Purple"), "BLUE" to language.text("أزرق", "Blue"),

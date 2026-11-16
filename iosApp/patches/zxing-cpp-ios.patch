@@ -1,0 +1,93 @@
+diff --git a/Package.swift b/Package.swift
+index edfacec..8cd3f9f 100644
+--- a/Package.swift
++++ b/Package.swift
+@@ -19,7 +19,8 @@ let package = Package(
+             publicHeadersPath: ".",
+             cxxSettings: [
+                 .headerSearchPath("../../wrappers/ios/Sources/Wrapper"),
+-                .define("ZXING_INTERNAL")
++                .define("ZXING_INTERNAL"),
++                .define("ZXING_EXPERIMENTAL_API")
+             ]
+         ),
+         .target(
+@@ -27,6 +28,7 @@ let package = Package(
+             dependencies: ["ZXingCppCore"],
+             path: "wrappers/ios/Sources/Wrapper",
+             publicHeadersPath: ".",
++            cxxSettings: [.define("ZXING_EXPERIMENTAL_API")],
+             linkerSettings: [
+                 .linkedFramework("CoreGraphics"),
+                 .linkedFramework("CoreImage"),
+diff --git a/wrappers/ios/Sources/Wrapper/Reader/ZXIBarcodeReader.mm b/wrappers/ios/Sources/Wrapper/Reader/ZXIBarcodeReader.mm
+index 3cc65f7..e476058 100644
+--- a/wrappers/ios/Sources/Wrapper/Reader/ZXIBarcodeReader.mm
++++ b/wrappers/ios/Sources/Wrapper/Reader/ZXIBarcodeReader.mm
+@@ -126,8 +126,7 @@ ZXIGTIN *getGTIN(const Barcode &barcode) {
+         Barcodes results = ReadBarcodes(imageView, self.options.cppOpts);
+         NSMutableArray* zxiResults = [NSMutableArray array];
+         for (auto result: results) {
+-            [zxiResults addObject:
+-             [[ZXIResult alloc] init:stringToNSString(result.text())
++            ZXIResult *observation = [[ZXIResult alloc] init:stringToNSString(result.text())
+                               format:ZXIFormatFromBarcodeFormat(result.format())
+                                bytes:[[NSData alloc] initWithBytes:result.bytes().data() length:result.bytes().size()]
+                             position:[[ZXIPosition alloc]initWithPosition: result.position()]
+@@ -139,8 +138,10 @@ ZXIGTIN *getGTIN(const Barcode &barcode) {
+                           sequenceId:stringToNSString(result.sequenceId())
+                           readerInit:result.readerInit()
+                            lineCount:result.lineCount()
+-                                gtin:getGTIN(result)]
+-             ];
++                                gtin:getGTIN(result)];
++            observation.valid = result.isValid();
++            observation.recoverable = result.error() == Error::Checksum || result.error() == Error::Format;
++            [zxiResults addObject:observation];
+         }
+         return zxiResults;
+     } catch(std::exception &e) {
+diff --git a/wrappers/ios/Sources/Wrapper/Reader/ZXIReaderOptions.h b/wrappers/ios/Sources/Wrapper/Reader/ZXIReaderOptions.h
+index aa39a04..57992bb 100644
+--- a/wrappers/ios/Sources/Wrapper/Reader/ZXIReaderOptions.h
++++ b/wrappers/ios/Sources/Wrapper/Reader/ZXIReaderOptions.h
+@@ -31,6 +31,7 @@ typedef NS_ENUM(NSInteger, ZXITextMode) {
+ @interface ZXIReaderOptions : NSObject
+ @property(nonatomic, copy) NSArray<NSNumber*> *formats;
+ @property(nonatomic) BOOL tryHarder;
++@property(nonatomic) BOOL tryDenoise;
+ @property(nonatomic) BOOL tryRotate;
+ @property(nonatomic) BOOL tryInvert;
+ @property(nonatomic) BOOL tryDownscale;
+diff --git a/wrappers/ios/Sources/Wrapper/Reader/ZXIReaderOptions.mm b/wrappers/ios/Sources/Wrapper/Reader/ZXIReaderOptions.mm
+index 7942a89..2cf1a82 100644
+--- a/wrappers/ios/Sources/Wrapper/Reader/ZXIReaderOptions.mm
++++ b/wrappers/ios/Sources/Wrapper/Reader/ZXIReaderOptions.mm
+@@ -48,6 +48,14 @@
+     self.cppOpts = self.cppOpts.setTryHarder(tryHarder);
+ }
+
++-(BOOL)tryDenoise {
++    return self.cppOpts.tryDenoise();
++}
++
++-(void)setTryDenoise:(BOOL)tryDenoise {
++    self.cppOpts = self.cppOpts.setTryDenoise(tryDenoise);
++}
++
+ -(BOOL)tryRotate {
+     return self.cppOpts.tryRotate();
+ }
+diff --git a/wrappers/ios/Sources/Wrapper/Reader/ZXIResult.h b/wrappers/ios/Sources/Wrapper/Reader/ZXIResult.h
+index 9c4c4e8..a800265 100644
+--- a/wrappers/ios/Sources/Wrapper/Reader/ZXIResult.h
++++ b/wrappers/ios/Sources/Wrapper/Reader/ZXIResult.h
+@@ -11,6 +11,8 @@ NS_ASSUME_NONNULL_BEGIN
+
+ @interface ZXIResult : NSObject
+ @property(nonatomic, strong) NSString *text;
++@property(nonatomic) BOOL valid;
++@property(nonatomic) BOOL recoverable;
+ @property(nonatomic, strong) NSData *bytes;
+ @property(nonatomic, strong) ZXIPosition *position;
+ @property(nonatomic) ZXIFormat format;

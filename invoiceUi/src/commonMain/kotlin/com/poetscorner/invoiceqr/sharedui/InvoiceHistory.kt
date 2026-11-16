@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -201,7 +202,8 @@ internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceH
 
 @Composable
 internal fun InvoiceStatisticsHistoryScreen(history: InvoiceHistoryStore, group: InvoiceStatisticsDrillDown,
-    onBack: () -> Unit, onOpen: (Long) -> Unit, exportEnabled: Boolean, onExport: () -> Unit) {
+    source: InvoiceStatisticsSource, onBack: () -> Unit, onOpen: (Long) -> Unit,
+    exportEnabled: Boolean, onExport: () -> Unit) {
     val language = LocalInvoiceLanguage.current
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -213,15 +215,46 @@ internal fun InvoiceStatisticsHistoryScreen(history: InvoiceHistoryStore, group:
         key(group.filter) {
             InvoiceHistoryResults(history, group.filter, onOpen, actionsEnabled = exportEnabled,
                 exportAvailable = exportEnabled, onExport = onExport, onDeleteInvoice = {},
-                onDeletePeriod = null, readOnly = true)
+                onDeletePeriod = null, readOnly = true,
+                header = if (group.calculations.isEmpty()) null else ({ InvoiceGroupBreakdownView(source, group) }))
         }
+    }
+}
+
+@Composable
+private fun InvoiceGroupBreakdownView(source: InvoiceStatisticsSource, group: InvoiceStatisticsDrillDown) {
+    val language = LocalInvoiceLanguage.current
+    var retry by remember(group) { mutableStateOf(0) }
+    val query = remember(group, language) { InvoiceGroupBreakdownQuery(group.filter.toQuery(), group.calculations, language) }
+    val result = remember(source, query, retry) { mutableStateOf<InvoiceGroupBreakdownDisplay?>(null) }
+    val loading = remember(source, query, retry) { mutableStateOf(true) }
+    LaunchedEffect(source, query, retry) {
+        source.loadBreakdown(query) {
+            result.value = it
+            loading.value = false
+        }
+    }
+    val data = result.value
+    when {
+        loading.value -> LinearProgressIndicator(Modifier.fillMaxWidth())
+        data == null -> Column {
+            Text(language.text("تعذّر تحميل تفاصيل الصافي", "Could not load net calculation details"))
+            TextButton(onClick = { retry++ }) { Text(language.text("إعادة المحاولة", "Retry")) }
+        }
+        else -> InvoiceStatisticsBreakdownCard(
+            language.text("تفاصيل حسبة الصافي", "Net calculation details"),
+            language.text("عدد الفواتير: ${data.count}", "Invoices: ${data.count}"),
+            language.text("الأصل", "Original"), language.text("في الصافي", "In net"),
+            language.text("الإجمالي شامل الضريبة", "Total including VAT"), language.text("الضريبة", "VAT"),
+            data.amounts, data.sections,
+        )
     }
 }
 
 @Composable
 private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter, onOpen: (Long) -> Unit,
     actionsEnabled: Boolean, exportAvailable: Boolean, onExport: () -> Unit, onDeleteInvoice: (InvoiceHistorySummary) -> Unit,
-    onDeletePeriod: (() -> Unit)?, readOnly: Boolean = false) {
+    onDeletePeriod: (() -> Unit)?, readOnly: Boolean = false, header: (@Composable () -> Unit)? = null) {
     val language = LocalInvoiceLanguage.current
     var page by remember(history) { mutableStateOf<InvoiceHistoryPage?>(null) }
     var rows by remember(history) { mutableStateOf(emptyList<InvoiceHistorySummary>()) }
@@ -257,6 +290,7 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
                 }
             }
         }
+        if (header != null) item { header() }
         if (rows.isEmpty() && page != null) {
             item {
                 Text(if (filter.isActive) language.text("لا توجد فواتير مطابقة", "No matching invoices") else language.text("لا توجد فواتير محفوظة", "No saved invoices"),

@@ -12,6 +12,7 @@ enum class InvoiceScanResolution(val width: Int, val height: Int) {
 
 data class InvoiceZxingSettings(
     val harder: Boolean = true,
+    val denoise: Boolean = false,
     val rotate: Boolean = true,
     val inverted: Boolean = false,
     val binarizer: String = "LOCAL_AVERAGE",

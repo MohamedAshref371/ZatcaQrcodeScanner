@@ -19,6 +19,7 @@ jobs:
       android: ${{ steps.select.outputs.android }}
       ios: ${{ steps.select.outputs.ios }}
       revision: ${{ steps.select.outputs.revision }}
+      screenshots: ${{ steps.select.outputs.screenshots }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -34,16 +35,22 @@ jobs:
           changed_paths="$RUNNER_TEMP/kmp-changed-paths"
           android=false
           ios=false
+          screenshots=false
           if [[ "$GITHUB_EVENT_NAME" != push ]] ||
              ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null ||
              ! git diff --no-renames --name-only -z "$BEFORE_SHA" "$revision" -- > "$changed_paths"; then
             android=true
             ios=true
+            [[ "$GITHUB_EVENT_NAME" != workflow_dispatch ]] || screenshots=true
           else
             while IFS= read -r -d '' path; do
               case "$path" in
                 app/*)
                   android=true
+                  ;;
+                iosApp/UITests/*|iosApp/export_screenshots.py)
+                  ios=true
+                  screenshots=true
                   ;;
                 iosApp/*|.github/workflows/package-iphone-sideload.yml)
                   ios=true
@@ -57,7 +64,7 @@ jobs:
               esac
             done < "$changed_paths"
           fi
-          printf 'android=%s\nios=%s\nrevision=%s\n' "$android" "$ios" "$revision" >> "$GITHUB_OUTPUT"
+          printf 'android=%s\nios=%s\nrevision=%s\nscreenshots=%s\n' "$android" "$ios" "$revision" "$screenshots" >> "$GITHUB_OUTPUT"
 
   android:
     name: Android unit tests
@@ -102,7 +109,7 @@ jobs:
       group: kmp-ios-${{ github.event_name == 'push' && github.ref || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'push' }}
     runs-on: macos-26
-    timeout-minutes: 35
+    timeout-minutes: ${{ needs.changes.outputs.screenshots == 'true' && 45 || 35 }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -124,6 +131,7 @@ jobs:
           if ! command -v xcodegen >/dev/null; then
             brew install xcodegen
           fi
+          bash iosApp/prepare-zxing.sh
           xcodegen generate --spec iosApp/project.yml
       - name: Install ML Kit for the iPhone device build
         if: github.event_name == 'workflow_dispatch'
@@ -166,6 +174,8 @@ jobs:
       - name: Link the simulator framework
         run: bash ./gradlew --stacktrace --build-cache :invoiceUi:linkDebugFrameworkIosSimulatorArm64
       - name: Test the iPhone simulator app
+        env:
+          CAPTURE_SCREENSHOTS: ${{ needs.changes.outputs.screenshots }}
         run: |
           simulator_id="$(cat iosApp/build/simulator-id)"
           xcrun simctl bootstatus "$simulator_id" -b
@@ -175,6 +185,11 @@ jobs:
             xcrun simctl addmedia "$simulator_id" iosApp/build/invoice-qr.png
           else
             test_selection+=(-only-testing:InvoicePreviewTests)
+            if [[ "$CAPTURE_SCREENSHOTS" == true ]]; then
+              for scenario in ScannerAndSettings InvoiceAndHistory StatisticsAndGroup AdvancedInvoice; do
+                test_selection+=("-only-testing:InvoicePreviewUITests/InvoicePreviewUITests/testCapture$scenario")
+              done
+            fi
           fi
           xcodebuild test "${test_selection[@]}" \
             -project iosApp/InvoicePreview.xcodeproj \
@@ -185,14 +200,14 @@ jobs:
             -resultBundlePath iosApp/build/InvoicePreview.xcresult \
             CODE_SIGNING_ALLOWED=NO
       - name: Export the invoice screenshots
-        if: github.event_name == 'workflow_dispatch'
+        if: always() && needs.changes.outputs.screenshots == 'true'
         run: |
           xcrun xcresulttool export attachments \
             --path iosApp/build/InvoicePreview.xcresult \
             --output-path iosApp/build/attachments
           python3 iosApp/export_screenshots.py iosApp/build/attachments iosApp/build/screenshots
       - name: Upload screenshots
-        if: github.event_name == 'workflow_dispatch'
+        if: always() && needs.changes.outputs.screenshots == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: iphone-invoice-screenshots

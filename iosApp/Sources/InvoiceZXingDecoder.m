@@ -1,17 +1,24 @@
 #import "InvoiceZXingDecoder.h"
 @import ZXingCpp;
+@import UIKit;
+
+@implementation InvoiceZXingObservation
+@end
 
 @implementation InvoiceZXingDecoder
-+ (NSArray<NSString *> *)readImage:(CGImageRef)image
++ (NSArray<InvoiceZXingObservation *> *)readImage:(CGImageRef)image
                        maxSymbols:(NSInteger)maxSymbols
                           harder:(BOOL)harder
+                         denoise:(BOOL)denoise
                           rotate:(BOOL)rotate
                         inverted:(BOOL)inverted
                        binarizer:(NSInteger)binarizer
+                     returnErrors:(BOOL)returnErrors
 {
     ZXIReaderOptions *options = [ZXIReaderOptions new];
     options.formats = @[@(QR_CODE)];
     options.tryHarder = harder;
+    options.tryDenoise = denoise;
     options.tryRotate = rotate;
     options.tryInvert = inverted;
     options.tryDownscale = YES;
@@ -23,14 +30,26 @@
     }
     options.textMode = ZXITextModePlain;
     options.maxNumberOfSymbols = maxSymbols;
-    options.returnErrors = NO;
+    options.returnErrors = returnErrors;
     ZXIBarcodeReader *reader = [[ZXIBarcodeReader alloc] initWithOptions:options];
-    NSMutableArray<NSString *> *codes = [NSMutableArray array];
+    NSMutableArray<InvoiceZXingObservation *> *observations = [NSMutableArray array];
     for (ZXIResult *result in [reader readCGImage:image error:NULL]) {
-        if (result.text.length > 0) {
-            [codes addObject:result.text];
+        InvoiceZXingObservation *observation = [InvoiceZXingObservation new];
+        observation.text = result.valid && result.text.length > 0 ? result.text : nil;
+        observation.recoverable = result.recoverable;
+        if (returnErrors) {
+            ZXIPosition *position = result.position;
+            observation.corners = @[
+                [NSValue valueWithCGPoint:CGPointMake(position.topLeft.x, position.topLeft.y)],
+                [NSValue valueWithCGPoint:CGPointMake(position.topRight.x, position.topRight.y)],
+                [NSValue valueWithCGPoint:CGPointMake(position.bottomRight.x, position.bottomRight.y)],
+                [NSValue valueWithCGPoint:CGPointMake(position.bottomLeft.x, position.bottomLeft.y)],
+            ];
+        } else {
+            observation.corners = @[];
         }
+        [observations addObject:observation];
     }
-    return codes;
+    return observations;
 }
 @end
