@@ -342,6 +342,7 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Mo
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions: suspend (String) -> List<String>,
     onDismiss: () -> Unit, onApply: (StatisticsRequest) -> Unit) {
