@@ -25,78 +25,86 @@ import com.poetscorner.invoiceqr.shared.InvoiceCheck
 import com.poetscorner.invoiceqr.shared.InvoiceCheckKind
 import com.poetscorner.invoiceqr.shared.ParsedInvoice
 
-private val invoiceFieldNames = listOf(
+private val arabicInvoiceFieldNames = listOf(
     "اسم البائع", "الرقم الضريبي", "تاريخ الفاتورة", "إجمالي الفاتورة", "الضريبة",
     "بصمة الفاتورة", "التوقيع الرقمي", "المفتاح العام", "الختم",
 )
 
-internal fun invoiceFieldName(tag: Int) = invoiceFieldNames[tag - 1]
+private val englishInvoiceFieldNames = listOf(
+    "Seller name", "VAT number", "Invoice date", "Invoice total", "VAT amount",
+    "Invoice hash", "Digital signature", "Public key", "Stamp",
+)
+
+internal fun invoiceFieldName(tag: Int, language: InvoiceLanguage): String =
+    (if (language == InvoiceLanguage.ARABIC) arabicInvoiceFieldNames else englishInvoiceFieldNames)[tag - 1]
 
 internal fun ParsedInvoice.relevantChecks() = checks.filter { phase2 || it.phase == 1 }
 
-internal fun invoiceResultStatus(invoice: ParsedInvoice) =
-    if (invoice.passed) "اجتاز فحوص QR المحلية" else "لم يجتز فحوص QR المحلية"
+internal fun invoiceResultStatus(invoice: ParsedInvoice, language: InvoiceLanguage) =
+    if (invoice.passed) language.text("اجتاز فحوص QR المحلية", "Passed local QR checks") else language.text("لم يجتز فحوص QR المحلية", "Failed local QR checks")
 
-internal fun invoiceCheckLabel(check: InvoiceCheck) = when (check.kind) {
-    InvoiceCheckKind.STRUCTURE -> "بنية رمز QR"
-    InvoiceCheckKind.PRESENT, InvoiceCheckKind.STAMP -> "وجود ${invoiceFieldName(requireNotNull(check.tag))}"
-    InvoiceCheckKind.VAT -> "صيغة الرقم الضريبي"
-    InvoiceCheckKind.DATE -> "صيغة تاريخ الفاتورة ووقتها"
-    InvoiceCheckKind.TOTAL -> "صيغة إجمالي الفاتورة"
-    InvoiceCheckKind.TAX -> "صيغة مبلغ الضريبة"
-    InvoiceCheckKind.TAX_TOTAL -> "الضريبة لا تتجاوز الإجمالي"
+internal fun invoiceCheckLabel(check: InvoiceCheck, language: InvoiceLanguage) = when (check.kind) {
+    InvoiceCheckKind.STRUCTURE -> language.text("بنية رمز QR", "QR structure")
+    InvoiceCheckKind.PRESENT, InvoiceCheckKind.STAMP -> language.text("وجود ${invoiceFieldName(requireNotNull(check.tag), language)}", "Required field: ${invoiceFieldName(requireNotNull(check.tag), language)}")
+    InvoiceCheckKind.VAT -> language.text("صيغة الرقم الضريبي", "VAT number format")
+    InvoiceCheckKind.DATE -> language.text("صيغة تاريخ الفاتورة ووقتها", "Invoice date and time format")
+    InvoiceCheckKind.TOTAL -> language.text("صيغة إجمالي الفاتورة", "Invoice total format")
+    InvoiceCheckKind.TAX -> language.text("صيغة مبلغ الضريبة", "VAT amount format")
+    InvoiceCheckKind.TAX_TOTAL -> language.text("الضريبة لا تتجاوز الإجمالي", "VAT does not exceed the total")
 }
 
-private fun signatureStatus(invoice: ParsedInvoice) = if (invoice.phase2) "لم يُفحص" else "غير موجود"
-private const val officialStatus = "لم يُفحص"
+private fun signatureStatus(invoice: ParsedInvoice, language: InvoiceLanguage) = if (invoice.phase2) language.text("لم يُفحص", "Not checked") else language.text("غير موجود", "Missing")
+private fun officialStatus(language: InvoiceLanguage) = language.text("لم يُفحص", "Not checked")
 
-internal fun invoiceShareSummary(invoice: ParsedInvoice) = buildString {
-    appendLine("ملخص الفاتورة")
+internal fun invoiceShareSummary(invoice: ParsedInvoice, language: InvoiceLanguage) = buildString {
+    appendLine(language.text("ملخص الفاتورة", "Invoice summary"))
     val lastTag = if (invoice.value(6).isNotBlank()) 6 else 5
     for (tag in 1..lastTag) {
-        appendLine("${invoiceFieldName(tag)}: ${invoice.value(tag).ifBlank { "غير موجود" }}")
+        val value = invoice.value(tag).ifBlank { language.text("غير موجود", "Missing") }
+        appendLine("${invoiceFieldName(tag, language)}: $value")
     }
-    val phase = if (invoice.phase2) "المرحلة الثانية" else "المرحلة الأولى"
-    appendLine("${invoiceResultStatus(invoice)} · $phase")
-    appendLine("التحقق من التوقيع: ${signatureStatus(invoice)}")
-    append("القبول الرسمي: $officialStatus")
+    val phase = if (invoice.phase2) language.text("المرحلة الثانية", "Phase two") else language.text("المرحلة الأولى", "Phase one")
+    appendLine("${invoiceResultStatus(invoice, language)} · $phase")
+    appendLine(language.text("التحقق من التوقيع: ${signatureStatus(invoice, language)}", "Signature verification: ${signatureStatus(invoice, language)}"))
+    append(language.text("القبول الرسمي: ${officialStatus(language)}", "Official acceptance: ${officialStatus(language)}"))
 }
 
 @Composable
 internal fun InvoiceVerificationDetails(invoice: ParsedInvoice) {
+    val language = LocalInvoiceLanguage.current
     var levels by remember(invoice.raw) { mutableStateOf(false) }
     var checks by remember(invoice.raw) { mutableStateOf(false) }
     TextButton(onClick = { levels = !levels }, modifier = Modifier.fillMaxWidth().testTag("invoice-levels")) {
-        Text(if (levels) "إخفاء مستويات التحقق" else "مستويات التحقق")
+        Text(if (levels) language.text("إخفاء مستويات التحقق", "Hide verification levels") else language.text("مستويات التحقق", "Verification levels"))
     }
     if (levels) {
         InvoiceFieldCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                VerificationLevel("بنية رمز QR", localStatus(invoice.error == null))
-                VerificationLevel("حقول المرحلة الأولى", localStatus(invoice.checks.filter { it.phase == 1 }.all { it.passed }))
-                VerificationLevel("حقول المرحلة الثانية",
-                    if (invoice.phase2) localStatus(invoice.checks.filter { it.phase == 2 }.all { it.passed }) else "غير موجودة")
-                VerificationLevel("التحقق من التوقيع", signatureStatus(invoice))
-                VerificationLevel("القبول الرسمي", officialStatus)
+                VerificationLevel(language.text("بنية رمز QR", "QR structure"), localStatus(invoice.error == null, language))
+                VerificationLevel(language.text("حقول المرحلة الأولى", "Phase one fields"), localStatus(invoice.checks.filter { it.phase == 1 }.all { it.passed }, language))
+                VerificationLevel(language.text("حقول المرحلة الثانية", "Phase two fields"),
+                    if (invoice.phase2) localStatus(invoice.checks.filter { it.phase == 2 }.all { it.passed }, language) else language.text("غير موجودة", "Missing"))
+                VerificationLevel(language.text("التحقق من التوقيع", "Signature verification"), signatureStatus(invoice, language))
+                VerificationLevel(language.text("القبول الرسمي", "Official acceptance"), officialStatus(language))
             }
         }
     }
     TextButton(onClick = { checks = !checks }, modifier = Modifier.fillMaxWidth().testTag("invoice-checks")) {
-        Text(if (checks) "إخفاء تفاصيل الفحوص" else "تفاصيل الفحوص")
+        Text(if (checks) language.text("إخفاء تفاصيل الفحوص", "Hide check details") else language.text("تفاصيل الفحوص", "Check details"))
     }
     if (checks) {
         InvoiceFieldCard {
             Column(Modifier.fillMaxWidth().padding(16.dp).testTag("invoice-check-details"),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 invoice.relevantChecks().forEach { check ->
-                    VerificationLevel(invoiceCheckLabel(check), localStatus(check.passed))
+                    VerificationLevel(invoiceCheckLabel(check, language), localStatus(check.passed, language))
                 }
             }
         }
     }
 }
 
-private fun localStatus(passed: Boolean) = if (passed) "اجتاز" else "لم يجتز"
+private fun localStatus(passed: Boolean, language: InvoiceLanguage) = if (passed) language.text("اجتاز", "Passed") else language.text("لم يجتز", "Failed")
 
 @Composable
 private fun VerificationLevel(label: String, status: String) {
@@ -109,11 +117,12 @@ private fun VerificationLevel(label: String, status: String) {
 @Suppress("DEPRECATION")
 @Composable
 internal fun InvoiceRawQr(raw: String) {
+    val language = LocalInvoiceLanguage.current
     var expanded by remember(raw) { mutableStateOf(false) }
     var copied by remember(raw) { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
     TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth().testTag("invoice-raw")) {
-        Text(if (expanded) "إخفاء نص QR الأصلي" else "عرض نص QR الأصلي")
+        Text(if (expanded) language.text("إخفاء نص QR الأصلي", "Hide original QR text") else language.text("عرض نص QR الأصلي", "Show original QR text"))
     }
     if (expanded) {
         val previewLimit = 4096
@@ -123,7 +132,7 @@ internal fun InvoiceRawQr(raw: String) {
                     clipboard.setText(AnnotatedString(raw))
                     copied = true
                 }, modifier = Modifier.testTag("invoice-copy-raw")) {
-                    Text(if (copied) "تم النسخ" else "نسخ النص الكامل")
+                    Text(if (copied) language.text("تم النسخ", "Copied") else language.text("نسخ النص الكامل", "Copy full text"))
                 }
                 Text(
                     raw.take(previewLimit).toList().joinToString("\u200B"),
@@ -131,7 +140,7 @@ internal fun InvoiceRawQr(raw: String) {
                     fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr),
                 )
-                if (raw.length > previewLimit) Text("المعروض أول $previewLimit حرفًا. زر النسخ ينسخ النص الكامل.")
+                if (raw.length > previewLimit) Text(language.text("المعروض أول $previewLimit حرفًا. زر النسخ ينسخ النص الكامل.", "Showing the first $previewLimit characters. Copy includes the full text."))
             }
         }
     }

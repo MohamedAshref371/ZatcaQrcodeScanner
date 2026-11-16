@@ -37,8 +37,6 @@ import kotlin.time.Instant
 
 private enum class InvoiceTab { SCANNER, RESULT, HISTORY, STATISTICS, SETTINGS }
 
-private const val invalidInvoiceMessage = "رمز QR غير صالح للفاتورة"
-
 enum class InvoiceDetectionResult { ACCEPTED, INVALID, SAVE_FAILED, INACTIVE }
 
 interface InvoiceDetection {
@@ -60,7 +58,13 @@ fun InvoiceCheckScreen(
     csvActions: InvoiceCsvActions? = null,
     importSharedFiles: ((InvoiceFilesObserver) -> Boolean)? = null,
     sharedImportRequests: StateFlow<Int>? = null,
+    languageSettings: InvoiceLanguageSettings? = null,
 ) {
+    var languagePreference by remember(languageSettings) {
+        mutableStateOf(languageSettings?.languagePreference() ?: InvoiceLanguagePreference.DEVICE)
+    }
+    val language = languagePreference.resolve(languageSettings?.deviceLanguage() ?: InvoiceLanguage.ARABIC)
+    val currentLanguage by rememberUpdatedState(language)
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val startTab = if (camera == null) InvoiceTab.RESULT else InvoiceTab.SCANNER
@@ -86,7 +90,7 @@ fun InvoiceCheckScreen(
         backupBusy = true
         transfer { result ->
             backupBusy = false
-            result.message()?.let(::showMessage)
+            result.message(currentLanguage)?.let(::showMessage)
         }
     }
 
@@ -96,8 +100,8 @@ fun InvoiceCheckScreen(
         transfer { status ->
             csvBusy = false
             when (status) {
-                InvoiceCsvStatus.EXPORTED -> showMessage("تم تصدير CSV")
-                InvoiceCsvStatus.FAILED -> showMessage("تعذّر تصدير ملف CSV")
+                InvoiceCsvStatus.EXPORTED -> showMessage(language.text("تم تصدير CSV", "CSV exported"))
+                InvoiceCsvStatus.FAILED -> showMessage(language.text("تعذّر تصدير ملف CSV", "Could not export the CSV file"))
                 InvoiceCsvStatus.CANCELLED -> Unit
             }
         }
@@ -109,7 +113,7 @@ fun InvoiceCheckScreen(
         var completed = false
         val started = start(object : InvoiceFilesObserver {
             override fun progress(file: Int, total: Int, page: Int, pages: Int) {
-                importProgress = if (pages > 0) "ملف $file من $total، صفحة $page من $pages" else "ملف $file من $total"
+                importProgress = if (pages > 0) language.text("ملف $file من $total، صفحة $page من $pages", "File $file of $total, page $page of $pages") else language.text("ملف $file من $total", "File $file of $total")
             }
 
             override fun complete(result: InvoiceFilesResult) {
@@ -118,7 +122,7 @@ fun InvoiceCheckScreen(
                 importProgress = ""
                 if (result.totalFiles == 0 && result.cancelled) return
                 importSummary = result
-                showMessage(if (result.cancelled) "توقف الاستيراد" else "اكتمل الاستيراد")
+                showMessage(if (result.cancelled) language.text("توقف الاستيراد", "Import stopped") else language.text("اكتمل الاستيراد", "Import complete"))
             }
         })
         if (started && !completed) {
@@ -152,13 +156,13 @@ fun InvoiceCheckScreen(
         val saved = history.save(raw, normalized, parsed.value(1), parsed.value(2), parsed.value(4), parsed.value(5),
             invoiceHistoryDay(parsed), Clock.System.now().toEpochMilliseconds())
         if (saved == null) {
-            showMessage("تعذّر حفظ الفاتورة. حاول مرة أخرى.")
+            showMessage(currentLanguage.text("تعذّر حفظ الفاتورة. حاول مرة أخرى.", "Could not save the invoice. Try again."))
             return InvoiceDetectionResult.SAVE_FAILED
         }
 
         val invoice = if (saved.raw == raw) parsed else ZatcaInvoiceParser.parse(saved.raw)
         showResult(invoice, saved)
-        if (saved.alreadySaved) showMessage("الفاتورة محفوظة بالفعل")
+        if (saved.alreadySaved) showMessage(currentLanguage.text("الفاتورة محفوظة بالفعل", "This invoice is already saved"))
         return InvoiceDetectionResult.ACCEPTED
     }
 
@@ -166,7 +170,7 @@ fun InvoiceCheckScreen(
         val saved = history.entry(id)
         val invoice = saved?.let { ZatcaInvoiceParser.parse(it.raw) }
         if (saved == null || invoice == null || invoice.error != null) {
-            showMessage("تعذّر فتح الفاتورة المحفوظة")
+            showMessage(language.text("تعذّر فتح الفاتورة المحفوظة", "Could not open the saved invoice"))
             return
         }
         showResult(invoice, saved)
@@ -179,14 +183,17 @@ fun InvoiceCheckScreen(
 
             override fun reportPhotoIssue(foundQr: Boolean) {
                 if (tab == InvoiceTab.SCANNER) {
-                    showMessage(if (foundQr) invalidInvoiceMessage else "لم أتمكن من قراءة رمز QR من الصورة")
+                    showMessage(if (foundQr) currentLanguage.text("رمز QR غير صالح للفاتورة", "Invalid invoice QR code") else currentLanguage.text("لم أتمكن من قراءة رمز QR من الصورة", "Could not read a QR code from the image"))
                 }
             }
         }
     }
 
     InvoiceAppTheme(standardInvoiceColors(isSystemInDarkTheme())) {
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        CompositionLocalProvider(
+            LocalInvoiceLanguage provides language,
+            LocalLayoutDirection provides if (language == InvoiceLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr,
+        ) {
             Scaffold(
                 topBar = {
                     TopAppBar(
@@ -195,8 +202,8 @@ fun InvoiceCheckScreen(
                         },
                         title = {
                             Column {
-                                Text("قارئ فاتورة", style = MaterialTheme.typography.titleMedium)
-                                Text("قراءة دقيقة، وتفاصيل واضحة", style = MaterialTheme.typography.labelMedium,
+                                Text(language.text("قارئ فاتورة", "Invoice QR Reader"), style = MaterialTheme.typography.titleMedium)
+                                Text(language.text("قراءة دقيقة، وتفاصيل واضحة", "Scan and review invoices"), style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         },
@@ -216,6 +223,14 @@ fun InvoiceCheckScreen(
                     val entry = savedEntry
                     if (tab == InvoiceTab.SETTINGS && backupActions != null) {
                         InvoiceBackupSettings(backupBusy || csvBusy || importBusy,
+                            languagePreference = languagePreference,
+                            onLanguageChange = languageSettings?.let { settings ->
+                                { preference ->
+                                    settings.saveLanguage(preference)
+                                    languagePreference = preference
+                                    snackbar.currentSnackbarData?.dismiss()
+                                }
+                            },
                             onExport = { transferBackup(backupActions::exportBackup) },
                             onImport = { transferBackup(backupActions::importBackup) })
                     } else if (tab == InvoiceTab.STATISTICS && statisticsSource != null) {
@@ -223,13 +238,13 @@ fun InvoiceCheckScreen(
                             onChange = { statisticsSettings = it },
                             exportEnabled = csvActions != null && !csvBusy && !backupBusy && !importBusy,
                             onExport = { snapshot, label, net ->
-                                csvActions?.let { actions -> transferCsv { actions.exportStatisticsCsv(snapshot, label, net, it) } }
+                                csvActions?.let { actions -> transferCsv { actions.exportStatisticsCsv(snapshot, label, net, language, it) } }
                             })
                     } else if (tab == InvoiceTab.HISTORY) {
                         InvoiceHistoryScreen(history, historyFilter, { historyFilter = it }, ::openSavedInvoice,
                             exportEnabled = csvActions != null && !csvBusy && !backupBusy && !importBusy,
                             onExport = {
-                                csvActions?.let { actions -> transferCsv { actions.exportHistoryCsv(historyFilter.toQuery(), it) } }
+                                csvActions?.let { actions -> transferCsv { actions.exportHistoryCsv(historyFilter.toQuery(), language, it) } }
                             })
                     } else if (tab == InvoiceTab.SCANNER && camera != null) {
                         InvoiceScannerPanel(
@@ -247,18 +262,18 @@ fun InvoiceCheckScreen(
                     } else if (invoice == null || entry == null) {
                         InvoiceManualEntry(
                             busy = false,
-                            title = "لم تُقرأ فاتورة بعد",
-                            hint = "هل لديك نص Base64 لرمز QR الخاص بالفاتورة من برنامج آخر؟ الصقه في الصندوق أدناه واضغط «فحص» لعرض نتيجة الفاتورة.",
-                            fieldLabel = "نص Base64 للفاتورة",
-                            buttonLabel = "فحص",
+                            title = language.text("لم تُقرأ فاتورة بعد", "No invoice scanned yet"),
+                            hint = language.text("هل لديك نص Base64 لرمز QR الخاص بالفاتورة من برنامج آخر؟ الصقه في الصندوق أدناه واضغط «فحص» لعرض نتيجة الفاتورة.", "Paste the Base64 text of an invoice QR code below and tap Check to view the invoice."),
+                            fieldLabel = language.text("نص Base64 للفاتورة", "Invoice Base64 text"),
+                            buttonLabel = language.text("فحص", "Check"),
                             icon = { InvoiceIconTile(ReceiptIcon) },
                         ) { raw ->
-                            if (inspect(raw) == InvoiceDetectionResult.INVALID) showMessage(invalidInvoiceMessage)
+                            if (inspect(raw) == InvoiceDetectionResult.INVALID) showMessage(language.text("رمز QR غير صالح للفاتورة", "Invalid invoice QR code"))
                         }
                     } else {
                         val share: (() -> Unit)? = shareInvoice?.let { action ->
                             {
-                                if (!action(invoiceShareSummary(invoice))) showMessage("تعذّرت مشاركة الفاتورة")
+                                if (!action(invoiceShareSummary(invoice, language))) showMessage(language.text("تعذّرت مشاركة الفاتورة", "Could not share the invoice"))
                             }
                         }
                         InvoiceResult(invoice, entry, share, onSaveAnnotation = { fields ->
@@ -282,6 +297,7 @@ fun InvoiceCheckScreen(
 private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (() -> Unit)?, selectPhotoEnabled: Boolean,
                                 importFiles: (() -> Unit)?, importBusy: Boolean, importProgress: String,
                                 importSummary: InvoiceFilesResult?, cancelImport: (() -> Unit)?) {
+    val language = LocalInvoiceLanguage.current
     Column(Modifier.fillMaxSize().testTag("invoice-scanner")) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -289,14 +305,14 @@ private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (()
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("مسح رمز QR", style = MaterialTheme.typography.titleLarge)
-                Text("وجّه الكاميرا إلى رمز QR في الفاتورة.",
+                Text(language.text("مسح رمز QR", "Scan a QR code"), style = MaterialTheme.typography.titleLarge)
+                Text(language.text("وجّه الكاميرا إلى رمز QR في الفاتورة.", "Point the camera at the invoice QR code."),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (selectPhoto != null) {
                 FilledTonalButton(onClick = selectPhoto, enabled = selectPhotoEnabled,
                     modifier = Modifier.testTag("invoice-scan-photo")) {
-                    Text("اختيار صورة")
+                    Text(language.text("اختيار صورة", "Choose photo"))
                 }
             }
         }
@@ -304,19 +320,19 @@ private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (()
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 FilledTonalButton(onClick = importFiles, enabled = !importBusy,
-                    modifier = Modifier.testTag("invoice-import-files")) { Text("استيراد صور أو PDF") }
+                    modifier = Modifier.testTag("invoice-import-files")) { Text(language.text("استيراد صور أو PDF", "Import images or PDFs")) }
                 if (importBusy && cancelImport != null) {
-                    TextButton(onClick = cancelImport, modifier = Modifier.testTag("invoice-import-cancel")) { Text("إلغاء") }
+                    TextButton(onClick = cancelImport, modifier = Modifier.testTag("invoice-import-cancel")) { Text(language.text("إلغاء", "Cancel")) }
                 }
             }
             if (importProgress.isNotEmpty()) Text(importProgress, Modifier.padding(horizontal = 16.dp),
                 style = MaterialTheme.typography.bodySmall)
             if (importSummary != null) {
-                Text("${importSummary.processedFiles} من ${importSummary.totalFiles} ملفات: " +
-                    "أضيفت ${importSummary.added}، مكررة ${importSummary.duplicates}، " +
-                    "تحتاج مراجعة ${importSummary.needsReview}، QR غير صالح ${importSummary.invalidQr}، " +
-                    "غير مقروءة ${importSummary.unreadable}، فشل الحفظ ${importSummary.saveFailed}" +
-                    if (importSummary.cancelled) " (توقف)" else "",
+                Text(language.text("${importSummary.processedFiles} من ${importSummary.totalFiles} ملفات: ", "${importSummary.processedFiles} of ${importSummary.totalFiles} files: ") +
+                    language.text("أضيفت ${importSummary.added}، مكررة ${importSummary.duplicates}، ", "added ${importSummary.added}, duplicates ${importSummary.duplicates}, ") +
+                    language.text("تحتاج مراجعة ${importSummary.needsReview}، QR غير صالح ${importSummary.invalidQr}، ", "need review ${importSummary.needsReview}, invalid QR ${importSummary.invalidQr}, ") +
+                    language.text("غير مقروءة ${importSummary.unreadable}، فشل الحفظ ${importSummary.saveFailed}", "unreadable ${importSummary.unreadable}, save failures ${importSummary.saveFailed}") +
+                    if (importSummary.cancelled) language.text(" (توقف)", " (stopped)") else "",
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall)
             }
@@ -328,9 +344,10 @@ private fun InvoiceScannerPanel(camera: @Composable () -> Unit, selectPhoto: (()
 @Composable
 private fun InvoiceResultNavigation(tab: InvoiceTab, hasScanner: Boolean, hasSettings: Boolean, hasStatistics: Boolean, busy: Boolean,
     select: (InvoiceTab) -> Unit) {
+    val language = LocalInvoiceLanguage.current
     val items = listOf(
-        "الماسح" to ScanIcon, "النتيجة" to ReceiptIcon, "السجل" to HistoryIcon,
-        "الإحصاءات" to StatisticsIcon, "الإعدادات" to SettingsIcon,
+        language.text("الماسح", "Scanner") to ScanIcon, language.text("النتيجة", "Result") to ReceiptIcon, language.text("السجل", "History") to HistoryIcon,
+        language.text("الإحصاءات", "Statistics") to StatisticsIcon, language.text("الإعدادات", "Settings") to SettingsIcon,
     )
     val colors = MaterialTheme.colorScheme
     val labelStyle = MaterialTheme.typography.labelMedium
@@ -399,8 +416,9 @@ private fun InvoiceIconTile(
 @Composable
 private fun InvoiceResult(invoice: ParsedInvoice, entry: InvoiceHistoryEntry, onShare: (() -> Unit)?,
     onSaveAnnotation: (InvoiceAnnotationFields) -> Boolean, onAgain: () -> Unit) {
-    val phase = if (invoice.phase2) "المرحلة الثانية" else "المرحلة الأولى"
-    val type = if (invoice.isSimplified) "فاتورة ضريبية مبسطة" else "فاتورة ضريبية"
+    val language = LocalInvoiceLanguage.current
+    val phase = if (invoice.phase2) language.text("المرحلة الثانية", "Phase two") else language.text("المرحلة الأولى", "Phase one")
+    val type = if (invoice.isSimplified) language.text("فاتورة ضريبية مبسطة", "Simplified tax invoice") else language.text("فاتورة ضريبية", "Tax invoice")
     val colors = MaterialTheme.colorScheme
     var advanced by remember(invoice.raw) { mutableStateOf(false) }
     Column(
@@ -415,60 +433,61 @@ private fun InvoiceResult(invoice: ParsedInvoice, entry: InvoiceHistoryEntry, on
                     tint = if (invoice.passed) colors.primary else colors.error,
                 )
                 Text(
-                    invoiceResultStatus(invoice),
+                    invoiceResultStatus(invoice, language),
                     Modifier.weight(1f).testTag("invoice-status"),
                     style = MaterialTheme.typography.titleMedium,
                 )
                 if (onShare != null) {
                     IconButton(onClick = onShare, modifier = Modifier.testTag("invoice-share")) {
-                        Icon(ShareIcon, "مشاركة ملخص الفاتورة")
+                        Icon(ShareIcon, language.text("مشاركة ملخص الفاتورة", "Share invoice summary"))
                     }
                 }
             }
             Text("$type · $phase")
             invoice.relevantChecks().filterNot { it.passed }.forEach { check ->
-                Text("✕ ${invoiceCheckLabel(check)}", style = MaterialTheme.typography.bodySmall)
+                Text("✕ ${invoiceCheckLabel(check, language)}", style = MaterialTheme.typography.bodySmall)
             }
-            Text("تاريخ الفحص: ${formatInvoiceCheckTime(entry.checkedAt)}",
+            Text(language.text("تاريخ الفحص: ${formatInvoiceCheckTime(entry.checkedAt, language)}", "Checked: ${formatInvoiceCheckTime(entry.checkedAt, language)}"),
                 Modifier.testTag("invoice-checked-at"), style = MaterialTheme.typography.bodySmall)
         }
         Text(
-            "يفحص التطبيق بنية QR وحقول الفاتورة محليًا، ولا يتحقق من صحة التوقيع أو اعتماد الفاتورة رسميًا.",
+            language.text("يفحص التطبيق بنية QR وحقول الفاتورة محليًا، ولا يتحقق من صحة التوقيع أو اعتماد الفاتورة رسميًا.", "The app checks QR structure and invoice fields locally. Signature validity and official acceptance require separate verification."),
             style = MaterialTheme.typography.bodySmall,
             color = colors.onSurfaceVariant,
         )
         Text(
-            "تفاصيل الفاتورة",
+            language.text("تفاصيل الفاتورة", "Invoice details"),
             Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp).testTag("invoice-result"),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
         for (tag in 1..if (invoice.phase2) 6 else 5) {
             if (tag == 3) InvoiceDateCard(invoice.value(tag))
-            else InvoiceValueCard(tag, invoiceFieldName(tag), invoice.value(tag))
+            else InvoiceValueCard(tag, invoiceFieldName(tag, language), invoice.value(tag))
         }
         IosInvoiceAnnotations(entry, onSaveAnnotation)
         if (invoice.phase2) {
             OutlinedButton(onClick = { advanced = !advanced },
                 modifier = Modifier.fillMaxWidth().testTag("invoice-advanced")) {
-                Text(if (advanced) "إخفاء الحقول المتقدمة" else "عرض الحقول المتقدمة")
+                Text(if (advanced) language.text("إخفاء الحقول المتقدمة", "Hide advanced fields") else language.text("عرض الحقول المتقدمة", "Show advanced fields"))
             }
             if (advanced) {
                 for (tag in 7..9) {
-                    val value = if (tag == 9 && !invoice.isSimplified) "اختياري للفاتورة الضريبية" else invoice.value(tag)
-                    InvoiceValueCard(tag, invoiceFieldName(tag), value)
+                    val value = if (tag == 9 && !invoice.isSimplified) language.text("اختياري للفاتورة الضريبية", "Optional for a tax invoice") else invoice.value(tag)
+                    InvoiceValueCard(tag, invoiceFieldName(tag, language), value)
                 }
             }
         }
         InvoiceVerificationDetails(invoice)
         InvoiceRawQr(invoice.raw)
-        Button(onClick = onAgain, modifier = Modifier.fillMaxWidth()) { Text("فحص فاتورة أخرى") }
+        Button(onClick = onAgain, modifier = Modifier.fillMaxWidth()) { Text(language.text("فحص فاتورة أخرى", "Check another invoice")) }
     }
 }
 
 @Suppress("DEPRECATION")
 @Composable
 private fun InvoiceValueCard(tag: Int, title: String, value: String) {
+    val language = LocalInvoiceLanguage.current
     val clipboard = LocalClipboardManager.current
     InvoiceFieldCard {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -479,7 +498,7 @@ private fun InvoiceValueCard(tag: Int, title: String, value: String) {
                     SelectionContainer(Modifier.weight(1f)) {
                         val style = if (tag == 4) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge
                         Text(
-                            value.ifBlank { "غير موجود" },
+                            value.ifBlank { language.text("غير موجود", "Missing") },
                             Modifier.testTag("invoice-field-$tag"),
                             style = if (tag >= 2 && value.isNotBlank()) style.copy(textDirection = TextDirection.Ltr) else style,
                             fontWeight = if (tag == 1 || tag == 4) FontWeight.Bold else FontWeight.Normal,
@@ -487,7 +506,7 @@ private fun InvoiceValueCard(tag: Int, title: String, value: String) {
                     }
                     if (tag == 2) {
                         IconButton(onClick = { clipboard.setText(AnnotatedString(value)) }, enabled = value.isNotBlank()) {
-                            Icon(CopyIcon, "نسخ الرقم الضريبي")
+                            Icon(CopyIcon, language.text("نسخ الرقم الضريبي", "Copy VAT number"))
                         }
                     }
                 }
@@ -498,20 +517,23 @@ private fun InvoiceValueCard(tag: Int, title: String, value: String) {
 
 @Composable
 private fun InvoiceDateCard(value: String) {
+    val language = LocalInvoiceLanguage.current
     val time = remember(value) { runCatching { ZatcaInvoiceParser.parseTimestamp(value) }.getOrNull() }
     val title = when {
-        time == null -> "التاريخ والوقت"
-        value.endsWith('Z') -> "التاريخ والوقت (توقيت عالمي)"
-        else -> "التاريخ والوقت (توقيت محلي)"
+        time == null -> language.text("التاريخ والوقت", "Date and time")
+        value.endsWith('Z') -> language.text("التاريخ والوقت (توقيت عالمي)", "Date and time (UTC)")
+        else -> language.text("التاريخ والوقت (توقيت محلي)", "Date and time (local time)")
     }
     InvoiceFieldCard {
         SelectionContainer {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 InvoiceFieldLabel(title)
-                val date = if (time == null) value.ifBlank { "غير موجود" }
-                    else "${weekdays[time.date.dayOfWeek.ordinal]} ${time.dayOfMonth} ${months[time.monthNumber - 1]} ${time.year}"
-                Text("التاريخ: $date", Modifier.testTag("invoice-field-3"), style = MaterialTheme.typography.bodyLarge)
-                if (time != null) Text("الوقت: ${displayTime(time)}", style = MaterialTheme.typography.bodyLarge)
+                val date = if (time == null) value.ifBlank { language.text("غير موجود", "Missing") }
+                    else if (language == InvoiceLanguage.ARABIC) {
+                        "${weekdays[time.date.dayOfWeek.ordinal]} ${time.dayOfMonth} ${months[time.monthNumber - 1]} ${time.year}"
+                    } else time.date.toString()
+                Text(language.text("التاريخ: $date", "Date: $date"), Modifier.testTag("invoice-field-3"), style = MaterialTheme.typography.bodyLarge)
+                if (time != null) Text(language.text("الوقت: ${displayTime(time, language)}", "Time: ${displayTime(time, language)}"), style = MaterialTheme.typography.bodyLarge)
             }
         }
     }
@@ -527,13 +549,13 @@ private val months = listOf("يناير", "فبراير", "مارس", "أبري�
 
 private fun twoDigits(value: Int) = value.toString().padStart(2, '0')
 
-internal fun formatInvoiceCheckTime(checkedAt: Long): String {
+internal fun formatInvoiceCheckTime(checkedAt: Long, language: InvoiceLanguage): String {
     val time = Instant.fromEpochMilliseconds(checkedAt).toLocalDateTime(TimeZone.currentSystemDefault())
-    return "${time.year}/${twoDigits(time.monthNumber)}/${twoDigits(time.dayOfMonth)} ${displayTime(time)}"
+    return "${time.year}/${twoDigits(time.monthNumber)}/${twoDigits(time.dayOfMonth)} ${displayTime(time, language)}"
 }
 
-private fun displayTime(value: LocalDateTime): String {
+private fun displayTime(value: LocalDateTime, language: InvoiceLanguage): String {
     val hour = (value.hour + 11) % 12 + 1
-    val period = if (value.hour < 12) "ص" else "م"
+    val period = if (value.hour < 12) language.text("ص", "AM") else language.text("م", "PM")
     return "$hour:${twoDigits(value.minute)}:${twoDigits(value.second)} $period"
 }

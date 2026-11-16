@@ -39,6 +39,7 @@ class InvoiceStatisticsQuery internal constructor(
     internal val options: InvoiceStatisticsOptions,
     val from: String,
     val to: String,
+    val language: InvoiceLanguage,
 )
 
 data class InvoiceStatisticsAmounts(
@@ -71,12 +72,13 @@ internal data class InvoiceStatisticsSettings(
 internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: InvoiceStatisticsSettings,
     onChange: (InvoiceStatisticsSettings) -> Unit, exportEnabled: Boolean = false,
     onExport: (InvoiceStatisticsSnapshot, String, Boolean) -> Unit = { _, _, _ -> }) {
+    val language = LocalInvoiceLanguage.current
     var retries by remember { mutableIntStateOf(0) }
     var showDates by remember { mutableStateOf(false) }
     var showCalculations by remember { mutableStateOf(false) }
-    val query = remember(settings, retries) {
+    val query = remember(settings, retries, language) {
         InvoiceStatisticsQuery(InvoiceStatisticsOptions(grouping = settings.grouping, categoryCalculations = settings.calculations),
-            settings.dates.from?.toString().orEmpty(), settings.dates.to?.toString().orEmpty())
+            settings.dates.from?.toString().orEmpty(), settings.dates.to?.toString().orEmpty(), language)
     }
     val snapshot = remember(query) { mutableStateOf<InvoiceStatisticsSnapshot?>(null) }
     val loading = remember(query) { mutableStateOf(true) }
@@ -94,18 +96,18 @@ internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: 
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("الإحصاءات", style = MaterialTheme.typography.titleLarge)
+                Text(language.text("الإحصاءات", "Statistics"), style = MaterialTheme.typography.titleLarge)
                 TextButton(onClick = {
-                    result?.let { onExport(it, statisticsGroupingLabel(settings.grouping),
+                    result?.let { onExport(it, statisticsGroupingLabel(settings.grouping, language),
                         settings.grouping != StatisticsGrouping.CATEGORY && settings.calculations.isNotEmpty()) }
                 }, enabled = exportEnabled && result != null && result.summary.count > 0,
-                    modifier = Modifier.testTag("invoice-statistics-export-csv")) { Text("تصدير CSV") }
-                StatisticsChoice("التجميع حسب", settings.grouping, StatisticsGrouping.entries.filterNot { it == StatisticsGrouping.HALF_YEAR },
-                    ::statisticsGroupingLabel, "invoice-statistics-group") { onChange(settings.copy(grouping = it)) }
-                TextButton(onClick = { showDates = true }) { Text(settings.dates.dateSummary()) }
+                    modifier = Modifier.testTag("invoice-statistics-export-csv")) { Text(language.text("تصدير CSV", "Export CSV")) }
+                StatisticsChoice(language.text("التجميع حسب", "Group by"), settings.grouping, StatisticsGrouping.entries.filterNot { it == StatisticsGrouping.HALF_YEAR },
+                    { statisticsGroupingLabel(it, language) }, "invoice-statistics-group") { onChange(settings.copy(grouping = it)) }
+                TextButton(onClick = { showDates = true }) { Text(settings.dates.dateSummary(language)) }
                 if (settings.grouping != StatisticsGrouping.CATEGORY) {
                     TextButton(onClick = { showCalculations = true }, modifier = Modifier.testTag("invoice-statistics-calculations")) {
-                        Text("طريقة احتساب التصنيفات")
+                        Text(language.text("طريقة احتساب التصنيفات", "How categories affect totals"))
                     }
                 }
             }
@@ -113,12 +115,12 @@ internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: 
         when {
             loading.value -> item { CircularProgressIndicator() }
             result == null -> item {
-                Text("تعذّر تحميل الإحصاءات")
-                TextButton(onClick = { retries++ }) { Text("إعادة المحاولة") }
+                Text(language.text("تعذّر تحميل الإحصاءات", "Could not load statistics"))
+                TextButton(onClick = { retries++ }) { Text(language.text("إعادة المحاولة", "Retry")) }
             }
-            result.summary.count == 0 -> item { Text("لا توجد فواتير للفترة المختارة") }
+            result.summary.count == 0 -> item { Text(language.text("لا توجد فواتير للفترة المختارة", "No invoices in the selected period")) }
             else -> {
-                item { StatisticsCard("الإجماليات", result.summary, Modifier.testTag("invoice-statistics-summary")) }
+                item { StatisticsCard(language.text("الإجماليات", "Totals"), result.summary, Modifier.testTag("invoice-statistics-summary")) }
                 items(result.groups) { group -> StatisticsCard(group.title, group.amounts) }
             }
         }
@@ -133,37 +135,39 @@ internal fun InvoiceStatisticsScreen(source: InvoiceStatisticsSource, settings: 
     }
 }
 
-private fun statisticsGroupingLabel(grouping: StatisticsGrouping): String = when (grouping) {
-    StatisticsGrouping.SELLER -> "البائع"
-    StatisticsGrouping.VAT -> "الرقم الضريبي"
-    StatisticsGrouping.CATEGORY -> "التصنيف"
-    StatisticsGrouping.DAY -> "اليوم"
-    StatisticsGrouping.MONTH -> "الشهر"
-    StatisticsGrouping.QUARTER -> "الربع"
-    StatisticsGrouping.HALF_YEAR -> "نصف السنة"
-    StatisticsGrouping.YEAR -> "السنة"
+private fun statisticsGroupingLabel(grouping: StatisticsGrouping, language: InvoiceLanguage): String = when (grouping) {
+    StatisticsGrouping.SELLER -> language.text("البائع", "Seller")
+    StatisticsGrouping.VAT -> language.text("الرقم الضريبي", "VAT number")
+    StatisticsGrouping.CATEGORY -> language.text("التصنيف", "Category")
+    StatisticsGrouping.DAY -> language.text("اليوم", "Day")
+    StatisticsGrouping.MONTH -> language.text("الشهر", "Month")
+    StatisticsGrouping.QUARTER -> language.text("الربع", "Quarter")
+    StatisticsGrouping.HALF_YEAR -> language.text("نصف السنة", "Half-year")
+    StatisticsGrouping.YEAR -> language.text("السنة", "Year")
 }
 
 @Composable
 private fun StatisticsCard(title: String, amounts: InvoiceStatisticsAmounts, modifier: Modifier = Modifier) {
+    val language = LocalInvoiceLanguage.current
     InvoiceFieldCard {
         Column(modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             val included = amounts.count - amounts.ignored
             Text(title, style = MaterialTheme.typography.titleMedium)
-            Text("عدد الفواتير: ${amounts.count}")
-            StatisticsAmount("إجمالي المبالغ", amounts.total, included, amounts.missingTotal)
-            StatisticsAmount("إجمالي الضريبة", amounts.tax, included, amounts.missingTax)
-            if (amounts.ignored > 0) Text("مستبعدة من المبالغ: ${amounts.ignored}", style = MaterialTheme.typography.bodySmall)
+            Text(language.text("عدد الفواتير: ${amounts.count}", "Invoices: ${amounts.count}"))
+            StatisticsAmount(language.text("إجمالي المبالغ", "Total amount"), amounts.total, included, amounts.missingTotal)
+            StatisticsAmount(language.text("إجمالي الضريبة", "Total VAT"), amounts.tax, included, amounts.missingTax)
+            if (amounts.ignored > 0) Text(language.text("مستبعدة من المبالغ: ${amounts.ignored}", "Excluded from totals: ${amounts.ignored}"), style = MaterialTheme.typography.bodySmall)
         }
     }
 }
 
 @Composable
 private fun StatisticsAmount(label: String, amount: String, included: Int, missing: Int) {
+    val language = LocalInvoiceLanguage.current
     Text(label, style = MaterialTheme.typography.labelMedium)
-    Text(if (included > 0 && missing == included) "غير متاح" else amount,
+    Text(if (included > 0 && missing == included) language.text("غير متاح", "Unavailable") else amount,
         style = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.ContentOrLtr))
-    if (missing > 0) Text("قيم مفقودة أو غير صالحة: $missing", style = MaterialTheme.typography.bodySmall)
+    if (missing > 0) Text(language.text("قيم مفقودة أو غير صالحة: $missing", "Missing or invalid values: $missing"), style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable
@@ -185,26 +189,27 @@ private fun <T> StatisticsChoice(prefix: String, value: T, choices: List<T>, lab
 @Composable
 private fun StatisticsCalculationDialog(current: Map<Int, StatisticsCategoryCalculation>, onDismiss: () -> Unit,
     onApply: (Map<Int, StatisticsCategoryCalculation>) -> Unit) {
+    val language = LocalInvoiceLanguage.current
     var draft by remember { mutableStateOf(current) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("طريقة احتساب التصنيفات") },
+        title = { Text(language.text("طريقة احتساب التصنيفات", "How categories affect totals")) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 InvoiceAnnotationRules.categoryIds.forEach { category ->
                     val calculation = draft[category] ?: StatisticsCategoryCalculation.ADD
-                    StatisticsChoice(arabicInvoiceCategory(category), calculation, StatisticsCategoryCalculation.entries,
+                    StatisticsChoice(invoiceCategoryLabel(category, language), calculation, StatisticsCategoryCalculation.entries,
                         { when (it) {
-                            StatisticsCategoryCalculation.ADD -> "إضافة"
-                            StatisticsCategoryCalculation.SUBTRACT -> "طرح"
-                            StatisticsCategoryCalculation.IGNORE -> "تجاهل المبالغ"
+                            StatisticsCategoryCalculation.ADD -> language.text("إضافة", "Add")
+                            StatisticsCategoryCalculation.SUBTRACT -> language.text("طرح", "Subtract")
+                            StatisticsCategoryCalculation.IGNORE -> language.text("تجاهل المبالغ", "Exclude from totals")
                         } }, "invoice-statistics-category-$category") {
                         draft = if (it == StatisticsCategoryCalculation.ADD) draft - category else draft + (category to it)
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onApply(draft) }) { Text("تطبيق") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء") } },
+        confirmButton = { TextButton(onClick = { onApply(draft) }) { Text(language.text("تطبيق", "Apply")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(language.text("إلغاء", "Cancel")) } },
     )
 }

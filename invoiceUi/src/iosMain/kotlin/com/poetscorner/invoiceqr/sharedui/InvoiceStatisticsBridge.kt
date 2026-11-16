@@ -22,15 +22,16 @@ class InvoiceStatisticsBuilder(private val query: InvoiceStatisticsQuery) {
     }
 
     private fun title(key: InvoiceStatisticsKey): String {
+        val language = query.language
         val grouping = query.options.grouping
-        if (grouping == StatisticsGrouping.CATEGORY) return arabicInvoiceCategory(key.text?.toIntOrNull() ?: 0)
-        val start = key.periodStart ?: return key.text ?: "غير محدد"
+        if (grouping == StatisticsGrouping.CATEGORY) return invoiceCategoryLabel(key.text?.toIntOrNull() ?: 0, language)
+        val start = key.periodStart ?: return key.text ?: language.text("غير محدد", "Unspecified")
         val date = LocalDate.fromEpochDays(start)
         return when (grouping) {
             StatisticsGrouping.DAY -> date.toString()
             StatisticsGrouping.MONTH -> date.toString().dropLast(3)
-            StatisticsGrouping.QUARTER -> "الربع ${(date.monthNumber - 1) / 3 + 1} · ${date.year}"
-            StatisticsGrouping.HALF_YEAR -> "النصف ${if (date.monthNumber == 1) 1 else 2} · ${date.year}"
+            StatisticsGrouping.QUARTER -> language.text("الربع ${(date.monthNumber - 1) / 3 + 1} · ${date.year}", "Q${(date.monthNumber - 1) / 3 + 1} · ${date.year}")
+            StatisticsGrouping.HALF_YEAR -> language.text("النصف ${if (date.monthNumber == 1) 1 else 2} · ${date.year}", "H${if (date.monthNumber == 1) 1 else 2} · ${date.year}")
             else -> date.year.toString()
         }
     }

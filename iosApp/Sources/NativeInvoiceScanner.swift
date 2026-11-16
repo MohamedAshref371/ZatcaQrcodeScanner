@@ -17,6 +17,28 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
     private let statisticsQueue = DispatchQueue(label: "com.poetscorner.invoiceqr.statistics", qos: .userInitiated)
     private static let photoLog = Logger(subsystem: "com.poetscorner.invoiceqr.preview", category: "photo-scan")
 
+    func languagePreference() -> InvoiceLanguagePreference {
+        switch InvoiceLanguagePreferences.choice {
+        case .device: return .device
+        case .arabic: return .arabic
+        case .english: return .english
+        }
+    }
+
+    func deviceLanguage() -> InvoiceLanguage {
+        InvoiceLanguagePreferences.deviceUsesArabic ? .arabic : .english
+    }
+
+    func saveLanguage(preference: InvoiceLanguagePreference) {
+        if preference == .arabic {
+            InvoiceLanguagePreferences.save(.arabic)
+        } else if preference == .english {
+            InvoiceLanguagePreferences.save(.english)
+        } else {
+            InvoiceLanguagePreferences.save(.device)
+        }
+    }
+
     func makeCamera(detection: InvoiceDetection) -> UIViewController {
         InvoiceCameraViewController(detection: detection)
     }
@@ -40,14 +62,14 @@ final class NativeInvoiceScanner: NSObject, InvoiceScannerHost, PHPickerViewCont
         }
     }
 
-    func exportHistoryCsv(query: InvoiceHistoryQuery, observer: InvoiceCsvObserver) {
-        csvDocuments.exportHistory(from: presenter, query: query, observer: observer)
+    func exportHistoryCsv(query: InvoiceHistoryQuery, language: InvoiceLanguage, observer: InvoiceCsvObserver) {
+        csvDocuments.exportHistory(from: presenter, query: query, language: language, observer: observer)
     }
 
     func exportStatisticsCsv(snapshot: InvoiceStatisticsSnapshot, groupingLabel: String, net: Bool,
-                             observer: InvoiceCsvObserver) {
+                             language: InvoiceLanguage, observer: InvoiceCsvObserver) {
         csvDocuments.exportStatistics(from: presenter, snapshot: snapshot, groupingLabel: groupingLabel,
-                                      net: net, observer: observer)
+                                      net: net, language: language, observer: observer)
     }
 
     func shareInvoice(summary: String) -> Bool {
@@ -230,7 +252,7 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
 
     private func beginCamera() {
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
-            status.text = "الكاميرا غير متاحة على هذا الجهاز. يمكنك اختيار صورة."
+            status.text = InvoiceLanguagePreferences.text("الكاميرا غير متاحة على هذا الجهاز. يمكنك اختيار صورة.", "The camera is unavailable on this device. You can choose a photo.")
             return
         }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -250,16 +272,16 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
         case .denied, .restricted:
             showPermissionMessage()
         @unknown default:
-            status.text = "تعذّر تشغيل الكاميرا. يمكنك اختيار صورة."
+            status.text = InvoiceLanguagePreferences.text("تعذّر تشغيل الكاميرا. يمكنك اختيار صورة.", "Could not start the camera. You can choose a photo.")
         }
     }
 
     private func showPermissionMessage() {
-        status.text = "اسمح باستخدام الكاميرا من إعدادات iPhone أو اختر صورة."
+        status.text = InvoiceLanguagePreferences.text("اسمح باستخدام الكاميرا من إعدادات iPhone أو اختر صورة.", "Allow camera access in iPhone Settings or choose a photo.")
     }
 
     private func startCamera(_ device: AVCaptureDevice) {
-        status.text = "جارٍ فتح الكاميرا…"
+        status.text = InvoiceLanguagePreferences.text("جارٍ فتح الكاميرا…", "Opening camera…")
         captureQueue.async { [weak self] in
             guard let self else { return }
             if !self.configured {
@@ -269,7 +291,7 @@ private final class InvoiceCameraViewController: UIViewController, AVCaptureMeta
             let running = self.session.isRunning
             DispatchQueue.main.async {
                 guard self.visible else { return }
-                self.status.text = running ? nil : "تعذّر تشغيل الكاميرا. يمكنك اختيار صورة."
+                self.status.text = running ? nil : InvoiceLanguagePreferences.text("تعذّر تشغيل الكاميرا. يمكنك اختيار صورة.", "Could not start the camera. You can choose a photo.")
                 self.guide.isHidden = !running
                 self.view.setNeedsLayout()
             }

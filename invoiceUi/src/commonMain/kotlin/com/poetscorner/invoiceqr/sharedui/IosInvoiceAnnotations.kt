@@ -18,21 +18,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
-private val annotationLabels = InvoiceAnnotationLabels("بياناتك", "رقم الفاتورة", "التصنيف", "ملاحظة", "حفظ", "إلغاء")
+private fun annotationLabels(language: InvoiceLanguage) = InvoiceAnnotationLabels(language.text("بياناتك", "Your details"), language.text("رقم الفاتورة", "Invoice number"), language.text("التصنيف", "Category"), language.text("ملاحظة", "Note"), language.text("حفظ", "Save"), language.text("إلغاء", "Cancel"))
 
-internal fun arabicInvoiceCategory(id: Int): String = when (id) {
-    1 -> "مشتريات عمل"
-    2 -> "مشتريات شخصية"
-    3 -> "مرتجع مشتريات"
-    4 -> "فاتورة مبيعات"
-    5 -> "مرتجع مبيعات"
-    6 -> "تحتاج مراجعة"
-    99 -> "أخرى"
-    else -> "بدون تصنيف"
+internal fun invoiceCategoryLabel(id: Int, language: InvoiceLanguage): String = when (id) {
+    1 -> language.text("مشتريات عمل", "Business purchase")
+    2 -> language.text("مشتريات شخصية", "Personal purchase")
+    3 -> language.text("مرتجع مشتريات", "Purchase return")
+    4 -> language.text("فاتورة مبيعات", "Sales invoice")
+    5 -> language.text("مرتجع مبيعات", "Sales return")
+    6 -> language.text("تحتاج مراجعة", "Needs review")
+    99 -> language.text("أخرى", "Other")
+    else -> language.text("بدون تصنيف", "Uncategorized")
 }
 
 @Composable
 internal fun IosInvoiceAnnotations(entry: InvoiceHistoryEntry, onSave: (InvoiceAnnotationFields) -> Boolean) {
+    val language = LocalInvoiceLanguage.current
+    val annotationLabels = annotationLabels(language)
     var editing by remember(entry.id) { mutableStateOf(false) }
     val fields = entry.annotation
     InvoiceFieldCard {
@@ -41,14 +43,14 @@ internal fun IosInvoiceAnnotations(entry: InvoiceHistoryEntry, onSave: (InvoiceA
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(annotationLabels.title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
                 TextButton(onClick = { editing = true }, modifier = Modifier.testTag("invoice-annotation-edit")) {
-                    Text("تعديل")
+                    Text(language.text("تعديل", "Edit"))
                 }
             }
             if (fields.number.isNotBlank()) {
                 Text("${annotationLabels.number}: ${fields.number}", Modifier.testTag("invoice-saved-number"))
             }
             if (fields.category != 0) {
-                Text(arabicInvoiceCategory(fields.category), Modifier.testTag("invoice-saved-category"))
+                Text(invoiceCategoryLabel(fields.category, language), Modifier.testTag("invoice-saved-category"))
             }
             if (fields.note.isNotBlank()) {
                 Text(fields.note, Modifier.testTag("invoice-saved-note"))
@@ -58,9 +60,9 @@ internal fun IosInvoiceAnnotations(entry: InvoiceHistoryEntry, onSave: (InvoiceA
     if (editing) InvoiceAnnotationDialog(
         initial = fields,
         labels = annotationLabels,
-        categoryLabel = { arabicInvoiceCategory(it) },
+        categoryLabel = { invoiceCategoryLabel(it, language) },
         onDismiss = { editing = false },
         onSave = onSave,
-        saveError = "تعذّر حفظ بياناتك.",
+        saveError = language.text("تعذّر حفظ بياناتك.", "Could not save your details."),
     )
 }

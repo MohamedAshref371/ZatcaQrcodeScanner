@@ -34,8 +34,13 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
 
-internal enum class HistoryDateSource(val label: String) {
-    INVOICE("تاريخ الفاتورة"), CHECK("تاريخ الفحص"),
+internal enum class HistoryDateSource {
+    INVOICE, CHECK;
+
+    fun label(language: InvoiceLanguage) = when (this) {
+        INVOICE -> language.text("تاريخ الفاتورة", "Invoice date")
+        CHECK -> language.text("تاريخ الفحص", "Check date")
+    }
 }
 
 internal data class InvoiceHistoryFilter(
@@ -47,11 +52,11 @@ internal data class InvoiceHistoryFilter(
     private val hasDates get() = from != null || to != null
     val isActive get() = term.isNotBlank() || hasDates
 
-    fun dateSummary(): String = when {
-        from != null && to != null -> "${dateSource.label}: $from – $to"
-        from != null -> "${dateSource.label}: من $from"
-        to != null -> "${dateSource.label}: حتى $to"
-        else -> "تصفية بالتاريخ"
+    fun dateSummary(language: InvoiceLanguage): String = when {
+        from != null && to != null -> "${dateSource.label(language)}: $from – $to"
+        from != null -> language.text("${dateSource.label(language)}: من $from", "${dateSource.label(language)}: from $from")
+        to != null -> language.text("${dateSource.label(language)}: حتى $to", "${dateSource.label(language)}: through $to")
+        else -> language.text("تصفية بالتاريخ", "Filter by date")
     }
 
     fun toQuery(): InvoiceHistoryQuery {
@@ -80,6 +85,7 @@ private fun parseFilterDate(text: String): LocalDate? {
 @Composable
 internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: () -> Unit,
     invoiceOnly: Boolean = false, onApply: (InvoiceHistoryFilter) -> Unit) {
+    val language = LocalInvoiceLanguage.current
     var source by remember { mutableStateOf(filter.dateSource) }
     var from by remember { mutableStateOf(filter.from?.toString().orEmpty()) }
     var to by remember { mutableStateOf(filter.to?.toString().orEmpty()) }
@@ -90,7 +96,7 @@ internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: (
     val reversed = start != null && end != null && start > end
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("تصفية بالتاريخ") },
+        title = { Text(language.text("تصفية بالتاريخ", "Filter by date")) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!invoiceOnly) HistoryDateSource.entries.forEach { choice ->
@@ -102,32 +108,33 @@ internal fun InvoiceHistoryDateDialog(filter: InvoiceHistoryFilter, onDismiss: (
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         RadioButton(selected = source == choice, onClick = null)
-                        Text(choice.label)
+                        Text(choice.label(language))
                     }
                 }
-                HistoryDateField(from, { from = it }, "من", "invoice-history-from", startInvalid)
-                HistoryDateField(to, { to = it }, "حتى", "invoice-history-to", endInvalid || reversed)
-                if (reversed) Text("تاريخ النهاية لازم يكون بعد تاريخ البداية أو يساويه.")
-                TextButton(onClick = { onApply(filter.copy(from = null, to = null)) }) { Text("مسح التاريخ") }
+                HistoryDateField(from, { from = it }, language.text("من", "From"), "invoice-history-from", startInvalid)
+                HistoryDateField(to, { to = it }, language.text("حتى", "Through"), "invoice-history-to", endInvalid || reversed)
+                if (reversed) Text(language.text("تاريخ النهاية لازم يكون بعد تاريخ البداية أو يساويه.", "The end date must be on or after the start date."))
+                TextButton(onClick = { onApply(filter.copy(from = null, to = null)) }) { Text(language.text("مسح التاريخ", "Clear dates")) }
             }
         },
         confirmButton = {
             Button(onClick = { onApply(filter.copy(dateSource = source, from = start, to = end)) },
                 enabled = !startInvalid && !endInvalid && !reversed,
-                modifier = Modifier.testTag("invoice-history-date-apply")) { Text("تطبيق") }
+                modifier = Modifier.testTag("invoice-history-date-apply")) { Text(language.text("تطبيق", "Apply")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(language.text("إلغاء", "Cancel")) } },
     )
 }
 
 @Composable
 private fun HistoryDateField(value: String, onChange: (String) -> Unit, label: String, tag: String, invalid: Boolean) {
+    val language = LocalInvoiceLanguage.current
     OutlinedTextField(
         value = value, onValueChange = onChange,
         modifier = Modifier.fillMaxWidth().testTag(tag),
         label = { Text(label) },
         placeholder = { Text("2026-10-20") },
-        supportingText = if (invalid) ({ Text("اكتب التاريخ بصيغة سنة-شهر-يوم") }) else null,
+        supportingText = if (invalid) ({ Text(language.text("اكتب التاريخ بصيغة سنة-شهر-يوم", "Enter the date as YYYY-MM-DD")) }) else null,
         textStyle = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
         singleLine = true, isError = invalid,

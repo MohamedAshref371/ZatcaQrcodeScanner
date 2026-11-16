@@ -200,10 +200,10 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
     }
 
     /// Two passes in one read transaction keep the optional hash column and rows on one snapshot.
-    func writeHistoryCsv(filter: InvoiceHistoryQuery, to file: FileHandle) throws {
+    func writeHistoryCsv(filter: InvoiceHistoryQuery, language: InvoiceLanguage, to file: FileHandle) throws {
         try withDatabase { db in
             try transaction(db, begin: "BEGIN") {
-                let detector = InvoiceHistoryCsvDocument(hasHash: false)
+                let detector = InvoiceHistoryCsvDocument(hasHash: false, language: language)
                 var cursor = Int64.max
                 var hasHash = false
                 while !hasHash {
@@ -212,7 +212,7 @@ final class SQLiteInvoiceHistory: InvoiceHistoryStore {
                     hasHash = rows.contains { detector.hasHash(raw: $0.raw) }
                     cursor = last.id
                 }
-                let document = InvoiceHistoryCsvDocument(hasHash: hasHash)
+                let document = InvoiceHistoryCsvDocument(hasHash: hasHash, language: language)
                 try file.write(contentsOf: Data(document.header().utf8))
                 cursor = Int64.max
                 var first = true

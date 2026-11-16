@@ -1,0 +1,2 @@
+"CFBundleDisplayName" = "Invoice QR Reader";
+"NSCameraUsageDescription" = "Invoice QR Reader uses the camera to read the QR code on an invoice.";

@@ -5,7 +5,7 @@
     <key>InvoiceAppGroup</key>
     <string>$(INVOICE_APP_GROUP)</string>
     <key>NSCameraUsageDescription</key>
-    <string>يستخدم قارئ فاتورة الكاميرا لقراءة رمز QR من الفاتورة.</string>
+    <string>Invoice QR Reader uses the camera to read the QR code on an invoice.</string>
     <key>CADisableMinimumFrameDurationOnPhone</key>
     <true/>
 </dict>

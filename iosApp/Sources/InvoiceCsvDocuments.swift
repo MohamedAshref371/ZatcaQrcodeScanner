@@ -13,16 +13,18 @@ final class InvoiceCsvDocuments: NSObject, UIDocumentPickerDelegate {
         if let exportFolder { try? FileManager.default.removeItem(at: exportFolder) }
     }
 
-    func exportHistory(from presenter: UIViewController?, query: InvoiceHistoryQuery, observer: InvoiceCsvObserver) {
+    func exportHistory(from presenter: UIViewController?, query: InvoiceHistoryQuery,
+                       language: InvoiceLanguage, observer: InvoiceCsvObserver) {
         export(from: presenter, name: "zatca-history.csv", observer: observer) { file in
-            try SQLiteInvoiceHistory().writeHistoryCsv(filter: query, to: file)
+            try SQLiteInvoiceHistory().writeHistoryCsv(filter: query, language: language, to: file)
         }
     }
 
     func exportStatistics(from presenter: UIViewController?, snapshot: InvoiceStatisticsSnapshot,
-                          groupingLabel: String, net: Bool, observer: InvoiceCsvObserver) {
+                          groupingLabel: String, net: Bool, language: InvoiceLanguage, observer: InvoiceCsvObserver) {
         export(from: presenter, name: "invoice-statistics.csv", observer: observer) { file in
-            let document = InvoiceStatisticsCsvDocument(snapshot: snapshot, groupingLabel: groupingLabel, net: net)
+            let document = InvoiceStatisticsCsvDocument(snapshot: snapshot, groupingLabel: groupingLabel,
+                                                        net: net, language: language)
             try file.write(contentsOf: Data(document.header().utf8))
             for index in 0..<document.groupCount {
                 try file.write(contentsOf: Data(document.group(index: index).utf8))

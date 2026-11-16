@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import platform.UIKit.UIViewController
 
-interface InvoiceScannerHost : InvoiceBackupActions, InvoiceStatisticsSource, InvoiceCsvActions {
+interface InvoiceScannerHost : InvoiceBackupActions, InvoiceStatisticsSource, InvoiceCsvActions, InvoiceLanguageSettings {
     fun makeCamera(detection: InvoiceDetection): UIViewController
     fun releaseCamera(controller: UIViewController)
     fun selectPhoto(detection: InvoiceDetection)
@@ -49,5 +49,6 @@ fun invoiceScreenController(
         backupActions = host,
         statisticsSource = host,
         csvActions = host,
+        languageSettings = host,
     )
 }

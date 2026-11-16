@@ -222,6 +222,7 @@ final class InvoicePreviewUITests: XCTestCase {
 
     private func isolatedApp() -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments += ["-invoiceAppLanguage", "ar"]
         app.launchEnvironment["INVOICE_UI_TEST_HISTORY"] = UUID().uuidString
         return app
     }

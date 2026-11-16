@@ -81,20 +81,21 @@ private const val historyPageSize = 50
 internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter,
     onFilter: (InvoiceHistoryFilter) -> Unit, onOpen: (Long) -> Unit,
     exportEnabled: Boolean = false, onExport: () -> Unit = {}) {
+    val language = LocalInvoiceLanguage.current
     var showDates by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("سجل الفواتير", style = MaterialTheme.typography.titleLarge)
+            Text(language.text("سجل الفواتير", "Invoice history"), style = MaterialTheme.typography.titleLarge)
             OutlinedTextField(
                 value = filter.term,
                 onValueChange = { onFilter(filter.copy(term = it)) },
                 modifier = Modifier.fillMaxWidth().testTag("invoice-history-search"),
-                label = { Text("اسم البائع أو الرقم الضريبي") },
+                label = { Text(language.text("اسم البائع أو الرقم الضريبي", "Seller name or VAT number")) },
                 singleLine = true,
             )
             TextButton(onClick = { showDates = true }, modifier = Modifier.testTag("invoice-history-dates")) {
-                Text(filter.dateSummary())
+                Text(filter.dateSummary(language))
             }
         }
         key(filter) {
@@ -112,6 +113,7 @@ internal fun InvoiceHistoryScreen(history: InvoiceHistoryStore, filter: InvoiceH
 @Composable
 private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceHistoryFilter, onOpen: (Long) -> Unit,
     exportEnabled: Boolean, onExport: () -> Unit) {
+    val language = LocalInvoiceLanguage.current
     var page by remember(history) { mutableStateOf<InvoiceHistoryPage?>(null) }
     var rows by remember(history) { mutableStateOf(emptyList<InvoiceHistorySummary>()) }
     var loadFailed by remember(history) { mutableStateOf(false) }
@@ -138,27 +140,27 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
     ) {
         item {
             TextButton(onClick = onExport, enabled = exportEnabled && rows.isNotEmpty() && !loadFailed,
-                modifier = Modifier.testTag("invoice-history-export-csv")) { Text("تصدير CSV") }
+                modifier = Modifier.testTag("invoice-history-export-csv")) { Text(language.text("تصدير CSV", "Export CSV")) }
         }
         if (rows.isEmpty() && page != null) {
             item {
-                Text(if (filter.isActive) "لا توجد فواتير مطابقة" else "لا توجد فواتير محفوظة",
+                Text(if (filter.isActive) language.text("لا توجد فواتير مطابقة", "No matching invoices") else language.text("لا توجد فواتير محفوظة", "No saved invoices"),
                     Modifier.testTag("invoice-history-empty"))
             }
         }
         items(rows, key = { it.id }) { row ->
             Card(onClick = { onOpen(row.id) }, modifier = Modifier.fillMaxWidth().testTag("invoice-history-row")) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(row.seller.ifBlank { "اسم البائع غير موجود" }, style = MaterialTheme.typography.titleMedium)
+                    Text(row.seller.ifBlank { language.text("اسم البائع غير موجود", "Seller name missing") }, style = MaterialTheme.typography.titleMedium)
                     if (row.vat.isNotBlank()) {
                         Text(row.vat, style = MaterialTheme.typography.bodyMedium.copy(textDirection = TextDirection.Ltr))
                     }
                     if (row.total.isNotBlank()) {
-                        Text("الإجمالي: ${row.total}", style = MaterialTheme.typography.bodyMedium)
+                        Text(language.text("الإجمالي: ${row.total}", "Total: ${row.total}"), style = MaterialTheme.typography.bodyMedium)
                     }
-                    if (row.number.isNotBlank()) Text("رقم الفاتورة: ${row.number}", style = MaterialTheme.typography.bodySmall)
-                    if (row.category != 0) Text(arabicInvoiceCategory(row.category), style = MaterialTheme.typography.bodySmall)
-                    Text("تاريخ الفحص: ${formatInvoiceCheckTime(row.checkedAt)}",
+                    if (row.number.isNotBlank()) Text(language.text("رقم الفاتورة: ${row.number}", "Invoice number: ${row.number}"), style = MaterialTheme.typography.bodySmall)
+                    if (row.category != 0) Text(invoiceCategoryLabel(row.category, language), style = MaterialTheme.typography.bodySmall)
+                    Text(language.text("تاريخ الفحص: ${formatInvoiceCheckTime(row.checkedAt, language)}", "Checked: ${formatInvoiceCheckTime(row.checkedAt, language)}"),
                         style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -166,12 +168,12 @@ private fun InvoiceHistoryResults(history: InvoiceHistoryStore, filter: InvoiceH
         if (loadFailed) {
             item {
                 Column {
-                    Text("تعذّر تحميل السجل")
-                    TextButton(onClick = ::loadMore) { Text("إعادة المحاولة") }
+                    Text(language.text("تعذّر تحميل السجل", "Could not load invoice history"))
+                    TextButton(onClick = ::loadMore) { Text(language.text("إعادة المحاولة", "Retry")) }
                 }
             }
         } else if (page?.hasMore == true) {
-            item { TextButton(onClick = ::loadMore) { Text("عرض المزيد") } }
+            item { TextButton(onClick = ::loadMore) { Text(language.text("عرض المزيد", "Show more")) } }
         }
     }
 }

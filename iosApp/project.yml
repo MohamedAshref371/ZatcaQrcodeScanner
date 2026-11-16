@@ -14,7 +14,7 @@ targets:
   InvoicePreview:
     type: application
     platform: iOS
-    sources: [Sources, Shared]
+    sources: [Sources, Shared, Resources]
     dependencies:
       - target: InvoiceShare
         embed: true
@@ -23,7 +23,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.poetscorner.invoiceqr.preview
         INFOPLIST_FILE: Info.plist
         CODE_SIGN_ENTITLEMENTS: SharedInvoices.entitlements
-        INFOPLIST_KEY_CFBundleDisplayName: قارئ فاتورة
+        INFOPLIST_KEY_CFBundleDisplayName: Invoice QR Reader
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         OTHER_LDFLAGS: ["$(inherited)", "-framework", "InvoiceUI", "-lsqlite3"]
@@ -42,7 +42,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.poetscorner.invoiceqr.preview.share
         INFOPLIST_FILE: ShareExtension/Info.plist
-        INFOPLIST_KEY_CFBundleDisplayName: قارئ فاتورة
+        INFOPLIST_KEY_CFBundleDisplayName: Invoice QR Reader
         CODE_SIGN_ENTITLEMENTS: SharedInvoices.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: YES

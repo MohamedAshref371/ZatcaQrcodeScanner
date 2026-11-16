@@ -23,6 +23,11 @@ final class InvoiceCsvIntegrationTests: XCTestCase {
             "\"INV-1\",\"Alpha\",\"300000000000003\",\"2026-10-20T10:30:00\",\"23.00\",\"3.00\",\"\",\"'=SUM(1,2)\""
         XCTAssertEqual(filtered, Data(expected.utf8))
 
+        let english = try export(history, to: folder.appendingPathComponent("english.csv"), seller: "Alpha", language: .english)
+        let englishExpected = "\u{FEFF}\"Invoice number\",\"Seller name\",\"VAT number\",\"Invoice date\",\"Invoice total\",\"VAT amount\",\"Category\",\"Note\"\r\n" +
+            "\"INV-1\",\"Alpha\",\"300000000000003\",\"2026-10-20T10:30:00\",\"23.00\",\"3.00\",\"\",\"'=SUM(1,2)\""
+        XCTAssertEqual(english, Data(englishExpected.utf8))
+
         let allBytes = try export(history, to: folder.appendingPathComponent("all.csv"), seller: "")
         let all = String(decoding: allBytes, as: UTF8.self)
         XCTAssertTrue(all.components(separatedBy: "\r\n")[0].contains("\"Hash الفاتورة\""))
@@ -30,11 +35,12 @@ final class InvoiceCsvIntegrationTests: XCTestCase {
         XCTAssertEqual(all.components(separatedBy: "\r\n").count, 3)
     }
 
-    private func export(_ history: SQLiteInvoiceHistory, to url: URL, seller: String) throws -> Data {
+    private func export(_ history: SQLiteInvoiceHistory, to url: URL, seller: String,
+                        language: InvoiceLanguage = .arabic) throws -> Data {
         XCTAssertTrue(FileManager.default.createFile(atPath: url.path, contents: nil))
         let file = try FileHandle(forWritingTo: url)
         try history.writeHistoryCsv(filter: InvoiceHistoryQuery(seller: seller, vat: seller,
-            invoiceFrom: "", invoiceTo: "", checkedFrom: Int64.min, checkedBefore: Int64.max), to: file)
+            invoiceFrom: "", invoiceTo: "", checkedFrom: Int64.min, checkedBefore: Int64.max), language: language, to: file)
         try file.close()
         return try Data(contentsOf: url)
     }
