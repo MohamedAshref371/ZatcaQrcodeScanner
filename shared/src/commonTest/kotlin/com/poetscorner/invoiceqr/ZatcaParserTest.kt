@@ -30,7 +30,7 @@ class ZatcaParserTest {
         }
     }
 
-    private fun tlv(tag: Int, text: String): ByteArray = text.toByteArray().let { byteArrayOf(tag.toByte(), it.size.toByte()) + it }
+    private fun tlv(tag: Int, text: String): ByteArray = text.encodeToByteArray().let { byteArrayOf(tag.toByte(), it.size.toByte()) + it }
     private fun valid() = tlv(1, "متجر الاختبار") + tlv(2, "310123456789013") + tlv(3, "2026-10-19T12:30:00Z") + tlv(4, "115.00") + tlv(5, "15.00")
     private fun parse(bytes: ByteArray) = ZatcaParser.parse(Base64.Default.encode(bytes))
     @Test fun arabicUtf8AndValidPhaseOne() {
@@ -136,7 +136,7 @@ class ZatcaParserTest {
             .forEach { assertTrue(runCatching { ZatcaParser.parseTimestamp(it) }.isFailure, it) }
     }
     @Test fun berLengths81And82() {
-        val data = "A".repeat(300).toByteArray()
+        val data = "A".repeat(300).encodeToByteArray()
         assertEquals(300, ZatcaParser.decodeTlv(byteArrayOf(1,0x82.toByte(),1,44) + data).single().size)
         assertEquals(3, ZatcaParser.decodeTlv(byteArrayOf(1,0x81.toByte(),3,65,66,67)).single().size)
     }

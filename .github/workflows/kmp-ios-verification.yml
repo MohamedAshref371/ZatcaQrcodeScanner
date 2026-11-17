@@ -25,7 +25,10 @@ jobs:
           xcodebuild -version
           xcrun simctl list devices available
       - name: Compile the iPhone target and run simulator tests
-        run: bash gradlew --no-daemon --stacktrace :shared:compileKotlinIosArm64 :shared:iosSimulatorArm64Test
+        run: |
+          bash gradlew --no-daemon --stacktrace \
+            :shared:compileKotlinIosArm64 \
+            :shared:iosSimulatorArm64Test
       - name: Verify all 62 tests executed
         run: |
           python3 - <<'PY'
