@@ -85,6 +85,33 @@ class AppLanguageUiTest {
         }
     }
 
+    @Test fun sharedScreensKeepLanguageDirectionAndSelectedTab() {
+        var original = LocaleListCompat.getEmptyLocaleList()
+        compose.runOnIdle { original = AppCompatDelegate.getApplicationLocales() }
+        try {
+            waitForNavigation()
+            compose.onNodeWithText(text(R.string.nav_settings)).performClick()
+            for ((language, label, direction) in listOf(
+                Triple("ar", R.string.language_arabic, View.LAYOUT_DIRECTION_RTL),
+                Triple("en", R.string.language_english, View.LAYOUT_DIRECTION_LTR)
+            )) {
+                showPicker()
+                compose.onAllNodesWithText(text(label)).onLast().performClick()
+                compose.waitUntil(10000) {
+                    compose.activity.resources.configuration.locales[0].language == language
+                }
+                waitForSettings()
+                waitForNavigation()
+                assertNavigationDirection(direction)
+                compose.onNodeWithTag("settings_list").performScrollToNode(hasText(text(R.string.app_language)))
+                compose.onNode(hasText(text(R.string.app_language)) and hasText(text(label)))
+                    .assertIsDisplayed()
+            }
+        } finally {
+            compose.activityRule.scenario.onActivity { AppCompatDelegate.setApplicationLocales(original) }
+        }
+    }
+
     @Test fun languageSwitchesDirectionKeepsSettingsAndSurvivesRecreation() {
         var original = LocaleListCompat.getEmptyLocaleList()
         compose.runOnIdle { original = AppCompatDelegate.getApplicationLocales() }

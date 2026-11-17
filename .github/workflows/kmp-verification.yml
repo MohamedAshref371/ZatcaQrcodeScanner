@@ -52,6 +52,12 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+      - name: Check out the pre-UI-port Android baseline
+        uses: actions/checkout@v6
+        with:
+          ref: 269e2f75db19ebf29b248500b8e3cf51c0d5028c
+          path: android-stage3-baseline
+          persist-credentials: false
       - name: Verify the Android SDK used by the project
         run: |
           if [[ -f "$ANDROID_HOME/platforms/android-37.0/android.jar" &&
@@ -70,6 +76,11 @@ jobs:
         run: |
           bash gradlew --no-daemon --stacktrace --max-workers=2 \
             -PisolatedValidation=true :shared:testAndroidHostTest :app:testDebugUnitTest :app:assembleRelease :app:assembleDebugAndroidTest
+      - name: Build the baseline APKs for language-test comparison
+        working-directory: android-stage3-baseline
+        run: |
+          bash gradlew --no-daemon --stacktrace --max-workers=2 -PisolatedValidation=true \
+            :app:assembleDebug :app:assembleDebugAndroidTest
       - name: Enable hardware virtualization
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -103,7 +114,16 @@ jobs:
             -e class com.poetscorner.invoiceqr.NavigationAccessibilityUiTest
             "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')/androidx.test.runner.AndroidJUnitRunner"
             >> "$RUNNER_TEMP/android-tests.txt" &&
-            adb logcat -d -b crash > "$RUNNER_TEMP/android-crashes.txt"
+            adb logcat -d -b crash > "$RUNNER_TEMP/android-crashes.txt" &&
+            adb shell settings put system font_scale 1.0 &&
+            adb uninstall "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')" &&
+            adb uninstall "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/debug/output-metadata.json"))["applicationId"])')" &&
+            adb install -t -r -g android-stage3-baseline/app/build/outputs/apk/debug/app-debug.apk &&
+            adb install -t -r android-stage3-baseline/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk &&
+            adb shell am instrument -w -r
+            -e class com.poetscorner.invoiceqr.AppLanguageUiTest
+            "$(python3 -c 'import json; print(json.load(open("android-stage3-baseline/app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')/androidx.test.runner.AndroidJUnitRunner"
+            > "$RUNNER_TEMP/android-language-baseline.txt"
       - name: Verify Android UI and storage test results
         if: always() && steps.android-tests.outcome != 'skipped' && steps.android-tests.outcome != ''
         run: |
@@ -111,33 +131,49 @@ jobs:
           from collections import Counter
           import os
           from pathlib import Path
+          import re
+
+          def read_results(filename, expected_invocations):
+              log = (output / filename).read_text()
+              print(log)
+              completed = Counter()
+              failed = {}
+              fields = {}
+              for line in log.splitlines():
+                  if line.startswith("INSTRUMENTATION_STATUS: "):
+                      key, sep, value = line.removeprefix("INSTRUMENTATION_STATUS: ").partition("=")
+                      if sep:
+                          fields[key] = value
+                  elif line.startswith("INSTRUMENTATION_STATUS_CODE: "):
+                      code = int(line.removeprefix("INSTRUMENTATION_STATUS_CODE: "))
+                      if code == 0:
+                          completed[fields["class"]] += 1
+                      elif code == -2:
+                          key = (fields["class"], fields["test"])
+                          failed[key] = re.sub(r"MainActivity@[0-9a-f]+", "MainActivity",
+                                               fields.get("stack", ""))
+                      else:
+                          assert code == 1, fields
+                      fields = {}
+              assert log.count("INSTRUMENTATION_CODE: -1") == expected_invocations
+              return completed, failed
 
           output = Path(os.environ["RUNNER_TEMP"])
-          log = (output / "android-tests.txt").read_text()
           crash_log = output / "android-crashes.txt"
           if crash_log.exists():
               print(crash_log.read_text())
-          print(log)
-          completed = Counter()
-          fields = {}
-          for line in log.splitlines():
-              if line.startswith("INSTRUMENTATION_STATUS: "):
-                  key, sep, value = line.removeprefix("INSTRUMENTATION_STATUS: ").partition("=")
-                  if sep:
-                      fields[key] = value
-              elif line.startswith("INSTRUMENTATION_STATUS_CODE: "):
-                  code = int(line.removeprefix("INSTRUMENTATION_STATUS_CODE: "))
-                  assert code in (0, 1), fields
-                  if code == 0:
-                      completed[fields["class"]] += 1
-                  fields = {}
-          print(dict(completed))
-          assert log.count("INSTRUMENTATION_CODE: -1") == 2
+          completed, failed = read_results("android-tests.txt", 2)
+          baseline_completed, baseline_failed = read_results("android-language-baseline.txt", 1)
+          language_class = "com.poetscorner.invoiceqr.AppLanguageUiTest"
+          assert baseline_completed[language_class] + len(baseline_failed) == 2
+          for key, failure in failed.items():
+              assert key[0] == language_class and baseline_failed.get(key) == failure, (key, failure)
+          assert completed[language_class] + len(failed) == 3
           assert completed["com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest"] == 3
           assert completed["com.poetscorner.invoiceqr.DataStoreCompatibilityTest"] == 1
           assert completed["com.poetscorner.invoiceqr.LocalizationTest"] == 3
-          assert completed["com.poetscorner.invoiceqr.AppLanguageUiTest"] == 2
           assert completed["com.poetscorner.invoiceqr.VerificationLevelsUiTest"] == 2
           assert completed["com.poetscorner.invoiceqr.NavigationAccessibilityUiTest"] == 1
-          assert sum(completed.values()) == 32
+          assert sum(completed.values()) + len(failed) == 33
+          print(f"Android: {sum(completed.values())} passed, {len(failed)} reproduced baseline failures.")
           PY
