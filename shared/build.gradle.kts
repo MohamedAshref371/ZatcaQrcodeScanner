@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.compose.multiplatform)
 }
 
 kotlin {
@@ -11,6 +13,7 @@ kotlin {
         namespace = "com.poetscorner.invoiceqr.shared"
         compileSdk = 37
         minSdk = 26
+        androidResources.enable = true
 
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -23,6 +26,11 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            api(libs.compose.multiplatform.runtime)
+            api(libs.compose.multiplatform.foundation)
+            api(libs.compose.multiplatform.material3)
+            api(libs.compose.multiplatform.resources)
+            implementation(libs.compose.multiplatform.lifecycle)
             api(libs.kotlinx.datetime)
             api(libs.kotlinx.coroutines.core)
             api(libs.kotlinx.io.core)
@@ -53,4 +61,9 @@ ksp {
     // The checked-in Android schemas are the compatibility baseline for every target.
     arg("room.schemaLocation", rootProject.file("app/schemas").absolutePath)
     arg("room.generateKotlin", "true")
+}
+
+compose.resources {
+    packageOfResClass = "com.poetscorner.invoiceqr.resources"
+    publicResClass = true
 }

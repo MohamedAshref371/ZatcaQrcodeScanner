@@ -29,7 +29,7 @@ internal fun RawQrText(raw: String, modifier: Modifier = Modifier) {
 
 // Allow wrapping between any two characters, rather than preferring breaks at '/'.
 // Only the display is transformed: selection and copying still use the original QR.
-internal object QrCharacterWrap : VisualTransformation {
+object QrCharacterWrap : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         if (text.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
         val display = AnnotatedString(text.text.toList().joinToString("\u200B"))

@@ -31,3 +31,14 @@ internal fun statisticsGroupTitle(context: Context, request: StatisticsRequest, 
         else -> day.year.toString()
     }
 }
+
+internal fun StatisticsGrouping.androidLabel(): Int = when (this) {
+    StatisticsGrouping.SELLER -> R.string.tag_seller
+    StatisticsGrouping.VAT -> R.string.tag_vat
+    StatisticsGrouping.CATEGORY -> R.string.invoice_category
+    StatisticsGrouping.DAY -> R.string.stats_day
+    StatisticsGrouping.MONTH -> R.string.stats_month
+    StatisticsGrouping.QUARTER -> R.string.stats_quarter
+    StatisticsGrouping.HALF_YEAR -> R.string.stats_half_year
+    StatisticsGrouping.YEAR -> R.string.stats_year
+}

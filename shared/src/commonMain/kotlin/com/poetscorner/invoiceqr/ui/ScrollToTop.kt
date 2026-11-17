@@ -1,5 +1,8 @@
 package com.poetscorner.invoiceqr.ui
 
+import com.poetscorner.invoiceqr.resources.Res
+import com.poetscorner.invoiceqr.resources.ic_arrow_up
+import com.poetscorner.invoiceqr.resources.scroll_to_top
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,12 +32,11 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.painterResource
+import com.poetscorner.invoiceqr.ui.text.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.poetscorner.invoiceqr.R
 import kotlinx.coroutines.launch
 
 @Composable
@@ -62,7 +64,7 @@ internal fun ScrollToTopContainer(listState: LazyListState, content: @Composable
         viewportHeight > 0 && maxOf(distanceFromTop, estimatedDistance) > viewportHeight * 2f
     } }
     val scope = rememberCoroutineScope()
-    val label = stringResource(R.string.scroll_to_top)
+    val label = stringResource(Res.scroll_to_top)
     Box(Modifier.fillMaxSize().nestedScroll(scrollConnection)) {
         content()
         AnimatedVisibility(visible = showButton, enter = fadeIn(), exit = fadeOut(),
@@ -76,7 +78,7 @@ internal fun ScrollToTopContainer(listState: LazyListState, content: @Composable
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     shadowElevation = 3.dp) {
                     Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                        Icon(painterResource(R.drawable.ic_arrow_up), contentDescription = null,
+                        Icon(painterResource(Res.ic_arrow_up), contentDescription = null,
                             modifier = Modifier.size(20.dp))
                     }
                 }

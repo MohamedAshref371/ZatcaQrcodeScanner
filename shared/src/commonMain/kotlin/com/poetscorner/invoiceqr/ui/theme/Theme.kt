@@ -1,12 +1,10 @@
 package com.poetscorner.invoiceqr.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 private val LightColorScheme = lightColorScheme(
@@ -159,7 +157,6 @@ private val BlueDarkColorScheme = DarkColorScheme.copy(
 @Composable
 fun ZatcaQrcodeScannerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
     goldenTheme: Boolean = false,
     purpleTheme: Boolean = false,
     blueTheme: Boolean = false,
@@ -173,10 +170,6 @@ fun ZatcaQrcodeScannerTheme(
         purpleTheme -> PurpleLightColorScheme
         goldenTheme && darkTheme -> GoldenDarkColorScheme
         goldenTheme -> GoldenLightColorScheme
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
         else -> base
     }
     MaterialTheme(colorScheme = colorScheme, typography = Typography,

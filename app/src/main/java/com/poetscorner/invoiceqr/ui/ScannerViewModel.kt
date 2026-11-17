@@ -1,5 +1,26 @@
 package com.poetscorner.invoiceqr.ui
 
+import com.poetscorner.invoiceqr.resources.Res
+import com.poetscorner.invoiceqr.resources.backup_error
+import com.poetscorner.invoiceqr.resources.backup_import_error
+import com.poetscorner.invoiceqr.resources.backup_import_success
+import com.poetscorner.invoiceqr.resources.backup_invalid
+import com.poetscorner.invoiceqr.resources.backup_success
+import com.poetscorner.invoiceqr.resources.backup_too_large
+import com.poetscorner.invoiceqr.resources.export_error
+import com.poetscorner.invoiceqr.resources.export_success
+import com.poetscorner.invoiceqr.resources.gallery_error
+import com.poetscorner.invoiceqr.resources.gallery_no_qr
+import com.poetscorner.invoiceqr.resources.history_delete_error
+import com.poetscorner.invoiceqr.resources.history_entry_missing
+import com.poetscorner.invoiceqr.resources.history_load_error
+import com.poetscorner.invoiceqr.resources.history_save_error
+import com.poetscorner.invoiceqr.resources.image_import_busy
+import com.poetscorner.invoiceqr.resources.import_unsupported
+import com.poetscorner.invoiceqr.resources.invoice_already_saved
+import com.poetscorner.invoiceqr.resources.invoice_details_save_error
+import com.poetscorner.invoiceqr.resources.scan_invalid
+import com.poetscorner.invoiceqr.resources.stats_export_success
 import android.app.Application
 import androidx.core.content.ContextCompat
 import com.poetscorner.invoiceqr.R
@@ -28,32 +49,21 @@ import kotlinx.io.Sink
 import kotlinx.io.asSink
 import kotlinx.io.buffered
 
-data class ScanResult(val invoice: Invoice, val checkedAt: Long, val scanId: Long? = null,
-    val annotation: InvoiceAnnotation = InvoiceAnnotation())
-enum class ImageImportPhase { OPENING, READING_PAGE, SAVING }
-data class ImageImportProgress(val current: Int, val total: Int, val fileName: String,
-    val phase: ImageImportPhase = ImageImportPhase.OPENING, val page: Int = 0, val pageCount: Int = 0,
-    val cancelling: Boolean = false)
-data class ImageImportSummary(val added: Int = 0, val duplicates: Int = 0, val needsReview: Int = 0,
-    val invalidQr: Int = 0, val unreadable: Int = 0, val saveFailed: Int = 0,
-    val interrupted: Boolean = false, val cancelled: Boolean = false,
-    val processedFiles: Int = 0, val totalFiles: Int = 0)
-
 class ScannerViewModel(
     app: Application,
     private val savedState: SavedStateHandle
-) : AndroidViewModel(app) {
+) : AndroidViewModel(app), ScannerUiState {
     private val db = openScanDatabase(app)
     private val repository = SettingsRepository(app)
     private val reviewRepository = ReviewRepository(app)
-    fun recordReviewUse() { viewModelScope.launch {
+    override fun recordReviewUse() { viewModelScope.launch {
         try { reviewRepository.recordUse() } catch (_: java.io.IOException) { /* Optional tracking. */ }
     } }
-    suspend fun claimReviewAttempt(): Boolean = try {
+    override suspend fun claimReviewAttempt(): Boolean = try {
         reviewRepository.claimAttempt()
     } catch (_: java.io.IOException) { false }
     private val mutableSettings = MutableStateFlow(ScannerSettings())
-    val settings = mutableSettings.asStateFlow()
+    override val settings = mutableSettings.asStateFlow()
     private val mutableSettingsLoaded = MutableStateFlow(false)
     val settingsLoaded = mutableSettingsLoaded.asStateFlow()
     init {
@@ -65,10 +75,10 @@ class ScannerViewModel(
         }
     }
     private val historyPager = HistoryPager(db.scans(), viewModelScope)
-    val historyState = historyPager.state
-    fun filterHistory(filter: HistoryFilter) = historyPager.setFilter(filter)
-    fun loadMoreHistory() = historyPager.loadMore()
-    fun retryHistory() = historyPager.refresh()
+    override val historyState = historyPager.state
+    override fun filterHistory(filter: HistoryFilter) = historyPager.setFilter(filter)
+    override fun loadMoreHistory() = historyPager.loadMore()
+    override fun retryHistory() = historyPager.refresh()
     private val statisticsFilters = StatisticsFilterRepository(app)
     init {
         val restored = savedState.get<StatisticsRequest>("statistics_request")
@@ -82,7 +92,7 @@ class ScannerViewModel(
     private val statisticsRevision = MutableStateFlow(0L)
     private var cachedStatistics: StatisticsState? = null
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val statistics = combine(statisticsRequest, statisticsRevision) { request, _ -> request }
+    override val statistics = combine(statisticsRequest, statisticsRevision) { request, _ -> request }
         .flatMapLatest { request ->
             db.scans().observeCounts(HistoryQueries(HistoryFilter()).counts()).transformLatest {
                 emit(cachedStatistics?.copy(request = request, loading = true, failed = false) ?: StatisticsState(request))
@@ -100,24 +110,24 @@ class ScannerViewModel(
                     ?: StatisticsState(request, loading = false, failed = true))
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsState(statisticsRequest.value))
-    fun updateStatistics(request: StatisticsRequest) {
+    override fun updateStatistics(request: StatisticsRequest) {
         val mode = if (request.excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else request.vatMode
         val resolved = request.withVatFilter(mode, if (mode == StatisticsVatMode.EXCLUDE) request.excludedVat else request.vat).resolvePeriod()
         statisticsFilters.save(resolved)
         savedState["statistics_request"] = resolved
     }
-    fun refreshStatisticsPeriod() {
+    override fun refreshStatisticsPeriod() {
         val request = statisticsRequest.value
         val resolved = request.resolvePeriod()
         if (request != resolved) savedState["statistics_request"] = resolved
     }
-    fun retryStatistics() { statisticsRevision.value++ }
-    suspend fun sellerSuggestions(query: String): List<String> =
+    override fun retryStatistics() { statisticsRevision.value++ }
+    override suspend fun sellerSuggestions(query: String): List<String> =
         db.scans().sellerSuggestions(query.trim().lowercase(java.util.Locale.ROOT))
-    val statisticsSelection = savedState.getStateFlow<StatisticsSelection?>("statistics_group", null)
+    override val statisticsSelection = savedState.getStateFlow<StatisticsSelection?>("statistics_group", null)
     private val statisticsBreakdownRevision = MutableStateFlow(0L)
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val statisticsGroupBreakdown = combine(statisticsSelection, statisticsBreakdownRevision) { selection, _ -> selection }
+    override val statisticsGroupBreakdown = combine(statisticsSelection, statisticsBreakdownRevision) { selection, _ -> selection }
         .flatMapLatest { selection ->
             if (selection == null || !selection.request.categoryCalculationActive)
                 flowOf(StatisticsGroupBreakdownState())
@@ -131,20 +141,20 @@ class ScannerViewModel(
                     emit(StatisticsGroupBreakdownState(selection, failed = true))
                 }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsGroupBreakdownState())
-    fun retryStatisticsGroupBreakdown() { statisticsBreakdownRevision.value++ }
+    override fun retryStatisticsGroupBreakdown() { statisticsBreakdownRevision.value++ }
     private val statisticsGroupPager by lazy {
         HistoryPager(db.scans(), viewModelScope).also { pager ->
             statisticsSelection.value?.let { pager.setFilter(HistoryFilter(statisticsSelection = it)) }
         }
     }
-    val statisticsInvoices get() = statisticsGroupPager.state
-    fun openStatisticsGroup(selection: StatisticsSelection) {
+    override val statisticsInvoices get() = statisticsGroupPager.state
+    override fun openStatisticsGroup(selection: StatisticsSelection) {
         savedState["statistics_group"] = selection
         statisticsGroupPager.setFilter(HistoryFilter(statisticsSelection = selection))
     }
-    fun closeStatisticsGroup() { savedState["statistics_group"] = null }
-    fun loadMoreStatisticsInvoices() = statisticsGroupPager.loadMore()
-    fun retryStatisticsInvoices() = statisticsGroupPager.refresh()
+    override fun closeStatisticsGroup() { savedState["statistics_group"] = null }
+    override fun loadMoreStatisticsInvoices() = statisticsGroupPager.loadMore()
+    override fun retryStatisticsInvoices() = statisticsGroupPager.refresh()
     private var pendingStatisticsExport: StatisticsState? = null
     fun prepareStatisticsExport(state: StatisticsState): Boolean {
         if (state.loading || state.failed || state.result.groups.isEmpty()) return false
@@ -163,7 +173,7 @@ class ScannerViewModel(
             val result = snapshot?.result ?: db.statistics(request)
             val context = ContextCompat.getContextForLanguage(getApplication())
             val net = request.categoryCalculationActive
-            val headers = listOf(request.grouping.label(), R.string.stats_count_label,
+            val headers = listOf(request.grouping.androidLabel(), R.string.stats_count_label,
                 if (net) {
                     if (result.summary.missingTotal > 0) R.string.stats_available_net_total else R.string.stats_net_total
                 } else if (result.summary.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax,
@@ -176,45 +186,45 @@ class ScannerViewModel(
                     statisticsGroupTitle(context, request, it)
                 }
             }
-            UiText(R.string.stats_export_success)
+            UiText(Res.stats_export_success)
         }
         if (job != null) cancelStatisticsExport()
         return job
     }
     private val mutableResult = MutableStateFlow<ScanResult?>(null)
-    val result = mutableResult.asStateFlow()
-    val screen = savedState.getStateFlow("screen", 0)
-    val previousTab = savedState.getStateFlow<Int?>("previous_tab", null)
+    override val result = mutableResult.asStateFlow()
+    override val screen = savedState.getStateFlow("screen", 0)
+    override val previousTab = savedState.getStateFlow<Int?>("previous_tab", null)
     private val mutableRestoringResult = MutableStateFlow(false)
-    val restoringResult = mutableRestoringResult.asStateFlow()
+    override val restoringResult = mutableRestoringResult.asStateFlow()
     private var resultLoad: Job? = null
     private var resultVersion = 0L
-    val message = MutableStateFlow<UiText?>(null)
-    val busy = MutableStateFlow(false)
+    override val message = MutableStateFlow<UiText?>(null)
+    override val busy = MutableStateFlow(false)
     private val mutableImageImport = MutableStateFlow<ImageImportProgress?>(null)
-    val imageImport = mutableImageImport.asStateFlow()
+    override val imageImport = mutableImageImport.asStateFlow()
     private var fileImportJob: Job? = null
-    fun cancelFileImport() {
+    override fun cancelFileImport() {
         val job = fileImportJob ?: return
         if (!job.isActive) return
         mutableImageImport.update { it?.copy(cancelling = true) }
         job.cancel()
     }
     private val mutableImageImportSummary = MutableStateFlow<ImageImportSummary?>(null)
-    val imageImportSummary = mutableImageImportSummary.asStateFlow()
-    fun dismissImageImportSummary() { mutableImageImportSummary.value = null }
+    override val imageImportSummary = mutableImageImportSummary.asStateFlow()
+    override fun dismissImageImportSummary() { mutableImageImportSummary.value = null }
     private val mutableTransfer = MutableStateFlow<DataTransferState?>(null)
-    val transfer = mutableTransfer.asStateFlow()
+    override val transfer = mutableTransfer.asStateFlow()
     init {
         savedState.get<Long>("result_scan_id")?.let { loadResult(it, navigate = false) }
     }
 
-    fun navigate(screen: Int) {
+    override fun navigate(screen: Int) {
         savedState["previous_tab"] = null
         moveTo(screen)
     }
 
-    fun selectTab(screen: Int) {
+    override fun selectTab(screen: Int) {
         if (this.screen.value == screen) return
         savedState["previous_tab"] = this.screen.value
         moveTo(screen, clearCameraResult = false)
@@ -256,7 +266,7 @@ class ScannerViewModel(
                 val scan = db.scans().byId(id)
                 if (scan == null) {
                     savedState.remove<Long>("result_scan_id")
-                    message.value = UiText(R.string.history_entry_missing)
+                    message.value = UiText(Res.history_entry_missing)
                 } else {
                     mutableResult.value = withContext(Dispatchers.Default) {
                         ScanResult(ZatcaParser.parse(scan.raw), scan.scannedAt, scan.id, InvoiceAnnotation.from(scan))
@@ -265,20 +275,20 @@ class ScannerViewModel(
                 }
             } catch (error: Exception) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
-                message.value = UiText(R.string.history_load_error)
+                message.value = UiText(Res.history_load_error)
             } finally {
                 if (version == resultVersion) mutableRestoringResult.value = false
             }
         }
     }
     private val mutableContinuousScan = MutableStateFlow(ContinuousScanState())
-    val continuousScan = mutableContinuousScan.asStateFlow()
+    override val continuousScan = mutableContinuousScan.asStateFlow()
     private val mutableScanFeedback = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val scanFeedback = mutableScanFeedback.asSharedFlow()
+    override val scanFeedback = mutableScanFeedback.asSharedFlow()
     private val mutableContinuousNotices = MutableSharedFlow<ContinuousScanNotice>(extraBufferCapacity = 1)
-    val continuousNotices = mutableContinuousNotices.asSharedFlow()
+    override val continuousNotices = mutableContinuousNotices.asSharedFlow()
     private var cameraSession = 0L
-    fun setContinuousScanning(enabled: Boolean) {
+    override fun setContinuousScanning(enabled: Boolean) {
         if (mutableContinuousScan.value.enabled == enabled) return
         cameraSession++
         mutableContinuousScan.value = mutableContinuousScan.value.copy(enabled = enabled, notice = null)
@@ -287,25 +297,27 @@ class ScannerViewModel(
         cameraSession++
         mutableContinuousScan.value = ContinuousScanState()
     }
-    fun pauseCameraSession() {
+    override fun pauseCameraSession() {
         // Ignore in-flight callbacks, keeping the session choice and counter through screen lock.
         cameraSession++
         mutableContinuousScan.value = mutableContinuousScan.value.copy(notice = null)
     }
-    fun viewContinuousResult(notice: ContinuousScanNotice? = mutableContinuousScan.value.notice) {
+    fun viewContinuousResult() = viewContinuousResult(mutableContinuousScan.value.notice)
+
+    override fun viewContinuousResult(notice: ContinuousScanNotice?) {
         notice?.let { showResult(it.result) }
     }
     private val settingsMutex = Mutex()
-    fun update(change: (ScannerSettings) -> ScannerSettings) { viewModelScope.launch {
+    override fun update(change: (ScannerSettings) -> ScannerSettings) { viewModelScope.launch {
         settingsMutex.withLock { repository.save(change(repository.settings.first())) }
     } }
     // Keep saving an accepted scan even when showing its result disposes the camera.
-    suspend fun scanned(raw: String): Boolean {
+    override suspend fun scanned(raw: String): Boolean {
         val session = cameraSession
         val continuous = mutableContinuousScan.value.enabled
         return viewModelScope.async { process(raw, session, continuous) }.await()
     }
-    fun inspectBase64(raw: String) {
+    override fun inspectBase64(raw: String) {
         if (busy.value || raw.isBlank()) return
         busy.value = true
         viewModelScope.launch {
@@ -317,7 +329,7 @@ class ScannerViewModel(
         fun currentSession() = session == null || session == cameraSession
         val invoice = withContext(Dispatchers.Default) { ZatcaParser.parse(raw) }
         if (invoice.error != null) {
-            if (currentSession()) message.value = UiText(R.string.scan_invalid)
+            if (currentSession()) message.value = UiText(Res.scan_invalid)
             return false
         }
         val checkedAt = System.currentTimeMillis()
@@ -348,7 +360,7 @@ class ScannerViewModel(
                     mutableScanFeedback.tryEmit(Unit)
                 } else {
                     showResult(scan)
-                    if (saved.alreadyExists) message.value = UiText(R.string.invoice_already_saved)
+                    if (saved.alreadyExists) message.value = UiText(Res.invoice_already_saved)
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -362,21 +374,21 @@ class ScannerViewModel(
                 }
                 else {
                     showResult(ScanResult(invoice, checkedAt))
-                    message.value = UiText(R.string.history_save_error)
+                    message.value = UiText(Res.history_save_error)
                 }
             }
         }
         return true
     }
-    fun open(id: Long) {
+    override fun open(id: Long) {
         savedState["result_return_screen"] = 2
         loadResult(id, navigate = true)
     }
-    fun openStatisticsInvoice(id: Long) {
+    override fun openStatisticsInvoice(id: Long) {
         savedState["result_return_screen"] = 4
         loadResult(id, navigate = true)
     }
-    fun saveAnnotation(annotation: InvoiceAnnotation) {
+    override fun saveAnnotation(annotation: InvoiceAnnotation) {
         val current = mutableResult.value ?: return
         val id = current.scanId ?: return
         if (annotation.invoiceNumber.length > 120 || annotation.note.length > 2_000 ||
@@ -387,17 +399,17 @@ class ScannerViewModel(
                     db.scans().updateAnnotation(id, annotation.invoiceNumber, annotation.category, annotation.note)
                 }
                 if (updated == 0) {
-                    message.value = UiText(R.string.history_entry_missing)
+                    message.value = UiText(Res.history_entry_missing)
                 } else if (mutableResult.value?.scanId == id) {
                     mutableResult.value = mutableResult.value?.copy(annotation = annotation)
                 }
             } catch (error: Exception) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
-                message.value = UiText(R.string.invoice_details_save_error)
+                message.value = UiText(Res.invoice_details_save_error)
             }
         }
     }
-    fun backFromResultOrHome() {
+    override fun backFromResultOrHome() {
         val destination = savedState.get<Int>("result_return_screen")?.takeIf { it == 2 || it == 4 } ?: 0
         if (screen.value == 1 && destination != 0) {
             // Returning from an invoice keeps the single previous tab for its parent page.
@@ -418,15 +430,15 @@ class ScannerViewModel(
                     try { ZxingDecoder().use { it.readImportedImage(bitmap, scanSettings) } }
                     finally { bitmap.recycle() }
                 }
-                if (raw == null) message.value = UiText(R.string.gallery_no_qr) else process(raw)
+                if (raw == null) message.value = UiText(Res.gallery_no_qr) else process(raw)
             } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-            catch (_: Exception) { message.value = UiText(R.string.gallery_error) }
+            catch (_: Exception) { message.value = UiText(Res.gallery_error) }
             finally { busy.value = false }
         }
     }
     fun importInvoiceFiles(uris: List<Uri>) {
         if (uris.isEmpty()) return
-        if (busy.value) { message.value = UiText(R.string.image_import_busy); return }
+        if (busy.value) { message.value = UiText(Res.image_import_busy); return }
         busy.value = true
         mutableImageImportSummary.value = null
         val job = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
@@ -440,12 +452,12 @@ class ScannerViewModel(
                 throw cancelled
             } catch (_: Exception) {
                 busy.value = false
-                message.value = UiText(R.string.import_unsupported)
+                message.value = UiText(Res.import_unsupported)
                 return@launch
             }
             if (files.all { it.second == null }) {
                 busy.value = false
-                message.value = UiText(R.string.import_unsupported)
+                message.value = UiText(Res.import_unsupported)
                 return@launch
             }
             if (files.size == 1 && files.single().second == InvoiceFileType.IMAGE) {
@@ -563,7 +575,7 @@ class ScannerViewModel(
                 }
             }
         }
-        UiText(R.string.export_success)
+        UiText(Res.export_success)
     }
 
     fun backup(uri: Uri): Job? = startTransfer(TransferKind.BACKUP) {
@@ -572,7 +584,7 @@ class ScannerViewModel(
                 mutableTransfer.value = DataTransferState(TransferKind.BACKUP, count, total)
             }
         }
-        UiText(R.string.backup_success)
+        UiText(Res.backup_success)
     }
 
     fun importBackup(uri: Uri): Job? = startTransfer(TransferKind.IMPORT) {
@@ -587,7 +599,7 @@ class ScannerViewModel(
                     mutableTransfer.value = DataTransferState(TransferKind.IMPORT, count)
                 }
             }
-            UiText(R.string.backup_import_success, summary.added, summary.duplicates)
+            UiText(Res.backup_import_success, summary.added, summary.duplicates)
         } finally {
             cache.delete()
         }
@@ -603,14 +615,14 @@ class ScannerViewModel(
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (_: BackupTooLargeException) {
-                message.value = UiText(R.string.backup_too_large)
+                message.value = UiText(Res.backup_too_large)
             } catch (_: InvalidBackupException) {
-                message.value = UiText(R.string.backup_invalid)
+                message.value = UiText(Res.backup_invalid)
             } catch (_: Exception) {
                 message.value = UiText(when (kind) {
-                    TransferKind.EXPORT -> R.string.export_error
-                    TransferKind.BACKUP -> R.string.backup_error
-                    TransferKind.IMPORT -> R.string.backup_import_error
+                    TransferKind.EXPORT -> Res.export_error
+                    TransferKind.BACKUP -> Res.backup_error
+                    TransferKind.IMPORT -> Res.backup_import_error
                 })
             } finally {
                 mutableTransfer.value = null
@@ -633,22 +645,22 @@ class ScannerViewModel(
             cache.delete()
         }
     }
-    suspend fun historyDeletionCount(plan: HistoryDeletionPlan): Int = withContext(Dispatchers.IO) {
+    override suspend fun historyDeletionCount(plan: HistoryDeletionPlan): Int = withContext(Dispatchers.IO) {
         db.scans().deletionCount(plan)
     }
-    fun deleteHistory(plan: HistoryDeletionPlan) { viewModelScope.launch {
+    override fun deleteHistory(plan: HistoryDeletionPlan) { viewModelScope.launch {
         runCatching { db.scans().deleteSelection(plan) }
-            .onFailure { message.value = UiText(R.string.history_delete_error) }
+            .onFailure { message.value = UiText(Res.history_delete_error) }
     } }
     // Memory only: navigating within the app keeps this choice; leaving the app resets it.
-    var skipInvoiceDeleteConfirmation = false
+    override var skipInvoiceDeleteConfirmation = false
         private set
-    fun resetInvoiceDeleteConfirmation() { skipInvoiceDeleteConfirmation = false }
-    fun delete(id: Long, skipConfirmationForSession: Boolean = false) {
+    override fun resetInvoiceDeleteConfirmation() { skipInvoiceDeleteConfirmation = false }
+    override fun delete(id: Long, skipConfirmationForSession: Boolean) {
         if (skipConfirmationForSession) skipInvoiceDeleteConfirmation = true
         viewModelScope.launch {
         runCatching { db.scans().delete(id) }
-            .onFailure { message.value = UiText(R.string.history_delete_error) }
+            .onFailure { message.value = UiText(Res.history_delete_error) }
         }
     }
     override fun onCleared() { db.close() }

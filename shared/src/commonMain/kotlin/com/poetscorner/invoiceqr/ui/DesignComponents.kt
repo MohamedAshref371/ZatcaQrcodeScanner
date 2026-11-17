@@ -1,23 +1,23 @@
 package com.poetscorner.invoiceqr.ui
 
-import androidx.annotation.DrawableRes
+import org.jetbrains.compose.resources.DrawableResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun AppIcon(@DrawableRes icon: Int, modifier: Modifier = Modifier,
+fun AppIcon(icon: DrawableResource, modifier: Modifier = Modifier,
     description: String? = null, tint: Color = LocalContentColor.current) {
     Icon(painterResource(icon), description, modifier.size(24.dp), tint)
 }
 
 @Composable
-internal fun IconTile(@DrawableRes icon: Int, modifier: Modifier = Modifier,
+fun IconTile(icon: DrawableResource, modifier: Modifier = Modifier,
     container: Color = MaterialTheme.colorScheme.primaryContainer,
     tint: Color = MaterialTheme.colorScheme.onPrimaryContainer) {
     Surface(modifier.size(44.dp), color = container, shape = MaterialTheme.shapes.small) {

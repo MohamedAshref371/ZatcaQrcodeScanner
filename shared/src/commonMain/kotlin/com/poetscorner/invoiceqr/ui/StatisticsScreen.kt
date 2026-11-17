@@ -1,5 +1,78 @@
 package com.poetscorner.invoiceqr.ui
 
+import org.jetbrains.compose.resources.StringResource
+import com.poetscorner.invoiceqr.data.today
+import com.poetscorner.invoiceqr.resources.Res
+import com.poetscorner.invoiceqr.resources.cancel
+import com.poetscorner.invoiceqr.resources.history_apply_date
+import com.poetscorner.invoiceqr.resources.history_filter_title
+import com.poetscorner.invoiceqr.resources.history_from
+import com.poetscorner.invoiceqr.resources.history_load_error
+import com.poetscorner.invoiceqr.resources.history_retry
+import com.poetscorner.invoiceqr.resources.history_to
+import com.poetscorner.invoiceqr.resources.history_total_unavailable
+import com.poetscorner.invoiceqr.resources.ic_calculator
+import com.poetscorner.invoiceqr.resources.ic_check
+import com.poetscorner.invoiceqr.resources.ic_download
+import com.poetscorner.invoiceqr.resources.ic_expand
+import com.poetscorner.invoiceqr.resources.ic_filter
+import com.poetscorner.invoiceqr.resources.ic_sort_direction
+import com.poetscorner.invoiceqr.resources.invoice_category
+import com.poetscorner.invoiceqr.resources.nav_statistics
+import com.poetscorner.invoiceqr.resources.stats_any_date
+import com.poetscorner.invoiceqr.resources.stats_ascending
+import com.poetscorner.invoiceqr.resources.stats_available_net_tax
+import com.poetscorner.invoiceqr.resources.stats_available_net_total
+import com.poetscorner.invoiceqr.resources.stats_available_tax
+import com.poetscorner.invoiceqr.resources.stats_available_total
+import com.poetscorner.invoiceqr.resources.stats_calculation_add
+import com.poetscorner.invoiceqr.resources.stats_calculation_choice
+import com.poetscorner.invoiceqr.resources.stats_calculation_ignore
+import com.poetscorner.invoiceqr.resources.stats_calculation_subtract
+import com.poetscorner.invoiceqr.resources.stats_category_calculation
+import com.poetscorner.invoiceqr.resources.stats_category_calculation_hint
+import com.poetscorner.invoiceqr.resources.stats_choose_period
+import com.poetscorner.invoiceqr.resources.stats_clear_filters
+import com.poetscorner.invoiceqr.resources.stats_count
+import com.poetscorner.invoiceqr.resources.stats_count_label
+import com.poetscorner.invoiceqr.resources.stats_custom_period
+import com.poetscorner.invoiceqr.resources.stats_date_hint
+import com.poetscorner.invoiceqr.resources.stats_date_shortcuts
+import com.poetscorner.invoiceqr.resources.stats_day
+import com.poetscorner.invoiceqr.resources.stats_descending
+import com.poetscorner.invoiceqr.resources.stats_empty
+import com.poetscorner.invoiceqr.resources.stats_exclude_vat
+import com.poetscorner.invoiceqr.resources.stats_excluded_tax
+import com.poetscorner.invoiceqr.resources.stats_excluded_total
+import com.poetscorner.invoiceqr.resources.stats_export
+import com.poetscorner.invoiceqr.resources.stats_filter_value
+import com.poetscorner.invoiceqr.resources.stats_filters_active
+import com.poetscorner.invoiceqr.resources.stats_filters_inactive
+import com.poetscorner.invoiceqr.resources.stats_group_by
+import com.poetscorner.invoiceqr.resources.stats_groups_hint
+import com.poetscorner.invoiceqr.resources.stats_half_year
+import com.poetscorner.invoiceqr.resources.stats_hint
+import com.poetscorner.invoiceqr.resources.stats_last_month
+import com.poetscorner.invoiceqr.resources.stats_last_quarter
+import com.poetscorner.invoiceqr.resources.stats_month
+import com.poetscorner.invoiceqr.resources.stats_net_tax
+import com.poetscorner.invoiceqr.resources.stats_net_total
+import com.poetscorner.invoiceqr.resources.stats_no_invoices
+import com.poetscorner.invoiceqr.resources.stats_quarter
+import com.poetscorner.invoiceqr.resources.stats_sort_by
+import com.poetscorner.invoiceqr.resources.stats_sort_direction
+import com.poetscorner.invoiceqr.resources.stats_summary_with_groups
+import com.poetscorner.invoiceqr.resources.stats_this_month
+import com.poetscorner.invoiceqr.resources.stats_this_quarter
+import com.poetscorner.invoiceqr.resources.stats_this_year
+import com.poetscorner.invoiceqr.resources.stats_total_including_tax
+import com.poetscorner.invoiceqr.resources.stats_vat_exclude
+import com.poetscorner.invoiceqr.resources.stats_vat_include
+import com.poetscorner.invoiceqr.resources.stats_view_invoices
+import com.poetscorner.invoiceqr.resources.stats_year
+import com.poetscorner.invoiceqr.resources.tag_seller
+import com.poetscorner.invoiceqr.resources.tag_tax
+import com.poetscorner.invoiceqr.resources.tag_vat
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,11 +95,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
+import com.poetscorner.invoiceqr.ui.text.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,36 +109,30 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.selected
-import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.*
-import java.text.NumberFormat
-import kotlinx.datetime.toKotlinLocalDate
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
-internal fun StatisticsGrouping.label(): Int = when (this) {
-    StatisticsGrouping.SELLER -> R.string.tag_seller
-    StatisticsGrouping.VAT -> R.string.tag_vat
-    StatisticsGrouping.CATEGORY -> R.string.invoice_category
-    StatisticsGrouping.DAY -> R.string.stats_day
-    StatisticsGrouping.MONTH -> R.string.stats_month
-    StatisticsGrouping.QUARTER -> R.string.stats_quarter
-    StatisticsGrouping.HALF_YEAR -> R.string.stats_half_year
-    StatisticsGrouping.YEAR -> R.string.stats_year
+internal fun StatisticsGrouping.label(): StringResource = when (this) {
+    StatisticsGrouping.SELLER -> Res.tag_seller
+    StatisticsGrouping.VAT -> Res.tag_vat
+    StatisticsGrouping.CATEGORY -> Res.invoice_category
+    StatisticsGrouping.DAY -> Res.stats_day
+    StatisticsGrouping.MONTH -> Res.stats_month
+    StatisticsGrouping.QUARTER -> Res.stats_quarter
+    StatisticsGrouping.HALF_YEAR -> Res.stats_half_year
+    StatisticsGrouping.YEAR -> Res.stats_year
 }
 
-internal fun StatisticsPreset.label(): Int = when (this) {
-    StatisticsPreset.THIS_MONTH -> R.string.stats_this_month
-    StatisticsPreset.LAST_MONTH -> R.string.stats_last_month
-    StatisticsPreset.THIS_QUARTER -> R.string.stats_this_quarter
-    StatisticsPreset.LAST_QUARTER -> R.string.stats_last_quarter
-    StatisticsPreset.THIS_YEAR -> R.string.stats_this_year
+internal fun StatisticsPreset.label(): StringResource = when (this) {
+    StatisticsPreset.THIS_MONTH -> Res.stats_this_month
+    StatisticsPreset.LAST_MONTH -> Res.stats_last_month
+    StatisticsPreset.THIS_QUARTER -> Res.stats_this_quarter
+    StatisticsPreset.LAST_QUARTER -> Res.stats_last_quarter
+    StatisticsPreset.THIS_YEAR -> Res.stats_this_year
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Unit, onRetry: () -> Unit,
+fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Unit, onRetry: () -> Unit,
     onOpenGroup: (StatisticsKey) -> Unit = {}, onExport: () -> Unit = {}, exportEnabled: Boolean = true,
     sellerSuggestions: suspend (String) -> List<String> = { emptyList() }) {
     val request = state.request
@@ -79,14 +144,12 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             scrollRequest = request
         }
     }
-    val context = LocalContext.current
     var filters by rememberSaveable { mutableStateOf(false) }
     var categoryCalculationDialog by rememberSaveable { mutableStateOf(false) }
-    val locale = LocalConfiguration.current.locales[0]
-    val dates = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
+    val locale = uiLocaleTag()
     val groupSortLabel = request.grouping.label()
-    val sortLabels = mapOf(StatisticsSort.GROUP to groupSortLabel, StatisticsSort.COUNT to R.string.stats_count_label,
-        StatisticsSort.TOTAL to R.string.stats_total_including_tax, StatisticsSort.TAX to R.string.tag_tax)
+    val sortLabels = mapOf(StatisticsSort.GROUP to groupSortLabel, StatisticsSort.COUNT to Res.stats_count_label,
+        StatisticsSort.TOTAL to Res.stats_total_including_tax, StatisticsSort.TAX to Res.tag_tax)
     ScrollToTopContainer(listState) {
     LazyColumn(Modifier.fillMaxSize().testTag("statistics_list"), state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 72.dp),
@@ -95,26 +158,26 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.weight(1f)) {
-                    SectionHeading(stringResource(R.string.nav_statistics), stringResource(R.string.stats_hint))
+                    SectionHeading(stringResource(Res.nav_statistics), stringResource(Res.stats_hint))
                 }
-                val filterState = stringResource(if (request.filtered) R.string.stats_filters_active else R.string.stats_filters_inactive)
+                val filterState = stringResource(if (request.filtered) Res.stats_filters_active else Res.stats_filters_inactive)
                 TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                    tooltip = { PlainTooltip { Text(stringResource(R.string.history_filter_title)) } },
+                    tooltip = { PlainTooltip { Text(stringResource(Res.history_filter_title)) } },
                     state = rememberTooltipState()) {
                     IconButton(onClick = { filters = true },
                         modifier = Modifier.size(48.dp).semantics { stateDescription = filterState }) {
                         BadgedBox(badge = { if (request.filtered) Badge() }) {
-                            AppIcon(R.drawable.ic_filter, description = stringResource(R.string.history_filter_title))
+                            AppIcon(Res.ic_filter, description = stringResource(Res.history_filter_title))
                         }
                     }
                 }
                 TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                    tooltip = { PlainTooltip { Text(stringResource(R.string.stats_export)) } },
+                    tooltip = { PlainTooltip { Text(stringResource(Res.stats_export)) } },
                     state = rememberTooltipState()) {
                     IconButton(onClick = onExport,
                         enabled = exportEnabled && !state.loading && !state.failed && state.result.groups.isNotEmpty(),
                         modifier = Modifier.size(48.dp)) {
-                        AppIcon(R.drawable.ic_download, description = stringResource(R.string.stats_export))
+                        AppIcon(Res.ic_download, description = stringResource(Res.stats_export))
                     }
                 }
             }
@@ -122,7 +185,7 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                CompactStatisticsChoice(stringResource(R.string.stats_group_by),
+                CompactStatisticsChoice(stringResource(Res.stats_group_by),
                     stringResource(groupSortLabel), request.grouping.name,
                     StatisticsGrouping.entries.filterNot { it == StatisticsGrouping.HALF_YEAR }
                         .map { it.name to stringResource(it.label()) }, modifier = Modifier.weight(1f)) {
@@ -130,12 +193,12 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                 }
                 if (request.grouping != StatisticsGrouping.CATEGORY) {
                     TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                        tooltip = { PlainTooltip { Text(stringResource(R.string.stats_category_calculation)) } },
+                        tooltip = { PlainTooltip { Text(stringResource(Res.stats_category_calculation)) } },
                         state = rememberTooltipState()) {
                         IconButton(onClick = { categoryCalculationDialog = true }, modifier = Modifier.size(48.dp)) {
                             BadgedBox(badge = { if (request.categoryCalculations.isNotEmpty()) Badge() }) {
-                                AppIcon(R.drawable.ic_calculator,
-                                    description = stringResource(R.string.stats_category_calculation))
+                                AppIcon(Res.ic_calculator,
+                                    description = stringResource(Res.stats_category_calculation))
                             }
                         }
                     }
@@ -143,20 +206,20 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                CompactStatisticsChoice(stringResource(R.string.stats_sort_by),
+                CompactStatisticsChoice(stringResource(Res.stats_sort_by),
                     stringResource(sortLabels.getValue(request.sort)), request.sort.name,
                     StatisticsSort.entries.map { it.name to stringResource(sortLabels.getValue(it)) }, modifier = Modifier.weight(1f)) {
                     onChange(request.copy(sort = StatisticsSort.valueOf(it)))
                 }
-                val direction = stringResource(if (request.descending) R.string.stats_descending else R.string.stats_ascending)
+                val direction = stringResource(if (request.descending) Res.stats_descending else Res.stats_ascending)
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                         tooltip = { PlainTooltip { Text(direction) } }, state = rememberTooltipState()) {
                         IconButton(onClick = { onChange(request.copy(descending = !request.descending)) },
                             modifier = Modifier.size(48.dp).semantics { stateDescription = direction }) {
-                            AppIcon(R.drawable.ic_sort_direction,
+                            AppIcon(Res.ic_sort_direction,
                                 modifier = Modifier.rotate(if (request.descending) 180f else 0f),
-                                description = stringResource(R.string.stats_sort_direction))
+                                description = stringResource(Res.stats_sort_direction))
                         }
                     }
                 }
@@ -165,18 +228,18 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
                 TextButton(onClick = {
                     onChange(request.copy(seller = "", vat = "", excludedVat = "", vatMode = StatisticsVatMode.INCLUDE,
                         fromDay = null, toDay = null, datePreset = null))
-                }) { Text(stringResource(R.string.stats_clear_filters)) }
+                }) { Text(stringResource(Res.stats_clear_filters)) }
             }
-            if (request.seller.isNotBlank()) Text(stringResource(R.string.stats_filter_value,
-                stringResource(R.string.tag_seller), request.seller), style = MaterialTheme.typography.bodySmall)
-            if (request.vat.isNotBlank()) Text(stringResource(R.string.stats_filter_value,
-                stringResource(R.string.tag_vat), request.vat), style = MaterialTheme.typography.bodySmall)
-            if (request.excludedVat.isNotBlank()) Text(stringResource(R.string.stats_filter_value,
-                stringResource(R.string.stats_exclude_vat), request.excludedVat), style = MaterialTheme.typography.bodySmall)
-            request.fromDay?.let { Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_from),
-                dates.format(LocalDate.ofEpochDay(it))), style = MaterialTheme.typography.bodySmall) }
-            request.toDay?.let { Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_to),
-                dates.format(LocalDate.ofEpochDay(it))), style = MaterialTheme.typography.bodySmall) }
+            if (request.seller.isNotBlank()) Text(stringResource(Res.stats_filter_value,
+                stringResource(Res.tag_seller), request.seller), style = MaterialTheme.typography.bodySmall)
+            if (request.vat.isNotBlank()) Text(stringResource(Res.stats_filter_value,
+                stringResource(Res.tag_vat), request.vat), style = MaterialTheme.typography.bodySmall)
+            if (request.excludedVat.isNotBlank()) Text(stringResource(Res.stats_filter_value,
+                stringResource(Res.stats_exclude_vat), request.excludedVat), style = MaterialTheme.typography.bodySmall)
+            request.fromDay?.let { Text(stringResource(Res.stats_filter_value, stringResource(Res.history_from),
+                formatDay(it, locale)), style = MaterialTheme.typography.bodySmall) }
+            request.toDay?.let { Text(stringResource(Res.stats_filter_value, stringResource(Res.history_to),
+                formatDay(it, locale)), style = MaterialTheme.typography.bodySmall) }
         }
         item(key = "statistics_progress") {
             Box(Modifier.fillMaxWidth().height(4.dp)) {
@@ -184,21 +247,21 @@ internal fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsReque
             }
         }
         if (state.failed) item {
-            Text(stringResource(R.string.history_load_error))
-            TextButton(onClick = onRetry) { Text(stringResource(R.string.history_retry)) }
+            Text(stringResource(Res.history_load_error))
+            TextButton(onClick = onRetry) { Text(stringResource(Res.history_retry)) }
         }
         if (state.hasResult) {
             item(key = "statistics_summary") {
-                StatisticsCard(stringResource(R.string.stats_summary_with_groups, state.result.groups.size),
+                StatisticsCard(stringResource(Res.stats_summary_with_groups, state.result.groups.size),
                     state.result.summary, summary = true,
                     net = state.resultRequest.categoryCalculationActive)
             }
             if (!state.loading && !state.failed && state.result.groups.isEmpty()) item {
-                Text(stringResource(if (request.filtered) R.string.stats_empty else R.string.stats_no_invoices))
+                Text(stringResource(if (request.filtered) Res.stats_empty else Res.stats_no_invoices))
             }
             itemsIndexed(state.result.groups, key = { index, _ -> "statistics_card_$index" },
                 contentType = { _, _ -> "statistics_card" }) { index, group ->
-                val title = statisticsGroupTitle(context, state.resultRequest, group.key)
+                val title = statisticsGroupTitle(state.resultRequest, group.key)
                 StatisticsCard(title, group.totals, modifier = Modifier.testTag("statistics_card_$index"),
                     net = state.resultRequest.categoryCalculationActive,
                     onClick = if (state.loading || state.failed) null else ({ onOpenGroup(group.key) }))
@@ -220,26 +283,26 @@ private fun StatisticsCategoryCalculationDialog(request: StatisticsRequest,
     onDismiss: () -> Unit, onApply: (StatisticsRequest) -> Unit) {
     var selections by remember(request) { mutableStateOf(request.categoryCalculations) }
     AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.stats_category_calculation)) },
+        title = { Text(stringResource(Res.stats_category_calculation)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.stats_category_calculation_hint), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.stats_category_calculation_hint), style = MaterialTheme.typography.bodySmall)
                 InvoiceCategories.ids.forEach { category ->
-                    val categoryName = stringResource(InvoiceCategories.label(category))
+                    val categoryName = stringResource(InvoiceCategories.resource(category))
                     Row(Modifier.fillMaxWidth().selectableGroup(),
                         verticalAlignment = Alignment.CenterVertically) {
                         StatisticsCategoryCalculation.entries.forEach { calculation ->
                             val label = stringResource(when (calculation) {
-                                StatisticsCategoryCalculation.ADD -> R.string.stats_calculation_add
-                                StatisticsCategoryCalculation.SUBTRACT -> R.string.stats_calculation_subtract
-                                StatisticsCategoryCalculation.IGNORE -> R.string.stats_calculation_ignore
+                                StatisticsCategoryCalculation.ADD -> Res.stats_calculation_add
+                                StatisticsCategoryCalculation.SUBTRACT -> Res.stats_calculation_subtract
+                                StatisticsCategoryCalculation.IGNORE -> Res.stats_calculation_ignore
                             })
                             val symbol = when (calculation) {
                                 StatisticsCategoryCalculation.ADD -> "+"
                                 StatisticsCategoryCalculation.SUBTRACT -> "−"
                                 StatisticsCategoryCalculation.IGNORE -> "⊘"
                             }
-                            val choiceDescription = stringResource(R.string.stats_calculation_choice, categoryName, label)
+                            val choiceDescription = stringResource(Res.stats_calculation_choice, categoryName, label)
                             val selected = (selections[category] ?: StatisticsCategoryCalculation.ADD) == calculation
                             Box(Modifier.size(44.dp).selectable(selected = selected, role = Role.RadioButton,
                                 onClick = {
@@ -265,8 +328,8 @@ private fun StatisticsCategoryCalculationDialog(request: StatisticsRequest,
                 }
             }
         }, confirmButton = { TextButton(onClick = { onApply(request.copy(categoryCalculations = selections)) }) {
-            Text(stringResource(R.string.history_apply_date))
-        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+            Text(stringResource(Res.history_apply_date))
+        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) } })
 }
 
 @Composable
@@ -291,7 +354,7 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
                 Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.width(8.dp))
-                AppIcon(R.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppIcon(Res.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 values.forEach { (key, text) ->
@@ -299,7 +362,7 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
                         expanded = false
                         onChange(key)
                     }, modifier = Modifier.semantics { this.selected = key == selected },
-                        leadingIcon = if (key == selected) { { AppIcon(R.drawable.ic_check) } } else null)
+                        leadingIcon = if (key == selected) { { AppIcon(Res.ic_check) } } else null)
                 }
             }
         }
@@ -316,9 +379,8 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
 @Composable
 private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Modifier = Modifier,
     summary: Boolean = false, net: Boolean = false, onClick: (() -> Unit)? = null) {
-    val locale = LocalConfiguration.current.locales[0]
-    val money = remember(locale) { NumberFormat.getNumberInstance(locale).apply { minimumFractionDigits = 2; maximumFractionDigits = 2 } }
-    val actionLabel = stringResource(R.string.stats_view_invoices)
+    val locale = uiLocaleTag()
+    val actionLabel = stringResource(Res.stats_view_invoices)
     Card(modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(
         onClickLabel = actionLabel, role = Role.Button, onClick = onClick) else Modifier),
         shape = RoundedCornerShape(16.dp),
@@ -329,37 +391,37 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Mo
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.stats_count, totals.count), style = MaterialTheme.typography.bodyMedium,
+                Text(stringResource(Res.stats_count, totals.count), style = MaterialTheme.typography.bodyMedium,
                     color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
             }
             val contributingCount = totals.count - totals.ignoredCount
-            val total = if (contributingCount > 0 && totals.missingTotal == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.total.toPlainString().toBigDecimal())
-            val tax = if (contributingCount > 0 && totals.missingTax == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.tax.toPlainString().toBigDecimal())
+            val total = if (contributingCount > 0 && totals.missingTotal == contributingCount) stringResource(Res.history_total_unavailable) else formatDecimal(totals.total.toPlainString(), locale)
+            val tax = if (contributingCount > 0 && totals.missingTax == contributingCount) stringResource(Res.history_total_unavailable) else formatDecimal(totals.tax.toPlainString(), locale)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(if (net) {
-                        if (totals.missingTotal > 0) R.string.stats_available_net_total else R.string.stats_net_total
-                    } else if (totals.missingTotal > 0) R.string.stats_available_total else R.string.stats_total_including_tax),
+                        if (totals.missingTotal > 0) Res.stats_available_net_total else Res.stats_net_total
+                    } else if (totals.missingTotal > 0) Res.stats_available_total else Res.stats_total_including_tax),
                         style = MaterialTheme.typography.labelMedium)
                     Text(total, style = MaterialTheme.typography.headlineSmall,
                         color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(if (net) {
-                        if (totals.missingTax > 0) R.string.stats_available_net_tax else R.string.stats_net_tax
-                    } else if (totals.missingTax > 0) R.string.stats_available_tax else R.string.tag_tax),
+                        if (totals.missingTax > 0) Res.stats_available_net_tax else Res.stats_net_tax
+                    } else if (totals.missingTax > 0) Res.stats_available_tax else Res.tag_tax),
                         style = MaterialTheme.typography.labelMedium)
                     Text(tax, style = MaterialTheme.typography.titleMedium)
                 }
             }
-            if (totals.missingTotal > 0) Text(stringResource(R.string.stats_excluded_total, totals.missingTotal),
+            if (totals.missingTotal > 0) Text(stringResource(Res.stats_excluded_total, totals.missingTotal),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            if (totals.missingTax > 0) Text(stringResource(R.string.stats_excluded_tax, totals.missingTax),
+            if (totals.missingTax > 0) Text(stringResource(Res.stats_excluded_tax, totals.missingTax),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             if (summary && totals.count > 0) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f))
-                Text(stringResource(R.string.stats_groups_hint), style = MaterialTheme.typography.bodySmall,
+                Text(stringResource(Res.stats_groups_hint), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         }
@@ -378,10 +440,9 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
     var from by rememberSaveable { mutableStateOf(request.fromDay) }
     var to by rememberSaveable { mutableStateOf(request.toDay) }
     var pickingFrom by rememberSaveable { mutableStateOf<Boolean?>(null) }
-    val locale = LocalConfiguration.current.locales[0]
-    val dates = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
+    val locale = uiLocaleTag()
     val normalizedVat = normalizeVatNumber(vat)
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.history_filter_title)) },
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(Res.history_filter_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SellerFilterField(seller, { seller = it }, sellerSuggestions)
@@ -398,30 +459,30 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary),
                                 leadingIcon = if (selected) {
-                                    { AppIcon(R.drawable.ic_check, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                                    { AppIcon(Res.ic_check, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
                                 } else null,
-                                label = { Text(stringResource(if (mode == StatisticsVatMode.INCLUDE) R.string.stats_vat_include else R.string.stats_vat_exclude)) })
+                                label = { Text(stringResource(if (mode == StatisticsVatMode.INCLUDE) Res.stats_vat_include else Res.stats_vat_exclude)) })
                         }
                     }
                     OutlinedTextField(vat, { vat = it }, label = {
-                        Text(stringResource(if (vatMode == StatisticsVatMode.EXCLUDE) R.string.stats_exclude_vat else R.string.tag_vat))
+                        Text(stringResource(if (vatMode == StatisticsVatMode.EXCLUDE) Res.stats_exclude_vat else Res.tag_vat))
                     }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 }
-                Text(stringResource(R.string.stats_date_hint), style = MaterialTheme.typography.bodySmall)
-                val today = LocalDate.now()
+                Text(stringResource(Res.stats_date_hint), style = MaterialTheme.typography.bodySmall)
+                val today = today()
                 ExposedDropdownMenuBox(expanded = shortcutsExpanded,
                     onExpandedChange = { shortcutsExpanded = it }) {
                     OutlinedTextField(
                         value = stringResource(datePreset?.label()
-                            ?: if (from == null && to == null) R.string.stats_choose_period else R.string.stats_custom_period),
+                            ?: if (from == null && to == null) Res.stats_choose_period else Res.stats_custom_period),
                         onValueChange = {}, readOnly = true,
-                        label = { Text(stringResource(R.string.stats_date_shortcuts)) },
+                        label = { Text(stringResource(Res.stats_date_shortcuts)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(shortcutsExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
                     ExposedDropdownMenu(expanded = shortcutsExpanded, onDismissRequest = { shortcutsExpanded = false }) {
                         StatisticsPreset.entries.forEach { preset ->
                             DropdownMenuItem(text = { Text(stringResource(preset.label())) }, onClick = {
-                                val period = request.withPeriod(preset, today.toKotlinLocalDate())
+                                val period = request.withPeriod(preset, today)
                                 datePreset = period.datePreset
                                 from = period.fromDay; to = period.toDay
                                 shortcutsExpanded = false
@@ -430,23 +491,23 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
                     }
                 }
                 OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_from),
-                        from?.let { dates.format(LocalDate.ofEpochDay(it)) } ?: stringResource(R.string.stats_any_date)))
+                    Text(stringResource(Res.stats_filter_value, stringResource(Res.history_from),
+                        from?.let { formatDay(it, locale) } ?: stringResource(Res.stats_any_date)))
                 }
                 OutlinedButton(onClick = { pickingFrom = false }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.stats_filter_value, stringResource(R.string.history_to),
-                        to?.let { dates.format(LocalDate.ofEpochDay(it)) } ?: stringResource(R.string.stats_any_date)))
+                    Text(stringResource(Res.stats_filter_value, stringResource(Res.history_to),
+                        to?.let { formatDay(it, locale) } ?: stringResource(Res.stats_any_date)))
                 }
                 TextButton(onClick = { seller = ""; vat = ""; vatMode = StatisticsVatMode.INCLUDE; from = null; to = null; datePreset = null }) {
-                    Text(stringResource(R.string.stats_clear_filters))
+                    Text(stringResource(Res.stats_clear_filters))
                 }
             }
         }, confirmButton = { TextButton(onClick = {
             onApply(request.copy(seller = seller.trim(), fromDay = from, toDay = to, datePreset = datePreset)
                 .withVatFilter(vatMode, normalizedVat))
         }) {
-            Text(stringResource(R.string.history_apply_date))
-        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+            Text(stringResource(Res.history_apply_date))
+        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) } })
     pickingFrom?.let { isFrom ->
         HistoryDatePicker(initial = (if (isFrom) from else to) ?: (if (isFrom) to else from),
             minimum = if (isFrom) null else from, maximum = if (isFrom) to else null,
@@ -489,7 +550,7 @@ private fun SellerFilterField(value: String, onValueChange: (String) -> Unit,
                 dismissed = false
                 onValueChange(it.text)
             }
-        }, label = { Text(stringResource(R.string.tag_seller)) }, singleLine = true,
+        }, label = { Text(stringResource(Res.tag_seller)) }, singleLine = true,
             modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
                 .onFocusChanged { focused = it.isFocused })
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { dismissed = true }) {

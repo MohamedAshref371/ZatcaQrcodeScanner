@@ -8,7 +8,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.domain.ZatcaParser
 import com.poetscorner.invoiceqr.domain.asUiText
+import com.poetscorner.invoiceqr.resources.Res
+import com.poetscorner.invoiceqr.resources.check_present
+import com.poetscorner.invoiceqr.resources.error_tag_duplicate
+import com.poetscorner.invoiceqr.resources.tag_seller
 import com.poetscorner.invoiceqr.ui.text.UiText
+import com.poetscorner.invoiceqr.ui.text.resolve
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.getSystemResourceEnvironment
 import java.util.Locale
 import org.junit.Assert.*
 import org.junit.Test
@@ -35,15 +42,23 @@ class LocalizationTest {
         assertEquals("Scanner", context("fr-FR").getString(R.string.nav_scanner))
     }
 
-    @Test fun retainedChecksAndErrorsResolveInTheCurrentLanguage() {
-        val check = UiText(R.string.check_present, UiText(R.string.tag_seller))
-        assertEquals("Seller name is present", check.resolve(context("en")))
-        assertEquals("وجود اسم البائع", check.resolve(context("ar")))
+    @Test fun retainedChecksAndErrorsResolveInTheCurrentLanguage() = runBlocking<Unit> {
+        val check = UiText(Res.check_present, UiText(Res.tag_seller))
         val bad = ZatcaParser.parse("https://example.org")
-        assertEquals(context("en").getString(R.string.error_base64), bad.error!!.asUiText().resolve(context("en")))
-        assertEquals(context("ar").getString(R.string.error_base64), bad.error!!.asUiText().resolve(context("ar")))
-        val formatted = UiText(R.string.error_tag_duplicate, 6)
-        assertTrue(formatted.resolve(context("en")).contains("6"))
+        val formatted = UiText(Res.error_tag_duplicate, 6)
+        val original = LocaleList.getDefault()
+        try {
+            for ((language, expected) in listOf("en" to "Seller name is present", "ar" to "وجود اسم البائع")) {
+                LocaleList.setDefault(LocaleList(Locale.forLanguageTag(language)))
+                val environment = getSystemResourceEnvironment()
+                val context = context(language)
+                assertEquals(expected, check.resolve(environment, language))
+                assertEquals(context.getString(R.string.error_base64), bad.error!!.asUiText().resolve(environment, language))
+                assertEquals(context.getString(R.string.error_tag_duplicate, 6), formatted.resolve(environment, language))
+            }
+        } finally {
+            LocaleList.setDefault(original)
+        }
     }
 
     @Test fun everyEnglishResourceHasNoArabicFallback() {
