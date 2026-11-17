@@ -83,20 +83,39 @@ jobs:
             bash gradlew --no-daemon --stacktrace --max-workers=2
             -PisolatedValidation=true
             -Pandroid.testInstrumentationRunnerArguments.class=com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest
-            :app:connectedDebugAndroidTest
-      - name: Verify migrations ran on the emulator
+            :app:connectedDebugAndroidTest || { adb logcat -d -t 600 > "$RUNNER_TEMP/storage-logcat.txt"; exit 1; }
+      - name: Report Android storage test results
+        if: always()
         run: |
           python3 - <<'PY'
           from collections import Counter
+          import os
           from pathlib import Path
           import xml.etree.ElementTree as ET
 
           executed = Counter()
-          for report in Path("app/build/outputs/androidTest-results").rglob("TEST-*.xml"):
-              for test in ET.parse(report).getroot().iter("testcase"):
-                  if not any(test.find(tag) is not None for tag in ("failure", "error", "skipped")):
+          root = Path("app/build/outputs/androidTest-results")
+          for report in root.rglob("TEST-*.xml"):
+              suite = ET.parse(report).getroot()
+              for test in suite.iter("testcase"):
+                  issues = [issue for issue in test if issue.tag in ("failure", "error", "skipped")]
+                  if issues:
+                      print(test.attrib)
+                      for issue in issues:
+                          print(issue.attrib, issue.text or "")
+                  else:
                       executed[test.attrib.get("classname", "")] += 1
+              for error in suite.findall("error") + suite.findall("failure"):
+                  print(error.attrib, error.text or "")
+          if not executed:
+              for log in root.rglob("*.log"):
+                  print(log, log.read_text(errors="replace")[-8000:])
           print(dict(executed))
+          logcat = Path(os.environ["RUNNER_TEMP"], "storage-logcat.txt")
+          if logcat.is_file():
+              for line in logcat.read_text(errors="replace").splitlines():
+                  if any(tag in line for tag in ("AndroidRuntime", "Instrumentation", "TestRunner")):
+                      print(line)
           assert executed["com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest"] == 3
           assert executed["com.poetscorner.invoiceqr.DataStoreCompatibilityTest"] == 1
           PY
