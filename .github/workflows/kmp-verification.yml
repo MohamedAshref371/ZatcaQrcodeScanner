@@ -71,7 +71,12 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-          test -r /dev/kvm && test -w /dev/kvm
+          sudo udevadm settle
+          test -c /dev/kvm
+          if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            sudo chown "$(id -u)" /dev/kvm
+            sudo chmod u+rw /dev/kvm
+          fi
       - name: Run Android storage compatibility tests
         uses: reactivecircus/android-emulator-runner@c9c93e6ba9c4194322e114c40970d5983d9a07cc # v2.38.0
         with:
@@ -80,10 +85,14 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: >-
-            bash gradlew --no-daemon --stacktrace --max-workers=2
-            -PisolatedValidation=true
-            -Pandroid.testInstrumentationRunnerArguments.class=com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest
-            :app:connectedDebugAndroidTest || { adb logcat -d -t 600 > "$RUNNER_TEMP/storage-logcat.txt"; exit 1; }
+            bash gradlew --no-daemon --stacktrace --max-workers=2 -PisolatedValidation=true
+            :app:assembleDebug :app:assembleDebugAndroidTest &&
+            adb install -t -r app/build/outputs/apk/debug/app-debug.apk &&
+            adb install -t -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk &&
+            adb shell am instrument -w -r
+            -e class com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest
+            "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')/androidx.test.runner.AndroidJUnitRunner"
+            > "$RUNNER_TEMP/storage-tests.txt"
       - name: Report Android storage test results
         if: always()
         run: |
@@ -91,31 +100,24 @@ jobs:
           from collections import Counter
           import os
           from pathlib import Path
-          import xml.etree.ElementTree as ET
 
-          executed = Counter()
-          root = Path("app/build/outputs/androidTest-results")
-          for report in root.rglob("TEST-*.xml"):
-              suite = ET.parse(report).getroot()
-              for test in suite.iter("testcase"):
-                  issues = [issue for issue in test if issue.tag in ("failure", "error", "skipped")]
-                  if issues:
-                      print(test.attrib)
-                      for issue in issues:
-                          print(issue.attrib, issue.text or "")
-                  else:
-                      executed[test.attrib.get("classname", "")] += 1
-              for error in suite.findall("error") + suite.findall("failure"):
-                  print(error.attrib, error.text or "")
-          if not executed:
-              for log in root.rglob("*.log"):
-                  print(log, log.read_text(errors="replace")[-8000:])
-          print(dict(executed))
-          logcat = Path(os.environ["RUNNER_TEMP"], "storage-logcat.txt")
-          if logcat.is_file():
-              for line in logcat.read_text(errors="replace").splitlines():
-                  if any(tag in line for tag in ("AndroidRuntime", "Instrumentation", "TestRunner")):
-                      print(line)
-          assert executed["com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest"] == 3
-          assert executed["com.poetscorner.invoiceqr.DataStoreCompatibilityTest"] == 1
+          log = Path(os.environ["RUNNER_TEMP"], "storage-tests.txt").read_text()
+          print(log)
+          completed = Counter()
+          fields = {}
+          for line in log.splitlines():
+              if line.startswith("INSTRUMENTATION_STATUS: "):
+                  key, sep, value = line.removeprefix("INSTRUMENTATION_STATUS: ").partition("=")
+                  if sep:
+                      fields[key] = value
+              elif line.startswith("INSTRUMENTATION_STATUS_CODE: "):
+                  code = int(line.removeprefix("INSTRUMENTATION_STATUS_CODE: "))
+                  assert code in (0, 1), fields
+                  if code == 0:
+                      completed[fields["class"]] += 1
+                  fields = {}
+          print(dict(completed))
+          assert "INSTRUMENTATION_CODE: -1" in log
+          assert completed["com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest"] == 3
+          assert completed["com.poetscorner.invoiceqr.DataStoreCompatibilityTest"] == 1
           PY
