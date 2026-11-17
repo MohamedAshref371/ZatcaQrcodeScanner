@@ -98,7 +98,7 @@ jobs:
             -e class com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest,com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.AppLanguageUiTest,com.poetscorner.invoiceqr.VerificationLevelsUiTest,com.poetscorner.invoiceqr.NavigationAccessibilityUiTest
             "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')/androidx.test.runner.AndroidJUnitRunner"
             > "$RUNNER_TEMP/storage-tests.txt"
-      - name: Report Android UI and storage test results
+      - name: Verify Android UI and storage test results
         if: always() && steps.android-tests.outcome != 'skipped' && steps.android-tests.outcome != ''
         run: |
           python3 - <<'PY'
