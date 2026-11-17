@@ -1,0 +1,4 @@
+headers = invoiceqr_zxing.h
+package = com.poetscorner.invoiceqr.zxing
+staticLibraries = libInvoiceQrZxing.a
+linkerOpts = -lc++

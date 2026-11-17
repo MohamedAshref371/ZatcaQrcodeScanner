@@ -222,8 +222,13 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
                                         ?.takeIf { it.error == QrReadError.CHECKSUM ||
                                             it.error == QrReadError.FORMAT }?.position
                                     runCatching {
-                                        recovery.offer(image, position, now, cropEnabled) { bitmap ->
-                                            AndroidZxingQrReader.read(bitmap,
+                                        val plane = image.planes[0]
+                                        val buffer = plane.buffer
+                                        recovery.offer(crop.width(), crop.height(), image.imageInfo.rotationDegrees,
+                                            position, now, cropEnabled, pixel = { x, y ->
+                                                buffer.get((crop.top + y) * plane.rowStride + (crop.left + x) * plane.pixelStride)
+                                            }) { luma ->
+                                            AndroidZxingQrReader.read(luma,
                                                 currentSettings.qrReadOptions(maxSymbols = 2))
                                                 .filter { it.error == null && it.text != null }
                                                 .singleOrNull()?.text

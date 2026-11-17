@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -23,6 +24,27 @@ kotlin {
 
     iosArm64()
     iosSimulatorArm64()
+    val bridge = layout.projectDirectory.dir("src/nativeInterop/cinterop")
+    val nativeBuildScript = rootProject.file("tools/build_ios_zxing.sh")
+    targets.withType<KotlinNativeTarget>().configureEach {
+        val sdk = if (name == "iosArm64") "iphoneos" else "iphonesimulator"
+        val capitalizedName = name.replaceFirstChar { it.uppercaseChar() }
+        val output = layout.buildDirectory.dir("zxing/$name")
+        val prepareZxing = tasks.register<Exec>("buildZxing$capitalizedName") {
+            inputs.file(nativeBuildScript)
+            inputs.dir(bridge)
+            outputs.file(output.map { it.file("libInvoiceQrZxing.a") })
+            commandLine("bash", nativeBuildScript, sdk, output.get().asFile, bridge.asFile)
+        }
+        compilations.getByName("main").cinterops.create("invoiceqrZxing") {
+            definitionFile.set(bridge.file("invoiceqr_zxing.def"))
+            includeDirs(bridge.asFile)
+            extraOpts("-libraryPath", output.get().asFile.absolutePath)
+        }
+        tasks.matching { it.name == "cinteropInvoiceqrZxing$capitalizedName" }.configureEach {
+            dependsOn(prepareZxing)
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {

@@ -29,7 +29,7 @@ jobs:
           bash gradlew --no-daemon --stacktrace \
             :shared:compileKotlinIosArm64 \
             :shared:iosSimulatorArm64Test
-      - name: Verify all 72 tests executed
+      - name: Verify all 76 tests executed
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -42,7 +42,7 @@ jobs:
               for name in ("tests", "failures", "errors", "skipped")
           }
           print(totals)
-          assert totals == {"tests": 72, "failures": 0, "errors": 0, "skipped": 0}
+          assert totals == {"tests": 76, "failures": 0, "errors": 0, "skipped": 0}
           PY
 
   android-ui-and-persistence:
@@ -106,7 +106,7 @@ jobs:
             adb install -t -r -g app/build/outputs/apk/debug/app-debug.apk &&
             adb install -t -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk &&
             adb shell am instrument -w -r
-            -e class com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest,com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.AppLanguageUiTest,com.poetscorner.invoiceqr.VerificationLevelsUiTest
+            -e class com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest,com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.AppLanguageUiTest,com.poetscorner.invoiceqr.VerificationLevelsUiTest,com.poetscorner.invoiceqr.ZxingQrReaderTest
             "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')/androidx.test.runner.AndroidJUnitRunner"
             > "$RUNNER_TEMP/android-tests.txt" &&
             adb shell settings put system font_scale 1.6 &&
@@ -174,6 +174,6 @@ jobs:
           assert completed["com.poetscorner.invoiceqr.LocalizationTest"] == 3
           assert completed["com.poetscorner.invoiceqr.VerificationLevelsUiTest"] == 2
           assert completed["com.poetscorner.invoiceqr.NavigationAccessibilityUiTest"] == 1
-          assert sum(completed.values()) + len(failed) == 33
+          assert sum(completed.values()) + len(failed) == 34
           print(f"Android: {sum(completed.values())} passed, {len(failed)} reproduced baseline failures.")
           PY
