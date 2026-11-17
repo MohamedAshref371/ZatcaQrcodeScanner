@@ -133,7 +133,7 @@ private class IosCaptureSession(
     private val queue = dispatch_queue_create("com.poetscorner.invoiceqr.camera", null)
     private val session = AVCaptureSession()
     private val output = AVCaptureVideoDataOutput()
-    private val preview = AVCaptureVideoPreviewLayer(session).apply { videoGravity = AVLayerVideoGravityResizeAspectFill }
+    private val preview = AVCaptureVideoPreviewLayer(session = session).apply { videoGravity = AVLayerVideoGravityResizeAspectFill }
     val view: UIView = object : UIView() {
         override fun layoutSubviews() {
             super.layoutSubviews()
@@ -214,7 +214,7 @@ private class IosCaptureSession(
         }
 
         val presets = when (resolution) {
-            "SD" -> listOf(AVCaptureSessionPreset960x540, AVCaptureSessionPreset640x480)
+            "SD" -> listOf(AVCaptureSessionPreset640x480, AVCaptureSessionPreset1280x720)
             "FHD", "QHD" -> listOf(AVCaptureSessionPreset1920x1080, AVCaptureSessionPreset1280x720)
             "UHD" -> listOf(AVCaptureSessionPreset3840x2160, AVCaptureSessionPreset1920x1080)
             else -> listOf(AVCaptureSessionPreset1280x720, AVCaptureSessionPreset640x480)
@@ -296,7 +296,7 @@ private class IosCaptureSession(
             val height = CVPixelBufferGetHeightOfPlane(frame, 0uL).toInt()
             val crop = aspectFillCrop(width, height, config.size.width, config.size.height, guide) ?: return null
             val stride = CVPixelBufferGetBytesPerRowOfPlane(frame, 0uL).toInt()
-            val base = CVPixelBufferGetBaseAddressOfPlane(frame, 0uL)?.reinterpret<ByteVar>() ?: return null
+            val base = CVPixelBufferGetBaseAddressOfPlane(frame, 0uL)?.reinterpret<kotlinx.cinterop.ByteVar>() ?: return null
             val pixel: (Int, Int) -> Byte = { x, y -> base[(crop.top + y) * stride + crop.left + x] }
             val bytes = ByteArray(crop.width * crop.height) { index -> pixel(index % crop.width, index / crop.width) }
             val image = LumaImage(bytes, crop.width, crop.height)

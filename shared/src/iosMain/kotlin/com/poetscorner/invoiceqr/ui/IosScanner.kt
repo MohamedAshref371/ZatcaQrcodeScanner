@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 
 package com.poetscorner.invoiceqr.ui
 
@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.*
 import androidx.compose.ui.backhandler.BackHandler as SystemBackHandler
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.LayoutDirection
 import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.ScannerSettings
@@ -18,7 +19,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.rememberResourceEnvironment
-import platform.Foundation.NSLocale
 import platform.Foundation.NSURL
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
@@ -45,7 +45,7 @@ fun IosScanner(state: ScannerUiState, documents: IosInvoiceDocuments, host: () -
     var selectedLanguage by remember { mutableStateOf(preferences.stringForKey(LANGUAGE).orEmpty()) }
     val hostProvider by rememberUpdatedState(host)
     val system = remember { IosSystemActions { hostProvider() } }
-    val resolvedLocale = selectedLanguage.ifEmpty { NSLocale.preferredLanguages.firstOrNull() as? String ?: "en" }
+    val resolvedLocale = selectedLanguage.ifEmpty { Locale.current.toLanguageTag() }
     val systemDirection = LocalLayoutDirection.current
     val direction = when (selectedLanguage) {
         "ar" -> LayoutDirection.Rtl

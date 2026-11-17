@@ -91,7 +91,7 @@ private fun UIImage.toLuma(maxEdge: Int): LumaImage = autoreleasepool {
         val gray = CGColorSpaceCreateDeviceGray()
         try {
             val context = requireNotNull(CGBitmapContextCreate(array.addressOf(0), width.toULong(), height.toULong(),
-                8uL, width.toULong(), gray, kCGImageAlphaNone.value))
+                8uL, width.toULong(), gray, CGImageAlphaInfo.kCGImageAlphaNone.value))
             try {
                 CGContextDrawImage(context, rect, image)
             } finally {
