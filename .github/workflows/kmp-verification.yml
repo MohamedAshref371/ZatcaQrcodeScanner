@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   ios-simulator:
+    # Android test-only validation can reuse the iOS result for identical shared/iOS sources.
+    if: ${{ !contains(github.event.head_commit.message, '[android-only]') }}
     runs-on: macos-26
     timeout-minutes: 25
     env:

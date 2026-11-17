@@ -34,10 +34,10 @@ class ImageImportTest {
         val second = File.createTempFile("invoiceqr-second-", ".png", app.cacheDir)
         val missing = File(app.cacheDir, "invoiceqr-missing-${System.nanoTime()}.png")
         try {
-            instrumentation.context.assets.open("play-services-qr.png").use { asset ->
+            instrumentation.context.assets.open("unrelated-qr.png").use { asset ->
                 first.outputStream().use { output -> asset.copyTo(output) }
             }
-            instrumentation.context.assets.open("play-services-qr.png").use { asset ->
+            instrumentation.context.assets.open("unrelated-qr.png").use { asset ->
                 second.outputStream().use { output -> asset.copyTo(output) }
             }
             vm.importInvoiceFiles(listOf(Uri.fromFile(first), Uri.fromFile(missing), Uri.fromFile(second)))
