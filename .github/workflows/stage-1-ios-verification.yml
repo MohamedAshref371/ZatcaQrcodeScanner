@@ -1,0 +1,44 @@
+name: Stage 1 iOS verification
+
+on:
+  push:
+    branches: [new-kmp-invoiceqr]
+    paths: [.github/workflows/stage-1-ios-verification.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  ios-simulator:
+    runs-on: macos-26
+    timeout-minutes: 25
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: efd825e0af63aa0965dd778bce97c1a385f9934b
+          persist-credentials: false
+      - name: Check the simulator toolchain
+        run: |
+          test "$(uname -m)" = arm64
+          git rev-parse HEAD
+          xcodebuild -version
+          xcrun simctl list devices available
+      - name: Run stage 1 simulator tests
+        run: bash gradlew --no-daemon --stacktrace :shared:iosSimulatorArm64Test
+      - name: Verify all 23 tests executed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          reports = Path("shared/build/test-results/iosSimulatorArm64Test").glob("TEST-*.xml")
+          suites = [ET.parse(report).getroot() for report in reports]
+          totals = {
+              name: sum(int(suite.get(name, 0)) for suite in suites)
+              for name in ("tests", "failures", "errors", "skipped")
+          }
+          print(totals)
+          assert totals == {"tests": 23, "failures": 0, "errors": 0, "skipped": 0}
+          PY
