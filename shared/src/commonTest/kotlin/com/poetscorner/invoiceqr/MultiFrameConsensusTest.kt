@@ -1,11 +1,9 @@
 package com.poetscorner.invoiceqr
 
-import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.scanner.MultiFrameConsensus
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class MultiFrameConsensusTest {
     private val side = 64
@@ -15,10 +13,6 @@ class MultiFrameConsensusTest {
         val y = index / side
         val dark = ((x / 4 + y / 4) % 2 == 0) != invert
         if (dark) 0 else 255.toByte()
-    }
-
-    @Test fun recoveryIsOptIn() {
-        assertFalse(ScannerSettings().multiFrameRecovery)
     }
 
     @Test fun firstFusionUsesTwoFramesAndOneDecode() {

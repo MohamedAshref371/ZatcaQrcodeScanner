@@ -12,6 +12,12 @@ class ScanEngineTest {
         assertEquals(ScanEngine.ZXING, ScanEngine.fromPreference("unknown"))
     }
 
+    @Test fun portraitLockAndMultiFrameRecoveryAreOptIn() {
+        val settings = ScannerSettings()
+        assertFalse(settings.lockPortrait)
+        assertFalse(settings.multiFrameRecovery)
+    }
+
     @Test fun bothEnginesRoundTripThroughTheirStoredNames() {
         ScanEngine.entries.forEach { assertEquals(it, ScanEngine.fromPreference(it.name)) }
         assertEquals(ScanEngine.ML_KIT, ScannerSettings().copy(scanEngine = ScanEngine.ML_KIT).scanEngine)

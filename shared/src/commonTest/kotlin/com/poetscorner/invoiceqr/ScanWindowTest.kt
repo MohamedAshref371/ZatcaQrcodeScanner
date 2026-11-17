@@ -1,10 +1,12 @@
 package com.poetscorner.invoiceqr
 
 import com.poetscorner.invoiceqr.scanner.ScanWindow
-import com.poetscorner.invoiceqr.scanner.scanWindow
 import com.poetscorner.invoiceqr.scanner.scanGuideWindow
-import org.junit.Assert.*
-import org.junit.Test
+import com.poetscorner.invoiceqr.scanner.scanWindow
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class ScanWindowTest {
     @Test fun landscapeGuideUsesTheSpaceBesideControlsAndBetweenUnequalBars() {
@@ -77,6 +79,7 @@ class ScanWindowTest {
         assertEquals(preview.top / 1920f, analysis.left / 1280f, 0.002f)
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun rejectsAnUnmeasuredPreview() { scanWindow(0, 1920) }
+    @Test fun rejectsAnUnmeasuredPreview() {
+        assertFailsWith<IllegalArgumentException> { scanWindow(0, 1920) }
+    }
 }

@@ -1,7 +1,7 @@
 package com.poetscorner.invoiceqr.scanner
 
 /** Bounded, in-memory fusion of aligned grayscale views of one QR symbol. */
-internal class MultiFrameConsensus(private val side: Int = 512) {
+class MultiFrameConsensus(private val side: Int = 512) {
     private data class Frame(val pixels: ByteArray, val at: Long)
     private val frames = ArrayDeque<Frame>(4)
     private var lastAttemptAt: Long? = null

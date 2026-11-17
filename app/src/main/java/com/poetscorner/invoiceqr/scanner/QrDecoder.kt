@@ -25,13 +25,13 @@ fun ScanEngine.decoder(): QrDecoder = when (this) {
 
 private class ZxingDecoder : QrDecoder {
     override fun read(image: ImageProxy, settings: ScannerSettings) =
-        settings.reader().read(image).firstOrNull { it.error == null && it.text != null }?.text
+        AndroidZxingQrReader.read(image, settings.qrReadOptions()).firstOrNull { it.error == null && it.text != null }?.text
 
     override fun read(bitmap: Bitmap, settings: ScannerSettings) =
-        settings.reader().read(bitmap).firstOrNull { it.error == null && it.text != null }?.text
+        AndroidZxingQrReader.read(bitmap, settings.qrReadOptions()).firstOrNull { it.error == null && it.text != null }?.text
 
     override fun readAll(bitmap: Bitmap, settings: ScannerSettings): List<String> =
-        settings.reader(maxSymbols = 0xff).read(bitmap).mapNotNull { result ->
+        AndroidZxingQrReader.read(bitmap, settings.qrReadOptions(maxSymbols = 0xff)).mapNotNull { result ->
             result.text?.takeIf { result.error == null }
         }
 
@@ -45,7 +45,7 @@ private class MlKitDecoder : QrDecoder {
     override fun read(image: ImageProxy, settings: ScannerSettings): String? {
         val crop = image.cropRect
         val plane = image.planes[0]
-        val frame = croppedNv21(plane.buffer, plane.rowStride, plane.pixelStride,
+        val frame = croppedNv21(plane.buffer::get, plane.rowStride, plane.pixelStride,
             crop.left, crop.top, crop.width(), crop.height())
         // fromMediaImage would scan the whole frame; copying the crop enforces the same ROI as ZXing.
         return read(InputImage.fromByteArray(frame.bytes, frame.width, frame.height,

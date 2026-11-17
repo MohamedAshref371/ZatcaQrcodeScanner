@@ -23,4 +23,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "ZatcaQrcodeScanner"
-include(":app")
+include(":app", ":shared")

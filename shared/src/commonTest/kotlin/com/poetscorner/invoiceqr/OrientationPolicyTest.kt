@@ -1,13 +1,12 @@
 package com.poetscorner.invoiceqr
 
-import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.ui.portraitLockApplies
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class OrientationPolicyTest {
-    @Test fun portraitLockIsOptIn() {
-        assertFalse(ScannerSettings().lockPortrait)
+    @Test fun portraitLockRequiresTheSetting() {
         assertFalse(portraitLockApplies(false, 360, false))
         assertTrue(portraitLockApplies(true, 360, false))
     }

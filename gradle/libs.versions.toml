@@ -26,6 +26,7 @@ google-play-review = { module = "com.google.android.play:review", version.ref = 
 zxing-android = { module = "io.github.zxing-cpp:android", version.ref = "zxing" }
 google-mlkit-barcode = { module = "com.google.android.gms:play-services-mlkit-barcode-scanning", version.ref = "mlkitBarcode" }
 google-play-services-base = { module = "com.google.android.gms:play-services-base", version.ref = "playServicesBase" }
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "camera" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camera" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camera" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camera" }
@@ -56,5 +57,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 [plugins]
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 

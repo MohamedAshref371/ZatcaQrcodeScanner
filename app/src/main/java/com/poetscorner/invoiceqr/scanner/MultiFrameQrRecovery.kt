@@ -5,9 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
-import android.graphics.Point
 import androidx.camera.core.ImageProxy
-import zxingcpp.BarcodeReader
 import kotlin.math.max
 
 /** Camera-only recovery. The image proxy is copied before CameraX closes it; no frame reaches storage. */
@@ -19,8 +17,8 @@ internal class MultiFrameQrRecovery {
     }
 
     /** ZXing can report the same damaged QR more than once with slightly different corners. */
-    fun samePosition(a: BarcodeReader.Position, b: BarcodeReader.Position): Boolean {
-        fun bounds(p: BarcodeReader.Position): FloatArray {
+    fun samePosition(a: QrPosition, b: QrPosition): Boolean {
+        fun bounds(p: QrPosition): FloatArray {
             val xs = intArrayOf(p.topLeft.x, p.topRight.x, p.bottomRight.x, p.bottomLeft.x)
             val ys = intArrayOf(p.topLeft.y, p.topRight.y, p.bottomRight.y, p.bottomLeft.y)
             return floatArrayOf(xs.min().toFloat(), ys.min().toFloat(), xs.max().toFloat(), ys.max().toFloat())
@@ -36,7 +34,7 @@ internal class MultiFrameQrRecovery {
     }
 
     private val consensus = MultiFrameConsensus(SIDE)
-    private var lastPosition: BarcodeReader.Position? = null
+    private var lastPosition: QrPosition? = null
     private var lastPositionAt = 0L
     private var lastDimensions: Pair<Int, Int>? = null
     private var usingGuide = false
@@ -49,7 +47,7 @@ internal class MultiFrameQrRecovery {
     }
 
     /** A tight scan guide can seed recovery when ZXing cannot locate a damaged QR at all. */
-    fun offer(image: ImageProxy, position: BarcodeReader.Position?, now: Long,
+    fun offer(image: ImageProxy, position: QrPosition?, now: Long,
         allowGuideFallback: Boolean,
         decode: (Bitmap) -> String?): String? {
         val recentPosition = lastPosition != null && now - lastPositionAt <= 1800L
@@ -81,11 +79,11 @@ internal class MultiFrameQrRecovery {
         }
     }
 
-    private fun guidePosition(bitmap: Bitmap, step: Int): BarcodeReader.Position {
+    private fun guidePosition(bitmap: Bitmap, step: Int): QrPosition {
         val right = bitmap.width * step - 1
         val bottom = bitmap.height * step - 1
-        return BarcodeReader.Position(Point(0, 0), Point(right, 0),
-            Point(right, bottom), Point(0, bottom), 0.0)
+        return QrPosition(QrPoint(0, 0), QrPoint(right, 0),
+            QrPoint(right, bottom), QrPoint(0, bottom))
     }
 
     private fun copyUprightLuma(image: ImageProxy): Pair<Bitmap, Int> {
@@ -118,7 +116,7 @@ internal class MultiFrameQrRecovery {
         } to step
     }
 
-    private fun align(source: Bitmap, position: BarcodeReader.Position, step: Int): ByteArray? {
+    private fun align(source: Bitmap, position: QrPosition, step: Int): ByteArray? {
         val points = listOf(position.topLeft, position.topRight, position.bottomRight, position.bottomLeft)
         val src = FloatArray(8)
         points.forEachIndexed { index, point ->

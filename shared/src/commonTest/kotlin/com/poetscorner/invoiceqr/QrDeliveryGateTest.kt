@@ -1,8 +1,9 @@
 package com.poetscorner.invoiceqr
 
 import com.poetscorner.invoiceqr.scanner.QrDeliveryGate
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class QrDeliveryGateTest {
     @Test fun continuousNeverRepeatsAVisibleCodeEvenAfterLongDelays() {

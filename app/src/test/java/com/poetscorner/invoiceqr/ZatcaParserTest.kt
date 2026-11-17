@@ -147,6 +147,18 @@ class ZatcaParserTest {
         listOf(byteArrayOf(1), byteArrayOf(1,0x82.toByte(),1), byteArrayOf(1,0x81.toByte(),10,65),
             byteArrayOf(1,0x80.toByte(),65), byteArrayOf(1,1,0xff.toByte())).forEach { bytes -> assertFalse(parse(bytes).passed) }
     }
+    @Test fun amountsBeyondLongCentsRemainValidAndCompareExactly() {
+        val base = tlv(1, "Seller") + tlv(2, "310123456789013") + tlv(3, "2026-10-19T12:30:00Z")
+        fun invoice(total: String, tax: String) = parse(base + tlv(4, total) + tlv(5, tax))
+
+        assertTrue(invoice("10000000000000000000.99", "00010000000000000000000.99").passed)
+        assertTrue(invoice("10000000000000000000.99", "0").passed)
+        val largerTax = invoice("10000000000000000000.98", "10000000000000000000.99")
+        assertTrue(largerTax.checks.first { it.label.id == R.string.check_tax }.passed)
+        assertFalse(largerTax.checks.first { it.label.id == R.string.check_tax_total }.passed)
+        assertFalse(invoice("0", "10000000000000000000.99").passed)
+    }
+
     @Test fun numericSyntaxRejectsNegativeNanExponentAndComma() {
         listOf("-1", "NaN", "1e2", "1,00", "1.001").forEach { value ->
             val bytes = tlv(1,"متجر") + tlv(2,"310123456789013") + tlv(3,"2026-10-19T12:30:00Z") + tlv(4,value) + tlv(5,"0")

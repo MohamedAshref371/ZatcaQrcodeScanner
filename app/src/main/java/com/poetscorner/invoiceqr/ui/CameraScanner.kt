@@ -54,24 +54,26 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.data.ScanEngine
+import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.domain.ZatcaParser
-import com.poetscorner.invoiceqr.scanner.decoder
-import com.poetscorner.invoiceqr.scanner.reader
+import com.poetscorner.invoiceqr.scanner.AndroidZxingQrReader
 import com.poetscorner.invoiceqr.scanner.MultiFrameQrRecovery
-import com.poetscorner.invoiceqr.scanner.ScanWindow
-import com.poetscorner.invoiceqr.scanner.scanGuideWindow
-import com.poetscorner.invoiceqr.scanner.previewCropInBuffer
 import com.poetscorner.invoiceqr.scanner.QrDeliveryGate
+import com.poetscorner.invoiceqr.scanner.QrFormat
+import com.poetscorner.invoiceqr.scanner.QrReadError
+import com.poetscorner.invoiceqr.scanner.ScanWindow
+import com.poetscorner.invoiceqr.scanner.decoder
+import com.poetscorner.invoiceqr.scanner.previewCropInBuffer
+import com.poetscorner.invoiceqr.scanner.qrReadOptions
+import com.poetscorner.invoiceqr.scanner.scanGuideWindow
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import zxingcpp.BarcodeReader
 
 @Composable
 fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, onZoom: (Float) -> Unit,
@@ -200,9 +202,9 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
                             image.setCropRect(crop)
                             val result = if (currentSettings.multiFrameRecovery &&
                                 currentSettings.scanEngine == ScanEngine.ZXING) {
-                                val observed = currentSettings.reader(maxSymbols = 3, returnErrors = true).read(image)
-                                    .filter { it.format == BarcodeReader.Format.QR_CODE ||
-                                        it.format == BarcodeReader.Format.QR_CODE_MODEL_2 }
+                                val observed = AndroidZxingQrReader.read(image,
+                                    currentSettings.qrReadOptions(maxSymbols = 3, returnErrors = true))
+                                    .filter { it.format == QrFormat.QR_CODE || it.format == QrFormat.MODEL_2 }
                                 val valid = observed.firstOrNull { it.error == null && it.text != null }?.text
                                 if (valid != null) {
                                     recovery.reset()
@@ -214,11 +216,12 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
                                     null
                                 } else {
                                     val position = observed.firstOrNull()
-                                        ?.takeIf { it.error?.type == BarcodeReader.ErrorType.CHECKSUM ||
-                                            it.error?.type == BarcodeReader.ErrorType.FORMAT }?.position
+                                        ?.takeIf { it.error == QrReadError.CHECKSUM ||
+                                            it.error == QrReadError.FORMAT }?.position
                                     runCatching {
                                         recovery.offer(image, position, now, cropEnabled) { bitmap ->
-                                            currentSettings.reader(maxSymbols = 2).read(bitmap)
+                                            AndroidZxingQrReader.read(bitmap,
+                                                currentSettings.qrReadOptions(maxSymbols = 2))
                                                 .filter { it.error == null && it.text != null }
                                                 .singleOrNull()?.text
                                         }
@@ -234,7 +237,8 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
                                 cropFinished - cropStarted,
                                 SystemClock.elapsedRealtimeNanos() - cropFinished,
                                 result != null))
-                            val shouldDeliver = deliveryGate.shouldDeliver(result, now)
+                            val gate = deliveryGate
+                            val shouldDeliver = synchronized(gate) { gate.shouldDeliver(result, now) }
                             if (result != null && shouldDeliver
                                 && delivered.compareAndSet(false, true)) {
                                 scope.launch {

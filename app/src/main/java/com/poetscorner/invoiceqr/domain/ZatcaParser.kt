@@ -1,6 +1,5 @@
 package com.poetscorner.invoiceqr.domain
 
-import java.math.BigDecimal
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.time.OffsetDateTime
@@ -40,7 +39,8 @@ object ZatcaParser {
         val fields = decodeTlv(bytes)
         val type = if (fields.any { it.tag == 9 }) InvoiceType.SIMPLIFIED else InvoiceType.STANDARD
         fun value(tag: Int) = fields.firstOrNull { it.tag == tag }?.value.orEmpty()
-        fun amount(tag: Int): BigDecimal? = value(tag).takeIf { it.matches(Regex("[0-9]+(\\.[0-9]{1,2})?")) }?.toBigDecimalOrNull()
+        val total = value(4).takeIf(amountPattern::matches)
+        val tax = value(5).takeIf(amountPattern::matches)
         val checks = mutableListOf<Check>()
         checks += Check(UiText(R.string.check_structure), true)
         // Keep each tag's presence and value checks together, regardless of the TLV input order.
@@ -51,10 +51,10 @@ object ZatcaParser {
             when (tag) {
                 2 -> checks += Check(UiText(R.string.check_vat), value(2).matches(Regex("3[0-9]{13}3")))
                 3 -> checks += Check(UiText(R.string.check_date), runCatching { parseTimestamp(value(3)) }.isSuccess)
-                4 -> checks += Check(UiText(R.string.check_total), amount(4) != null)
+                4 -> checks += Check(UiText(R.string.check_total), total != null)
                 5 -> {
-                    checks += Check(UiText(R.string.check_tax), amount(5) != null)
-                    checks += Check(UiText(R.string.check_tax_total), amount(4)?.let { total -> amount(5)?.let { it <= total } } == true)
+                    checks += Check(UiText(R.string.check_tax), tax != null)
+                    checks += Check(UiText(R.string.check_tax_total), total != null && tax != null && taxDoesNotExceedTotal(tax, total))
                 }
             }
         }
@@ -62,6 +62,22 @@ object ZatcaParser {
     } catch (e: IllegalArgumentException) {
         Invoice(raw, emptyList(), listOf(Check(UiText(R.string.check_structure), false)),
             (e as? InvalidPayload)?.text ?: UiText(R.string.error_payload))
+    }
+
+    private val amountPattern = Regex("[0-9]+(?:\\.[0-9]{1,2})?")
+
+    private fun taxDoesNotExceedTotal(tax: String, total: String): Boolean {
+        val taxMoney = Money.parseOrNull(tax)
+        val totalMoney = Money.parseOrNull(total)
+        if (taxMoney != null && totalMoney != null) return taxMoney <= totalMoney
+        // QR amounts may exceed Long cents. These strings are already validated as unsigned decimals.
+        fun centsDigits(value: String): String =
+            (value.substringBefore('.') + value.substringAfter('.', "").padEnd(2, '0')).trimStart('0')
+
+        val taxDigits = centsDigits(tax)
+        val totalDigits = centsDigits(total)
+        return taxDigits.length < totalDigits.length ||
+            (taxDigits.length == totalDigits.length && taxDigits <= totalDigits)
     }
 
     private val timestampPattern = Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z?")

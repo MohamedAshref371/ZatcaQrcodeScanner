@@ -1,12 +1,12 @@
 package com.poetscorner.invoiceqr.scanner
 
-/** A brief decode miss must not rearm a visible QR, including across preview resizes. */
-internal class QrDeliveryGate(private val continuous: Boolean) {
+/** A brief decode miss must not rearm a visible QR, including across preview resizes. Calls must be serialized by the camera pipeline. */
+class QrDeliveryGate(private val continuous: Boolean) {
     private var candidate: String? = null
     private var deliveredAt = 0L
     private var absentSince: Long? = null
 
-    @Synchronized fun shouldDeliver(raw: String?, now: Long): Boolean {
+    fun shouldDeliver(raw: String?, now: Long): Boolean {
         if (!continuous) {
             if (raw == null || (raw == candidate && now - deliveredAt < 4000L)) return false
             candidate = raw

@@ -144,7 +144,7 @@ tasks.register<Exec>("checkProjectDocs") {
 dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.google.play.review)
-    implementation(libs.zxing.android)
+    implementation(project(":shared"))
     implementation(libs.google.mlkit.barcode)
     implementation(libs.google.play.services.base)
     implementation(libs.androidx.camera.camera2)
