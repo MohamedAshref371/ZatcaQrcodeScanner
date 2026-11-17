@@ -79,7 +79,7 @@ internal fun alignQrLuma(source: LumaImage, position: QrPosition, step: Int, sid
     return result
 }
 
-private fun LumaImage.sample(x: Double, y: Double): Int {
+internal fun LumaImage.sample(x: Double, y: Double): Int {
     if (x < 0 || x >= width || y < 0 || y >= height) return 255
     val sx = (x - 0.5).coerceIn(0.0, width - 1.0)
     val sy = (y - 0.5).coerceIn(0.0, height - 1.0)

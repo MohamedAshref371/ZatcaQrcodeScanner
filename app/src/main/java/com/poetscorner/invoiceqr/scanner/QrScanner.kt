@@ -6,17 +6,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
-import com.poetscorner.invoiceqr.data.ScannerSettings
-
-internal fun ScannerSettings.qrReadOptions(maxSymbols: Int = 1, returnErrors: Boolean = false) = QrReadOptions(
-    tryHarder = harder,
-    tryDenoise = denoise,
-    tryRotate = rotate,
-    tryInvert = inverted,
-    maxNumberOfSymbols = maxSymbols,
-    returnErrors = returnErrors,
-    binarizer = QrBinarizer.entries.firstOrNull { it.name == binarizer } ?: QrBinarizer.LOCAL_AVERAGE,
-)
 
 /** Software bitmap, bounded memory and EXIF orientation, also on API 26/27. */
 fun decodeGallery(context: Context, uri: Uri): Bitmap {

@@ -9,6 +9,12 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class QrFrameAlignmentTest {
+    @Test fun visiblePreviewAndGuideMapThroughAspectFill() {
+        assertEquals(FrameCrop(420, 0, 1080, 1080), aspectFillCrop(1920, 1080, 1080, 1080, null))
+        assertEquals(FrameCrop(520, 200, 400, 400), aspectFillCrop(1920, 1080, 1080, 1080,
+            ScanWindow(100, 200, 400)))
+    }
+
     @Test fun rotationsUseCropLocalCoordinates() {
         val input: (Int, Int) -> Byte = { x, y -> (y * 3 + x + 1).toByte() }
         val rotations = mapOf(

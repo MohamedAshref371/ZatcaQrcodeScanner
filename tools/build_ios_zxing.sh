@@ -20,13 +20,15 @@ cmake -S "$source_dir" -B "$work/cmake" \
     -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT="$sysroot" -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=OFF -DZXING_READERS=ON -DZXING_WRITERS=OFF -DZXING_EXAMPLES=OFF \
-    -DZXING_C_API=ON -DZXING_EXPERIMENTAL_API=ON
+    -DZXING_C_API=ON -DZXING_EXPERIMENTAL_API=ON \
+    -DZXING_ENABLE_1D=OFF -DZXING_ENABLE_AZTEC=OFF -DZXING_ENABLE_DATAMATRIX=OFF \
+    -DZXING_ENABLE_MAXICODE=OFF -DZXING_ENABLE_PDF417=OFF
 cmake --build "$work/cmake" --target ZXing --parallel 3
 
 target=arm64-apple-ios13.0
 if [[ "$sdk" == iphonesimulator ]]; then target="$target-simulator"; fi
 xcrun --sdk "$sdk" clang -target "$target" -isysroot "$sysroot" -O2 \
-    -I"$source_dir/core/src" -I"$work/cmake/core" -DZXING_EXPERIMENTAL_API \
+    -I"$source_dir/core/src" -I"$work/cmake/core" \
     -c "$bridge/invoiceqr_zxing.c" -o "$work/bridge.o"
 xcrun --sdk "$sdk" libtool -static -o "$work/libInvoiceQrZxing.a" \
     "$work/bridge.o" "$work/cmake/core/libZXing.a"
