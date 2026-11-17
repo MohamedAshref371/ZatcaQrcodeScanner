@@ -24,7 +24,7 @@ jobs:
           git rev-parse HEAD
           xcodebuild -version
           xcrun simctl list devices available
-      - name: Compile the iPhone target and run simulator tests
+      - name: Compile the iPhone target and check scanner fixtures on the simulator
         run: |
           bash gradlew --no-daemon --stacktrace \
             :shared:compileKotlinIosArm64 \

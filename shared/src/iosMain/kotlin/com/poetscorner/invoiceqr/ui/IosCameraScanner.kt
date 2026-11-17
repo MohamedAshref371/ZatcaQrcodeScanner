@@ -34,7 +34,10 @@ import platform.Foundation.NSNumber
 import platform.Foundation.NSProcessInfo
 import platform.Foundation.NSURL
 import platform.UIKit.*
-import platform.darwin.*
+import platform.darwin.NSObject
+import platform.darwin.dispatch_async
+import platform.darwin.dispatch_get_main_queue
+import platform.darwin.dispatch_queue_create
 
 @Composable
 fun IosCameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, onZoom: (Float) -> Unit,
@@ -296,7 +299,7 @@ private class IosCaptureSession(
             val height = CVPixelBufferGetHeightOfPlane(frame, 0uL).toInt()
             val crop = aspectFillCrop(width, height, config.size.width, config.size.height, guide) ?: return null
             val stride = CVPixelBufferGetBytesPerRowOfPlane(frame, 0uL).toInt()
-            val base = CVPixelBufferGetBaseAddressOfPlane(frame, 0uL)?.reinterpret<kotlinx.cinterop.ByteVar>() ?: return null
+            val base = CVPixelBufferGetBaseAddressOfPlane(frame, 0uL)?.reinterpret<ByteVar>() ?: return null
             val pixel: (Int, Int) -> Byte = { x, y -> base[(crop.top + y) * stride + crop.left + x] }
             val bytes = ByteArray(crop.width * crop.height) { index -> pixel(index % crop.width, index / crop.width) }
             val image = LumaImage(bytes, crop.width, crop.height)
