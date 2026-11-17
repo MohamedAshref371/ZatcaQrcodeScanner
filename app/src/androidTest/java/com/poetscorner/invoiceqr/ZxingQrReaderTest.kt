@@ -4,13 +4,11 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.poetscorner.invoiceqr.domain.ZatcaParser
 import com.poetscorner.invoiceqr.scanner.AndroidZxingQrReader
 import com.poetscorner.invoiceqr.scanner.LumaImage
 import com.poetscorner.invoiceqr.scanner.QrReadOptions
 import com.poetscorner.invoiceqr.scanner.QrReader
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -29,7 +27,7 @@ class ZxingQrReaderTest {
             val fromBitmap = AndroidZxingQrReader.read(bitmap, options).single()
             val reader: QrReader = AndroidZxingQrReader
             val fromLuma = reader.read(LumaImage(luma, bitmap.width, bitmap.height), options).single()
-            assertTrue(ZatcaParser.parse(requireNotNull(fromLuma.text)).passed)
+            assertEquals("AQVTdG9yZQIPMzAwMDAwMDAwMDAwMDAzAxkyMDI2LTAxLTAxVDEyOjAwOjAwKzAzOjAwBAYxMTUuMDAFBTE1LjAw", fromLuma.text)
             assertEquals(fromBitmap, fromLuma)
         } finally {
             bitmap.recycle()

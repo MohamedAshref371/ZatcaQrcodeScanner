@@ -1,11 +1,9 @@
 package com.poetscorner.invoiceqr
 
-import com.poetscorner.invoiceqr.domain.ZatcaParser
 import com.poetscorner.invoiceqr.scanner.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class IosZxingQrReaderTest {
     @Test fun decodesAndroidInvoiceFixtureWithExplicitOptionsAndRotation() {
@@ -22,7 +20,7 @@ class IosZxingQrReaderTest {
         val rotated = IosZxingQrReader.read(LumaImage(pixels, edge, edge, 90), options).single()
         assertNull(rotated.error)
         assertEquals(expected.text, rotated.text)
-        assertTrue(ZatcaParser.parse(requireNotNull(rotated.text)).passed)
+        assertEquals("AQVTdG9yZQIPMzAwMDAwMDAwMDAwMDAzAxkyMDI2LTAxLTAxVDEyOjAwOjAwKzAzOjAwBAYxMTUuMDAFBTE1LjAw", rotated.text)
     }
 
     // Module samples from app/src/androidTest/assets/valid-invoice-qr.png.

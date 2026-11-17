@@ -1,6 +1,7 @@
 package com.poetscorner.invoiceqr.ui.text
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import com.poetscorner.invoiceqr.ui.formatInteger
 import com.poetscorner.invoiceqr.ui.uiLocaleTag
 import org.jetbrains.compose.resources.ResourceEnvironment
@@ -18,16 +19,17 @@ fun UiText.localized(): String = stringResource(id, *args.toTypedArray())
 
 @Composable
 internal fun stringResource(resource: StringResource, vararg args: Any): String {
-    if (args.isEmpty()) return composeStringResource(resource)
     val locale = uiLocaleTag()
-    return composeStringResource(resource, *args.map {
+    if (args.isEmpty()) return key(locale) { composeStringResource(resource) }
+    val resolved = args.map {
         when (it) {
             is UiText -> it.localized()
             is Int -> formatInteger(it.toLong(), locale, grouped = false)
             is Long -> formatInteger(it, locale, grouped = false)
             else -> it
         }
-    }.toTypedArray())
+    }.toTypedArray()
+    return key(locale) { composeStringResource(resource, *resolved) }
 }
 
 suspend fun UiText.resolve(environment: ResourceEnvironment, locale: String): String {

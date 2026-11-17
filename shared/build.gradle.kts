@@ -66,6 +66,9 @@ kotlin {
             implementation(libs.androidx.camera.core)
             implementation(libs.zxing.android)
         }
+        iosMain.dependencies {
+            implementation(libs.compose.multiplatform.backhandler)
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)

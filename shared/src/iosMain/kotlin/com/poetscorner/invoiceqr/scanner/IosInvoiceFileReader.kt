@@ -35,7 +35,7 @@ object IosInvoiceFileReader {
         val path = Path(requireNotNull(url.path))
         val bytes = requireNotNull(SystemFileSystem.metadataOrNull(path)?.size) { "Unable to open PDF" }
         require(bytes in 1..MAX_PDF_BYTES) { "PDF exceeds import limit or is empty" }
-        val pdf = PDFDocument(uRL = url)
+        val pdf = PDFDocument(url)
         require(pdf.pageCount > 0uL && !pdf.isLocked()) { "Invalid PDF document" }
         val invoices = linkedMapOf<String, Invoice>()
         val options = settings.qrReadOptions(maxSymbols = 0xff)

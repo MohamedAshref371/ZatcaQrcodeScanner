@@ -3,14 +3,17 @@
 package com.poetscorner.invoiceqr.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.intl.Locale
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import platform.Foundation.*
 
+internal val LocalIosInvoiceLocale = staticCompositionLocalOf<String?> { null }
+
 @Composable
-internal actual fun uiLocaleTag(): String = Locale.current.toLanguageTag()
+internal actual fun uiLocaleTag(): String = LocalIosInvoiceLocale.current ?: Locale.current.toLanguageTag()
 
 private fun numberFormatter(language: String, grouped: Boolean, fractionDigits: ULong) =
     NSNumberFormatter().apply {

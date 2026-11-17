@@ -245,7 +245,7 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
     val continuousScan by vm.continuousScan.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val locale = uiLocaleTag()
-    val resources = rememberResourceEnvironment()
+    val resources = key(locale) { rememberResourceEnvironment() }
     platform.PortraitLock(settings.lockPortrait && platform.portraitLockSupported)
     val haptic = LocalHapticFeedback.current
     val snackbar = remember { SnackbarHostState() }

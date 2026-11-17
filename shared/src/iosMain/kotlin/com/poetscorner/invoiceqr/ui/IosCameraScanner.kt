@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 
 package com.poetscorner.invoiceqr.ui
 
@@ -32,6 +32,7 @@ import platform.CoreMedia.CMSampleBufferRef
 import platform.CoreVideo.*
 import platform.Foundation.NSNumber
 import platform.Foundation.NSProcessInfo
+import platform.Foundation.NSURL
 import platform.UIKit.*
 import platform.darwin.*
 
@@ -58,7 +59,7 @@ fun IosCameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float
     }
     if (!allowed) {
         CameraPermissionScreen(contentPadding, controls, requestPermission) {
-            platform.Foundation.NSURL.URLWithString(UIApplicationOpenSettingsURLString)?.let {
+            NSURL.URLWithString(UIApplicationOpenSettingsURLString)?.let {
                 UIApplication.sharedApplication.openURL(it, emptyMap<Any?, Any>(), null)
             }
         }
@@ -71,7 +72,11 @@ fun IosCameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float
     var error by remember { mutableStateOf<UiText?>(null) }
     val camera = remember {
         IosCaptureSession(
-            onStatus = { ok, torch -> ready = ok; hasTorch = torch },
+            onStatus = { ok, torch ->
+                ready = ok
+                hasTorch = torch
+                if (ok) error = null
+            },
             onError = { start -> error = UiText(if (start) Res.string.camera_start_error else Res.string.camera_frame_error) },
             onRead = { raw, completed ->
                 scope.launch {
@@ -222,7 +227,12 @@ private class IosCaptureSession(
         applyRotation()
         session.startRunning()
         val hasTorch = device?.hasTorch == true
-        dispatch_async(dispatch_get_main_queue()) { onStatus(true, hasTorch) }
+        val running = session.running
+        dispatch_async(dispatch_get_main_queue()) {
+            view.setNeedsLayout()
+            onStatus(running, hasTorch)
+            if (!running) onError(true)
+        }
     }
 
     fun stop() = dispatch_async(queue) {
