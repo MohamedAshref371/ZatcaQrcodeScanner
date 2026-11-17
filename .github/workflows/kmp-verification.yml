@@ -92,12 +92,18 @@ jobs:
           script: >-
             bash gradlew --no-daemon --stacktrace --max-workers=2 -PisolatedValidation=true
             :app:assembleDebug :app:assembleDebugAndroidTest &&
-            adb install -t -r app/build/outputs/apk/debug/app-debug.apk &&
+            adb install -t -r -g app/build/outputs/apk/debug/app-debug.apk &&
             adb install -t -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk &&
             adb shell am instrument -w -r
-            -e class com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest,com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.AppLanguageUiTest,com.poetscorner.invoiceqr.VerificationLevelsUiTest,com.poetscorner.invoiceqr.NavigationAccessibilityUiTest
+            -e class com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest,com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.AppLanguageUiTest,com.poetscorner.invoiceqr.VerificationLevelsUiTest
             "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')/androidx.test.runner.AndroidJUnitRunner"
-            > "$RUNNER_TEMP/storage-tests.txt"
+            > "$RUNNER_TEMP/android-tests.txt" &&
+            adb shell settings put system font_scale 1.6 &&
+            adb shell am instrument -w -r
+            -e class com.poetscorner.invoiceqr.NavigationAccessibilityUiTest
+            "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')/androidx.test.runner.AndroidJUnitRunner"
+            >> "$RUNNER_TEMP/android-tests.txt" &&
+            adb logcat -d -b crash > "$RUNNER_TEMP/android-crashes.txt"
       - name: Verify Android UI and storage test results
         if: always() && steps.android-tests.outcome != 'skipped' && steps.android-tests.outcome != ''
         run: |
@@ -106,7 +112,11 @@ jobs:
           import os
           from pathlib import Path
 
-          log = Path(os.environ["RUNNER_TEMP"], "storage-tests.txt").read_text()
+          output = Path(os.environ["RUNNER_TEMP"])
+          log = (output / "android-tests.txt").read_text()
+          crash_log = output / "android-crashes.txt"
+          if crash_log.exists():
+              print(crash_log.read_text())
           print(log)
           completed = Counter()
           fields = {}
@@ -122,11 +132,12 @@ jobs:
                       completed[fields["class"]] += 1
                   fields = {}
           print(dict(completed))
-          assert "INSTRUMENTATION_CODE: -1" in log
+          assert log.count("INSTRUMENTATION_CODE: -1") == 2
           assert completed["com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest"] == 3
           assert completed["com.poetscorner.invoiceqr.DataStoreCompatibilityTest"] == 1
           assert completed["com.poetscorner.invoiceqr.LocalizationTest"] == 3
-          assert completed["com.poetscorner.invoiceqr.AppLanguageUiTest"] > 0
+          assert completed["com.poetscorner.invoiceqr.AppLanguageUiTest"] == 2
           assert completed["com.poetscorner.invoiceqr.VerificationLevelsUiTest"] == 2
-          assert completed["com.poetscorner.invoiceqr.NavigationAccessibilityUiTest"] > 0
+          assert completed["com.poetscorner.invoiceqr.NavigationAccessibilityUiTest"] == 1
+          assert sum(completed.values()) == 32
           PY
