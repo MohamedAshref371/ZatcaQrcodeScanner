@@ -362,4 +362,6 @@
     <string name="invoice_category_other">Other</string>
     <string name="history_all_categories">All categories</string>
     <string name="history_annotation_search">Search invoice number or note</string>
+    <string name="import_photos">Photos</string>
+    <string name="import_files">Files</string>
 </resources>

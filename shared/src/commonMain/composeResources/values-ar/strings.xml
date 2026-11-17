@@ -355,4 +355,6 @@
     <string name="invoice_category_other">أخرى</string>
     <string name="history_all_categories">كل التصنيفات</string>
     <string name="history_annotation_search">ابحث برقم الفاتورة أو الملاحظة</string>
+    <string name="import_photos">الصور</string>
+    <string name="import_files">الملفات</string>
 </resources>

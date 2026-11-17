@@ -29,7 +29,7 @@ jobs:
           bash gradlew --no-daemon --stacktrace \
             :shared:compileKotlinIosArm64 \
             :shared:iosSimulatorArm64Test
-      - name: Verify all 78 tests executed
+      - name: Verify all 83 tests executed
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -42,7 +42,7 @@ jobs:
               for name in ("tests", "failures", "errors", "skipped")
           }
           print(totals)
-          assert totals == {"tests": 78, "failures": 0, "errors": 0, "skipped": 0}
+          assert totals == {"tests": 83, "failures": 0, "errors": 0, "skipped": 0}
           PY
 
   android-ui-and-persistence:

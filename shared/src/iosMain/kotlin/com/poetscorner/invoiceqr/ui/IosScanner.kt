@@ -24,23 +24,14 @@ import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
 import kotlin.time.Clock
 
-/** The app coordinator supplies persistence operations. URLs are sandbox-local or picker copies. */
-interface IosInvoiceDocuments {
-    fun importInvoices(urls: List<NSURL>)
-    fun importBackup(url: NSURL)
-    suspend fun writeHistory(name: String, filter: HistoryFilter): NSURL?
-    suspend fun writeStatistics(name: String, state: StatisticsState): NSURL?
-    suspend fun writeBackup(name: String): NSURL?
-    fun removeExport(url: NSURL)
-}
-
 private const val LANGUAGE = "InvoiceQRLanguage"
 private const val APPLE_LANGUAGES = "AppleLanguages"
 
 @Composable
-fun IosScanner(state: ScannerUiState, documents: IosInvoiceDocuments, host: () -> UIViewController?,
+fun IosScanner(session: IosInvoiceSession, host: () -> UIViewController?,
     version: String, privacyPolicyUrl: String, storeUrl: String?,
     updateOrientationLock: (Boolean) -> Unit, updateSystemBars: (Boolean) -> Unit) {
+    val state = session.controller
     val preferences = remember { NSUserDefaults.standardUserDefaults }
     var selectedLanguage by remember { mutableStateOf(preferences.stringForKey(LANGUAGE).orEmpty()) }
     val hostProvider by rememberUpdatedState(host)
@@ -55,6 +46,22 @@ fun IosScanner(state: ScannerUiState, documents: IosInvoiceDocuments, host: () -
     val resources = key(selectedLanguage) { rememberResourceEnvironment() }
     val scope = rememberCoroutineScope()
 
+    SideEffect {
+        session.files.historyLabels = { historyExportText(resources) }
+        session.files.statisticsLabels = { request, result -> statisticsExportText(resources, resolvedLocale, request, result) }
+        session.files.saveDocument = { url ->
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+                    val presented = system.exportDocument(url) { saved ->
+                        if (continuation.isActive) continuation.resumeWith(Result.success(saved))
+                    }
+                    if (!presented && continuation.isActive) continuation.resumeWith(Result.failure(
+                        IllegalStateException("Unable to open save picker")))
+                    continuation.invokeOnCancellation { system.cancelPicker() }
+                }
+            }
+        }
+    }
     CompositionLocalProvider(LocalIosInvoiceLocale provides resolvedLocale) {
         ScannerApp(state, object : ScannerPlatform {
             override val versionName = version
@@ -79,34 +86,25 @@ fun IosScanner(state: ScannerUiState, documents: IosInvoiceDocuments, host: () -
             }
 
             override fun pickInvoiceFiles() {
-                system.pickInvoiceFiles { if (it.isNotEmpty()) documents.importInvoices(it) }
-            }
-
-            override fun exportHistory(filter: HistoryFilter) {
-                export { documents.writeHistory("zatca-history.csv", filter) }
-            }
-
-            override fun exportStatistics(state: StatisticsState) {
-                export { documents.writeStatistics("invoice-statistics.csv", state) }
-            }
-
-            override fun createBackup() {
-                val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-                export { documents.writeBackup("invoiceqr-backup-$today.json") }
-            }
-
-            override fun importBackup() {
-                system.pickBackup { it.singleOrNull()?.let(documents::importBackup) }
-            }
-
-            private fun export(write: suspend () -> NSURL?) {
                 scope.launch {
-                    val file = write() ?: return@launch
-                    if (!system.exportDocument(file) { documents.removeExport(file) }) {
-                        documents.removeExport(file)
-                    }
+                    system.pickInvoiceSource(
+                        getString(resources, Res.string.import_photos),
+                        getString(resources, Res.string.import_files),
+                        getString(resources, Res.string.cancel),
+                        onSelection = session::importInvoices)
                 }
             }
+
+            override fun exportHistory(filter: HistoryFilter) { state.export("zatca-history.csv", true, filter) }
+            override fun exportStatistics(state: StatisticsState) {
+                if (session.controller.prepareStatisticsExport(state))
+                    session.controller.exportStatistics("invoice-statistics.csv")
+            }
+            override fun createBackup() {
+                val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                state.backup("invoiceqr-backup-$today.json")
+            }
+            override fun importBackup() { system.pickBackup { it.singleOrNull()?.let(session::importBackup) } }
 
             override fun shareInvoice(invoice: Invoice): Boolean {
                 if (hostProvider()?.presentedViewController != null || hostProvider() == null) return false
