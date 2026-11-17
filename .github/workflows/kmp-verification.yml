@@ -1,0 +1,91 @@
+name: KMP verification
+
+on:
+  push:
+    branches: [new-kmp-invoiceqr]
+    paths: [.github/workflows/kmp-verification.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  ios-simulator:
+    runs-on: macos-26
+    timeout-minutes: 25
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Check the simulator toolchain
+        run: |
+          test "$(uname -m)" = arm64
+          git rev-parse HEAD
+          xcodebuild -version
+          xcrun simctl list devices available
+      - name: Compile the iPhone target and run simulator tests
+        run: |
+          bash gradlew --no-daemon --stacktrace \
+            :shared:compileKotlinIosArm64 \
+            :shared:iosSimulatorArm64Test
+      - name: Verify all 69 tests executed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          reports = Path("shared/build/test-results/iosSimulatorArm64Test").glob("TEST-*.xml")
+          suites = [ET.parse(report).getroot() for report in reports]
+          totals = {
+              name: sum(int(suite.get(name, 0)) for suite in suites)
+              for name in ("tests", "failures", "errors", "skipped")
+          }
+          print(totals)
+          assert totals == {"tests": 69, "failures": 0, "errors": 0, "skipped": 0}
+          PY
+
+  android-persistence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install the Android SDK used by the project
+        run: |
+          sdkmanager --sdk_root="$ANDROID_HOME" 'platforms;android-37.0' 'build-tools;36.0.0'
+      - name: Enable hardware virtualization
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Run Android storage compatibility tests
+        uses: reactivecircus/android-emulator-runner@c9c93e6ba9c4194322e114c40970d5983d9a07cc # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: >-
+            bash gradlew --no-daemon --stacktrace --max-workers=2
+            -PisolatedValidation=true
+            -Pandroid.testInstrumentationRunnerArguments.class=com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest
+            :app:connectedDebugAndroidTest
+      - name: Verify migrations ran on the emulator
+        run: |
+          python3 - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          executed = Counter()
+          for report in Path("app/build/outputs/androidTest-results").rglob("TEST-*.xml"):
+              for test in ET.parse(report).getroot().iter("testcase"):
+                  if not any(test.find(tag) is not None for tag in ("failure", "error", "skipped")):
+                      executed[test.attrib.get("classname", "")] += 1
+          print(dict(executed))
+          assert executed["com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest"] == 3
+          assert executed["com.poetscorner.invoiceqr.DataStoreCompatibilityTest"] == 1
+          PY

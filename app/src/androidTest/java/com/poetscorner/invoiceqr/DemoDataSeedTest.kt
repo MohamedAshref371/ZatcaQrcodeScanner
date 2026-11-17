@@ -1,6 +1,7 @@
 package com.poetscorner.invoiceqr
 
-import androidx.room.withTransaction
+import com.poetscorner.invoiceqr.data.writeTransaction
+import com.poetscorner.invoiceqr.data.openScanDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.InvoiceCategories
@@ -58,11 +59,11 @@ class DemoDataSeedTest {
                 note = "بيانات تجريبية")
         }
 
-        val database = ScanDatabase.open(context)
+        val database = openScanDatabase(context)
         try {
             val before = database.scans().count()
             var inserted = 0
-            database.withTransaction {
+            database.writeTransaction {
                 rows.forEach { if (database.scans().insert(it) != -1L) inserted++ }
             }
             val after = database.scans().count()

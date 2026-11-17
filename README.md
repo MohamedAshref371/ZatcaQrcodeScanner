@@ -117,7 +117,6 @@ app/src/main/java/com/poetscorner/invoiceqr/
   MainActivity.kt
   scanner/QrScanner.kt                     # ZXing options, gallery decoding and EXIF
   scanner/QrDecoder.kt                     # ZXing camera and gallery adapter
-  data/LocalData.kt                        # Room and settings DataStore
   data/HistoryExporter.kt                  # Streaming history CSV export
   data/ReviewRepository.kt                 # Local usage and one-time review eligibility
   ui/ScannerViewModel.kt                   # App state and background operations

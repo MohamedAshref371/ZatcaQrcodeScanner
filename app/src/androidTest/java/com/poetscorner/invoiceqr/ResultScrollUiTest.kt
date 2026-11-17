@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.data.openScanDatabase
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -33,7 +34,7 @@ class ResultScrollUiTest {
     private fun titleHeight() = compose.onNodeWithTag("app_title_bar").fetchSemanticsNode().boundsInRoot.height
 
     @Before fun openFirstResult() = runBlocking<Unit> {
-        db = ScanDatabase.open(compose.activity.applicationContext)
+        db = openScanDatabase(compose.activity.applicationContext)
         ids += db.scans().saveIfNew(historyFixture(103001,
             seller = "Result scroll first ${System.nanoTime()}", hash = false)).scan.id
         ids += db.scans().saveIfNew(historyFixture(103002, seller = secondSeller, hash = false)).scan.id

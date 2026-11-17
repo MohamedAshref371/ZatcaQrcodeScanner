@@ -1,8 +1,10 @@
 package com.poetscorner.invoiceqr
 
 import com.poetscorner.invoiceqr.data.ReviewUsage
-import org.junit.Assert.*
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ReviewUsageTest {
     private val day = 24L * 60 * 60 * 1000

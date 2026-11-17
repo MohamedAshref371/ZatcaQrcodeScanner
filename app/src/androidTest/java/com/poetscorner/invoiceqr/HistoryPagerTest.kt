@@ -1,6 +1,5 @@
 package com.poetscorner.invoiceqr
 
-import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.*
@@ -13,8 +12,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class HistoryPagerTest {
     @Test fun refreshKeepsLoadedPagesAndFilterChangesKeepCardsUntilReady() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext,
-            ScanDatabase::class.java).build()
+        val db = inMemoryScanDatabase(InstrumentationRegistry.getInstrumentation().targetContext)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         try {
             db.scans().insertBatch((1..125).map { historyFixture(it, seller = "Seller $it") })
@@ -52,8 +50,7 @@ class HistoryPagerTest {
     }
 
     @Test fun pagesResetOnFilterChangesAndDatabaseUpdatesWithoutStaleExportButtons() = runBlocking {
-        val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext,
-            ScanDatabase::class.java).build()
+        val db = inMemoryScanDatabase(InstrumentationRegistry.getInstrumentation().targetContext)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         try {
             db.scans().insertBatch((1..125).map { historyFixture(it, seller = "Seller $it") })

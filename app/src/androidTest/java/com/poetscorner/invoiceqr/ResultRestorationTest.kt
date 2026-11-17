@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.data.openScanDatabase
 import android.app.Application
 import android.os.Parcel
 import androidx.lifecycle.SavedStateHandle
@@ -49,7 +50,7 @@ class ResultRestorationTest {
     }
 
     @Test fun restoresInvoiceAndOriginalCheckTimeWithoutInsertingOrChangingTheCurrentTab() = runBlocking {
-        val db = ScanDatabase.open(app)
+        val db = openScanDatabase(app)
         val firstStore = ViewModelStore()
         val secondStore = ViewModelStore()
         val fixture = historyFixture(92001, seller = "Restored invoice", hash = false)
@@ -89,7 +90,7 @@ class ResultRestorationTest {
     }
 
     @Test fun restoresTheResultTabAndClearingItPreventsItFromReturning() = runBlocking {
-        val db = ScanDatabase.open(app)
+        val db = openScanDatabase(app)
         val firstStore = ViewModelStore()
         val secondStore = ViewModelStore()
         val fixture = historyFixture(92002, seller = "Dismissed invoice", hash = false)
@@ -124,7 +125,7 @@ class ResultRestorationTest {
     }
 
     @Test fun backReturnsToTheInvoiceSourceAfterRestorationAndNewScansReturnToCamera() = runBlocking {
-        val db = ScanDatabase.open(app)
+        val db = openScanDatabase(app)
         val fixture = historyFixture(92004, seller = "Return destination", hash = false)
         try {
             val id = db.scans().saveIfNew(fixture).scan.id
@@ -206,7 +207,7 @@ class ResultRestorationTest {
     }
 
     @Test fun aDeletedInvoiceIsNotRecreatedDuringRestoration() = runBlocking {
-        val db = ScanDatabase.open(app)
+        val db = openScanDatabase(app)
         val store = ViewModelStore()
         val fixture = historyFixture(92003, seller = "Deleted invoice", hash = false)
         try {

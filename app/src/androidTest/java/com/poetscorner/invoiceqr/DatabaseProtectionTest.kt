@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.data.openScanDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.ScanDatabase
@@ -14,7 +15,7 @@ class DatabaseProtectionTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     private suspend fun <T> withDatabase(name: String, block: suspend (ScanDatabase) -> T): T {
-        val db = ScanDatabase.open(context, name)
+        val db = openScanDatabase(context, name)
         try { return block(db) } finally { db.close() }
     }
 

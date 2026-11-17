@@ -9,7 +9,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
-import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.*
@@ -25,8 +24,7 @@ class HistoryPagingUiTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun scrollingLoadsLaterPagesAndFilteringResetsTheList() = runBlocking<Unit> {
-        val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext,
-            ScanDatabase::class.java).build()
+        val db = inMemoryScanDatabase(InstrumentationRegistry.getInstrumentation().targetContext)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         try {
             db.scans().insertBatch((1..125).map { historyFixture(it, seller = "Seller $it") })

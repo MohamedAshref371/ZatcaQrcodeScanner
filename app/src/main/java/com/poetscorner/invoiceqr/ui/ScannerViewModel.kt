@@ -11,7 +11,6 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
-import androidx.room.withTransaction
 import com.poetscorner.invoiceqr.data.*
 import com.poetscorner.invoiceqr.domain.*
 import com.poetscorner.invoiceqr.scanner.*
@@ -44,7 +43,7 @@ class ScannerViewModel(
     app: Application,
     private val savedState: SavedStateHandle
 ) : AndroidViewModel(app) {
-    private val db = ScanDatabase.open(app)
+    private val db = openScanDatabase(app)
     private val repository = SettingsRepository(app)
     private val reviewRepository = ReviewRepository(app)
     fun recordReviewUse() { viewModelScope.launch {
@@ -500,7 +499,7 @@ class ScannerViewModel(
                                 .distinctBy { it.first }.filterNot { it.first in seenInImport }
                             mutableImageImport.update { it?.copy(phase = ImageImportPhase.SAVING, page = 0, pageCount = 0) }
                             val saved = try {
-                                db.withTransaction {
+                                db.writeTransaction {
                                     pending.map { (key, invoice) ->
                                         key to db.scans().saveIfNew(ScanEntity.from(invoice, System.currentTimeMillis()))
                                     }
@@ -557,7 +556,7 @@ class ScannerViewModel(
             .mapValues { ContextCompat.getString(getApplication(), it.value) }
         val languageContext = ContextCompat.getContextForLanguage(getApplication())
         outputDocument(uri) { writer ->
-            db.withTransaction {
+            db.readSnapshot {
                 HistoryExporter.write(db.scans(), filter, writer, csv, names,
                     categoryName = { languageContext.getString(InvoiceCategories.label(it)) }) { count, total ->
                     mutableTransfer.value = DataTransferState(TransferKind.EXPORT, count, total)

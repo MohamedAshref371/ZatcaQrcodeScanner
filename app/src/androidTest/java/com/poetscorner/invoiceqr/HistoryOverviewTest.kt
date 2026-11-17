@@ -1,6 +1,5 @@
 package com.poetscorner.invoiceqr
 
-import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.*
@@ -12,8 +11,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class HistoryOverviewTest {
     @Test fun exactSumIncludesAllPagesAndHonorsFiltersAndDeletion() = runBlocking<Unit> {
-        val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext,
-            ScanDatabase::class.java).build()
+        val db = inMemoryScanDatabase(InstrumentationRegistry.getInstrumentation().targetContext)
         try {
             val dao = db.scans()
             val rows = (1..405).map { index ->

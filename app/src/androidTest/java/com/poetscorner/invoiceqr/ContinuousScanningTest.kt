@@ -1,12 +1,12 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.data.openScanDatabase
 import android.app.Application
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.ScanDatabase
@@ -22,7 +22,7 @@ import org.junit.runner.RunWith
 class ContinuousScanningTest {
     @Test fun batchSavesWithoutNavigationCountsOnlyNewInvoicesAndCanOpenTheResult() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application
-        val db = Room.databaseBuilder(app, ScanDatabase::class.java, "invoices.db").build()
+        val db = openScanDatabase(app, "invoices.db")
         val store = ViewModelStore()
         val good = historyFixture(801, seller = "Batch seller", hash = false)
         val review = historyFixture(802, seller = "", hash = false)

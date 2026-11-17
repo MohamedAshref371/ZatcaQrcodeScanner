@@ -1,6 +1,5 @@
 package com.poetscorner.invoiceqr
 
-import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.*
@@ -15,8 +14,7 @@ import org.junit.runner.RunWith
 class StatisticsStorageTest {
     private lateinit var db: ScanDatabase
     @Before fun setup() {
-        db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext,
-            ScanDatabase::class.java).build()
+        db = inMemoryScanDatabase(InstrumentationRegistry.getInstrumentation().targetContext)
     }
     @After fun close() { db.close() }
 

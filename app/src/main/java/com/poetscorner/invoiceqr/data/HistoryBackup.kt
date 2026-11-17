@@ -2,7 +2,6 @@ package com.poetscorner.invoiceqr.data
 
 import android.util.JsonReader
 import android.util.JsonToken
-import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.Sink
 import kotlinx.io.asSink
@@ -21,14 +20,14 @@ object HistoryBackup {
         HistoryBackupFormat.copyLimited(input.asSource(), output.asSink(), maxBytes)
 
     suspend fun write(db: ScanDatabase, output: Sink, progress: (Int, Int) -> Unit = { _, _ -> }) {
-        db.withTransaction {
+        db.readSnapshot {
             val dao = db.scans()
             HistoryBackupFormat.write(output, dao.count(), dao::backupRows, progress)
         }
     }
 
     suspend fun write(db: ScanDatabase, output: Writer, progress: (Int, Int) -> Unit = { _, _ -> }) {
-        db.withTransaction {
+        db.readSnapshot {
             val dao = db.scans()
             HistoryBackupFormat.write(output::write, dao.count(), dao::backupRows, progress)
             output.flush()
@@ -37,7 +36,7 @@ object HistoryBackup {
 
     suspend fun restore(db: ScanDatabase, input: Reader, progress: (Int) -> Unit = {}): ImportSummary {
         try {
-            return db.withTransaction {
+            return db.writeTransaction {
                 HistoryBackupFormat.restore(AndroidBackupJsonInput(input), progress) { invoice, timestamp, annotation ->
                     db.scans().saveIfNew(ScanEntity.from(invoice, timestamp).copy(
                         invoiceNumber = annotation.invoiceNumber, category = annotation.category,

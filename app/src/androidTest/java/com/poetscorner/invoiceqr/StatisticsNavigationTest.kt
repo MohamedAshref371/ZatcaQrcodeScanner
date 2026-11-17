@@ -21,7 +21,7 @@ class StatisticsNavigationTest {
         .config[SemanticsProperties.VerticalScrollAxisRange].value()
 
     @Test fun overviewAndGroupKeepTheirScrollAfterOpeningAnInvoiceAndRefreshingStatistics() = runBlocking<Unit> {
-        val db = ScanDatabase.open(compose.activity)
+        val db = openScanDatabase(compose.activity)
         val inserted = mutableListOf<Long>()
         val vm = compose.runOnIdle { ViewModelProvider(compose.activity)[ScannerViewModel::class.java] }
         val prefix = "Statistics scroll "

@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.data.openScanDatabase
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
@@ -82,7 +83,7 @@ class DataTransferTest {
                 store.clear()
                 job?.join()
             }
-            val cleanup = ScanDatabase.open(app)
+            val cleanup = openScanDatabase(app)
             try { savedId?.let { cleanup.scans().delete(it) } } finally { cleanup.close() }
             file.delete()
         }

@@ -1,10 +1,10 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.data.openScanDatabase
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
-import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.core.app.ActivityScenario
 import com.poetscorner.invoiceqr.data.ScanDatabase
@@ -31,7 +31,7 @@ class ContinuousScanningUiTest {
         }
         val vm = compose.runOnIdle { ViewModelProvider(compose.activity)[ScannerViewModel::class.java] }
         val invoice = historyFixture(901, seller = "Continuous UI seller", hash = false)
-        val db = Room.databaseBuilder(compose.activity.applicationContext, ScanDatabase::class.java, "invoices.db").build()
+        val db = openScanDatabase(compose.activity.applicationContext, "invoices.db")
         try {
             val cameraBounds = compose.onNodeWithTag("camera_preview").fetchSemanticsNode().boundsInRoot
             val toggleBounds = compose.onNodeWithTag("continuous_scan_toggle").fetchSemanticsNode().boundsInRoot

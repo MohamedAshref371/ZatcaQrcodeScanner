@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.data.openScanDatabase
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
@@ -51,7 +52,7 @@ class InvoiceAnnotationUiTest {
             val scope = vm.viewModelScope.coroutineContext[Job]!!
             compose.activityRule.scenario.close()
             scope.join()
-            val db = ScanDatabase.open(context)
+            val db = openScanDatabase(context)
             try { id?.let { db.scans().delete(it) } } finally { db.close() }
         }
     }

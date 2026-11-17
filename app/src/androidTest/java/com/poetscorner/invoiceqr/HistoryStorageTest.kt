@@ -1,7 +1,7 @@
 package com.poetscorner.invoiceqr
 
-import androidx.room.Room
-import androidx.room.withTransaction
+import androidx.room.useReaderConnection
+
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.*
@@ -24,8 +24,7 @@ class HistoryStorageTest {
     private val names = mapOf(1 to "Seller", 2 to "VAT", 3 to "Date", 4 to "Total", 5 to "Tax", 6 to "Hash",
         7 to "Invoice number", 8 to "Category", 9 to "Note")
     @Before fun setUp() {
-        db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext,
-            ScanDatabase::class.java).build()
+        db = inMemoryScanDatabase(InstrumentationRegistry.getInstrumentation().targetContext)
     }
     @After fun tearDown() { db.close() }
 
@@ -80,7 +79,7 @@ class HistoryStorageTest {
             val expected = filter.apply(stored.map { HistoryEntry.from(it) }).map { it.scan }
             for (csv in listOf(true, false)) {
                 val writer = StringWriter()
-                db.withTransaction { HistoryExporter.write(db.scans(), filter, writer, csv, names) }
+                db.readSnapshot { HistoryExporter.write(db.scans(), filter, writer, csv, names) }
                 val actual = writer.toString()
                 if (csv) assertEquals(HistoryExporter.csv(expected, names), actual)
                 else assertEquals(JSONArray(HistoryExporter.json(expected, names)).toString(), JSONArray(actual).toString())
@@ -92,8 +91,11 @@ class HistoryStorageTest {
         val first = historyFixture(1)
         assertTrue(db.scans().insert(first) > 0)
         assertEquals(-1L, db.scans().insert(first.copy(raw = first.raw.chunked(10).joinToString("\n"), scannedAt = first.scannedAt + 100)))
-        val plan = db.openHelper.readableDatabase.query("EXPLAIN QUERY PLAN SELECT * FROM scans WHERE payloadKey = ?", arrayOf(first.payloadKey)).use { cursor ->
-            buildString { while (cursor.moveToNext()) append(cursor.getString(3)) }
+        val plan = db.useReaderConnection { connection ->
+            connection.usePrepared("EXPLAIN QUERY PLAN SELECT * FROM scans WHERE payloadKey = ?") { statement ->
+                statement.bindText(1, first.payloadKey)
+                buildString { while (statement.step()) append(statement.getText(3)) }
+            }
         }
         assertTrue(plan, plan.contains("index_scans_payloadKey"))
         assertEquals(1, db.scans().all().size)
@@ -104,7 +106,7 @@ class HistoryStorageTest {
             note = "Business trip"))
         val csv = StringWriter()
         val json = StringWriter()
-        db.withTransaction {
+        db.readSnapshot {
             HistoryExporter.write(db.scans(), HistoryFilter(), csv, true, names,
                 categoryName = { "Business purchases" })
             HistoryExporter.write(db.scans(), HistoryFilter(), json, false, names,

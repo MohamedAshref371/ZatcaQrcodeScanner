@@ -2,9 +2,7 @@ package com.poetscorner.invoiceqr
 
 import android.os.SystemClock
 import android.util.Log
-import androidx.room.Room
-import androidx.room.withTransaction
-import androidx.sqlite.db.SupportSQLiteQuery
+import androidx.room.RoomRawQuery
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.*
@@ -38,7 +36,7 @@ class HistoryScaleTest {
     private class RecordingDao(private val delegate: ScanDao) : ScanDao by delegate {
         var largestBatch = 0
         var exported = 0
-        override suspend fun exportRows(query: SupportSQLiteQuery) = delegate.exportRows(query).also {
+        override suspend fun exportRows(query: RoomRawQuery) = delegate.exportRows(query).also {
             largestBatch = maxOf(largestBatch, it.size)
             exported += it.size
         }
@@ -47,7 +45,7 @@ class HistoryScaleTest {
     @Test fun tenThousandInvoicesUseIndexedLookupsSmallPagesAndStreamingExports() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "history-scale-${UUID.randomUUID()}.db"
-        val db = Room.databaseBuilder(context, ScanDatabase::class.java, name).build()
+        val db = openScanDatabase(context, name)
         val measurements = linkedMapOf<String, Double>()
         val exportFiles = mutableListOf<File>()
         suspend fun timed(label: String, action: suspend () -> Unit) {
@@ -57,7 +55,7 @@ class HistoryScaleTest {
         }
         try {
             timed("seed_10000_ms") {
-                db.withTransaction {
+                db.writeTransaction {
                     for (start in 1..10000 step 100) {
                         db.scans().insertBatch((start until start + 100).map { historyFixture(it) })
                     }
@@ -108,14 +106,15 @@ class HistoryScaleTest {
                 val selected = requireNotNull(db.scans().byId(original.id))
                 assertNull(ZatcaParser.parse(selected.raw).error)
             }
-            val names = mapOf(1 to "Seller", 2 to "VAT", 3 to "Date", 4 to "Total", 5 to "Tax", 6 to "Hash")
+            val names = mapOf(1 to "Seller", 2 to "VAT", 3 to "Date", 4 to "Total", 5 to "Tax", 6 to "Hash",
+                7 to "Invoice number", 8 to "Category", 9 to "Note")
             for (csv in listOf(true, false)) {
                 val recorder = RecordingDao(db.scans())
                 val file = File(context.cacheDir, "$name.${if (csv) "csv" else "json"}")
                 exportFiles += file
                 val writer = CountingWriter(file.bufferedWriter(Charsets.UTF_8))
                 timed(if (csv) "csv_10000_ms" else "json_10000_ms") {
-                    writer.use { db.withTransaction { HistoryExporter.write(recorder, HistoryFilter(), it, csv, names) } }
+                    writer.use { db.readSnapshot { HistoryExporter.write(recorder, HistoryFilter(), it, csv, names) } }
                 }
                 assertEquals(10000, recorder.exported)
                 assertEquals(200, recorder.largestBatch)

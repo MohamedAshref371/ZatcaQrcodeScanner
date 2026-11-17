@@ -1,13 +1,11 @@
 package com.poetscorner.invoiceqr.data
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
-import java.time.Instant
-import java.time.ZoneId
-
-private val Context.reviewStore by preferencesDataStore("review_usage")
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 internal data class ReviewUsage(
     val firstUsedAt: Long? = null,
@@ -30,22 +28,20 @@ internal data class ReviewUsage(
 }
 
 /** Independent of history deletion; stores at most ten payload hashes and three dates. */
-class ReviewRepository internal constructor(private val store: DataStore<Preferences>) {
-    constructor(context: Context) : this(context.applicationContext.reviewStore)
-
-    suspend fun recordUse(now: Long = System.currentTimeMillis()) {
+class ReviewRepository(private val store: DataStore<Preferences>) {
+    suspend fun recordUse(now: Long = Clock.System.now().toEpochMilliseconds()) {
         store.edit { p -> write(p, read(p).used(now, localDay(now))) }
     }
 
-    suspend fun recordSavedInvoice(key: String, now: Long = System.currentTimeMillis()) {
+    suspend fun recordSavedInvoice(key: String, now: Long = Clock.System.now().toEpochMilliseconds()) {
         store.edit { p -> write(p, read(p).used(now, localDay(now)).saved(key)) }
     }
 
-    private fun localDay(now: Long) = Instant.ofEpochMilli(now)
-        .atZone(ZoneId.systemDefault()).toLocalDate().toString()
+    private fun localDay(now: Long) = Instant.fromEpochMilliseconds(now)
+        .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
 
     // Claim atomically and persist BEFORE calling Play, including when Play shows nothing.
-    suspend fun claimAttempt(now: Long = System.currentTimeMillis()): Boolean {
+    suspend fun claimAttempt(now: Long = Clock.System.now().toEpochMilliseconds()): Boolean {
         var claimed = false
         store.edit { p ->
             val usage = read(p)

@@ -8,7 +8,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 GRADLE = ROOT / "app/build.gradle.kts"
-DATABASE = ROOT / "app/src/main/java/com/poetscorner/invoiceqr/data/LocalData.kt"
+DATABASE = ROOT / "shared/src/commonMain/kotlin/com/poetscorner/invoiceqr/data/ScanDatabase.kt"
 
 
 def one(pattern: str, source: str, label: str) -> str:

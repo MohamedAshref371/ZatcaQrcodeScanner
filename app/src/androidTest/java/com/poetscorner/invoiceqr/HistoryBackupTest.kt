@@ -1,6 +1,5 @@
 package com.poetscorner.invoiceqr
 
-import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.data.*
@@ -24,8 +23,8 @@ class HistoryBackupTest {
     private lateinit var target: ScanDatabase
     @Before fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        source = Room.inMemoryDatabaseBuilder(context, ScanDatabase::class.java).build()
-        target = Room.inMemoryDatabaseBuilder(context, ScanDatabase::class.java).build()
+        source = inMemoryScanDatabase(context)
+        target = inMemoryScanDatabase(context)
     }
     @After fun tearDown() { source.close(); target.close() }
 

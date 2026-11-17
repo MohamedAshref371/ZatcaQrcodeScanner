@@ -1,5 +1,6 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.data.openScanDatabase
 import android.content.ClipboardManager
 import android.os.ParcelFileDescriptor.AutoCloseInputStream
 import android.view.View
@@ -67,7 +68,7 @@ class ResultActionsUiTest {
             val scope = vm.viewModelScope.coroutineContext[Job]!!
             compose.activityRule.scenario.close()
             scope.join()
-            val db = ScanDatabase.open(context)
+            val db = openScanDatabase(context)
             try { id?.let { db.scans().delete(it) } } finally { db.close() }
         }
     }
