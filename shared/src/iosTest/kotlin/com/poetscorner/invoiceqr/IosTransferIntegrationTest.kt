@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 
 package com.poetscorner.invoiceqr
 
@@ -10,6 +10,7 @@ import com.poetscorner.invoiceqr.resources.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.io.*
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
@@ -27,7 +28,8 @@ class IosTransferIntegrationTest {
         val pdf = "$directory/document.pdf"
         val database = Room.inMemoryDatabaseBuilder<ScanDatabase>().buildInvoiceDatabase()
         val job = SupervisorJob()
-        val scope = CoroutineScope(job + Dispatchers.Main)
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val scope = CoroutineScope(job + dispatcher)
         try {
             val modules = invoiceQrModules.trimIndent().lines()
             val edge = (modules.size + 8) * 5.0
@@ -59,7 +61,7 @@ class IosTransferIntegrationTest {
             val filters = StatisticsFilterStore(TestPreferences())
             val controller = ScannerController(database, SettingsRepository(stores.settings), ReviewRepository(stores.review),
                 filters, MemoryScannerSavedState(), files, scope)
-            withContext(Dispatchers.Main) {
+            withContext(dispatcher) {
                 requireNotNull(controller.importInvoiceFiles(listOf(NSURL.fileURLWithPath(png).absoluteString!!))).join()
                 assertEquals(1, controller.screen.value)
                 assertEquals(INVOICE_QR_PAYLOAD, controller.result.value?.invoice?.raw)

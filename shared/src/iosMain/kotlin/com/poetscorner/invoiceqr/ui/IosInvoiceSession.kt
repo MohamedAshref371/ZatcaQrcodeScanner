@@ -7,7 +7,7 @@ import kotlinx.coroutines.*
 import platform.Foundation.*
 
 /** App-lifetime owner. Stage 6's Xcode entry point only needs to host IosScanner(session, ...). */
-class IosInvoiceSession {
+class IosInvoiceSession(savedState: ScannerSavedState = MemoryScannerSavedState()) {
     private val job = SupervisorJob()
     private val scope = CoroutineScope(job + Dispatchers.Main.immediate)
     private val database = openIosScanDatabase()
@@ -24,7 +24,7 @@ class IosInvoiceSession {
                     else preferences.setObject(value, forKey = name(key))
                 })
             }
-        }), MemoryScannerSavedState(), files, scope)
+        }), savedState, files, scope)
 
     /** Copies are app-owned. Keep them until the shared import, including single-photo scanning, finishes. */
     internal fun importInvoices(urls: List<NSURL>) {

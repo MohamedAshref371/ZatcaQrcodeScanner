@@ -1,5 +1,7 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.resources.*
+
 import com.poetscorner.invoiceqr.data.openScanDatabase
 import android.app.Application
 import androidx.lifecycle.ViewModelProvider
@@ -54,7 +56,7 @@ class ContinuousScanningTest {
                 assertFalse(vm.scanned("https://example.org"))
                 assertEquals(2, vm.continuousScan.value.added)
                 assertEquals(lastNotice, vm.continuousScan.value.notice)
-                assertEquals(R.string.scan_invalid, vm.message.value?.id)
+                assertEquals(Res.string.scan_invalid, vm.message.value?.id)
                 vm.message.value = null
                 vm.viewContinuousResult()
                 assertEquals(review.raw, vm.result.value?.invoice?.raw)
@@ -70,7 +72,7 @@ class ContinuousScanningTest {
                 assertEquals(ContinuousScanState(), vm.continuousScan.value)
                 assertTrue(vm.scanned(good.raw))
                 assertNotNull(vm.result.value)
-                assertEquals(R.string.invoice_already_saved, vm.message.value?.id)
+                assertEquals(Res.string.invoice_already_saved, vm.message.value?.id)
                 vm.clearResult()
                 vm.message.value = null
                 vm.setContinuousScanning(true)

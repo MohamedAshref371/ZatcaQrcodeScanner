@@ -27,12 +27,20 @@ class StreamingBackupTest {
     }
 
     @Test fun rejectsMalformedTokensDuplicateKeysAndOversizedRecords() = runTest {
+        val empty = """{"format":"invoiceqr-history-backup","version":2,"invoices":[]}"""
+        fun row(fields: String) = """{"format":"invoiceqr-history-backup","version":2,"invoices":[{"raw":"AQFB","checkedAt":42,$fields}]}"""
         val invalid = listOf(
-            "{} trailing", "{\"format\":\"a\",\"format\":\"b\"}",
-            "{\"version\":01}", "{\"version\":1.0}", "{\"version\":\"1\"}",
-            "{\"format\":\"bad\\q\"}", "{\"format\":\"bad\nvalue\"}", "{\"format\":\"unterminated",
-            "{\"invoices\":[,]}", "{\"invoices\":[],}", "{\"version\":9223372036854775808}",
-            "{\"format\":\"" + "a".repeat(700_001) + "\"}")
+            empty + " trailing",
+            empty.replace("\"version\":2", "\"version\":2,\"version\":2"),
+            empty.replace("\"version\":2", "\"version\":02"),
+            empty.replace("\"version\":2", "\"version\":2.0"),
+            empty.replace("\"version\":2", "\"version\":\"2\""),
+            row("\"note\":\"bad\\q\""), row("\"note\":\"bad\nvalue\""),
+            row("\"note\":\"a\",\"note\":\"b\""),
+            row("\"note\":\"unterminated"),
+            empty.replace("[]", "[,]"), empty.dropLast(1) + ",}",
+            empty.replace("\"version\":2", "\"version\":9223372036854775808"),
+            row("\"note\":\"" + "a".repeat(700_001) + "\""))
         for (text in invalid) assertFailsWith<InvalidBackupException>(text.take(60)) {
             HistoryBackupFormat.restore(StreamingBackupJsonInput(Buffer().apply { writeString(text) })) { _, _, _ -> false }
         }

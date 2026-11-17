@@ -53,6 +53,7 @@ class StreamingBackupJsonInput(private val source: Source) : BackupJsonInput {
         var escaped = false
         while (true) {
             val byte = take()
+            if (byte < 32) throw InvalidBackupException()
             token.writeByte(byte.toByte())
             if (byte == '"'.code && !escaped) break
             escaped = byte == '\\'.code && !escaped

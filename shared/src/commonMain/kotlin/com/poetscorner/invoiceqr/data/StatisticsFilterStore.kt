@@ -42,7 +42,7 @@ class StatisticsFilterStore(private val preferences: StringPreferences) : Statis
     override fun save(request: StatisticsRequest) {
         val mode = if (request.excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else request.vatMode
         val filter = request.withVatFilter(mode, if (mode == StatisticsVatMode.EXCLUDE) request.excludedVat else request.vat)
-        // apply() updates memory immediately and Android flushes its queued write on lifecycle changes.
+        // The adapter preserves the platform preference store; key mapping stays shared.
         preferences.write {
             put("seller", request.seller)
             put("vat", filter.vat)
