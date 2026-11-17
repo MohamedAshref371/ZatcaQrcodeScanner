@@ -25,7 +25,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
-import java.io.Writer
+import kotlinx.io.Sink
+import kotlinx.io.asSink
+import kotlinx.io.buffered
 
 data class ScanResult(val invoice: Invoice, val checkedAt: Long, val scanId: Long? = null,
     val annotation: InvoiceAnnotation = InvoiceAnnotation())
@@ -44,24 +46,6 @@ class ScannerViewModel(
 ) : AndroidViewModel(app) {
     private val db = ScanDatabase.open(app)
     private val repository = SettingsRepository(app)
-    private val mlKitController = MlKitModuleController(GoogleMlKitModuleInstaller(app), viewModelScope)
-    val mlKitModule = mlKitController.state
-    fun refreshMlKitOnResume() {
-        if (screen.value == 3) {
-            mlKitController.refresh()
-            return
-        }
-        viewModelScope.launch {
-            if (repository.settings.first().scanEngine == ScanEngine.ML_KIT && screen.value != 3) {
-                mlKitController.refresh()
-            }
-        }
-    }
-    fun downloadMlKit() = mlKitController.download()
-    fun selectScanEngine(engine: ScanEngine) {
-        if (engine == ScanEngine.ML_KIT && !mlKitModule.value.ready) return
-        update { it.copy(scanEngine = engine) }
-    }
     private val reviewRepository = ReviewRepository(app)
     fun recordReviewUse() { viewModelScope.launch {
         try { reviewRepository.recordUse() } catch (_: java.io.IOException) { /* Optional tracking. */ }
@@ -75,9 +59,7 @@ class ScannerViewModel(
     val settingsLoaded = mutableSettingsLoaded.asStateFlow()
     init {
         viewModelScope.launch {
-            combine(repository.settings, mlKitModule) { saved, module ->
-                saved.copy(scanEngine = module.effectiveEngine(saved.scanEngine))
-            }.collect { loaded ->
+            repository.settings.collect { loaded ->
                 mutableSettings.value = loaded
                 mutableSettingsLoaded.value = true
             }
@@ -240,7 +222,6 @@ class ScannerViewModel(
     }
 
     private fun moveTo(screen: Int, clearCameraResult: Boolean = true) {
-        if (screen == 3) mlKitController.refresh()
         if (screen == 4) refreshStatisticsPeriod()
         if (screen != 1) savedState["result_return_screen"] = 0
         if (screen == 0 && clearCameraResult) clearResult()
@@ -435,7 +416,7 @@ class ScannerViewModel(
                 val raw = withContext(Dispatchers.IO) {
                     val scanSettings = settings.value
                     val bitmap = decodeGallery(getApplication(), uri)
-                    try { scanSettings.scanEngine.decoder().use { it.readImportedImage(bitmap, scanSettings) } }
+                    try { ZxingDecoder().use { it.readImportedImage(bitmap, scanSettings) } }
                     finally { bitmap.recycle() }
                 }
                 if (raw == null) message.value = UiText(R.string.gallery_no_qr) else process(raw)
@@ -480,7 +461,7 @@ class ScannerViewModel(
                 settingsLoaded.first { it }
                 val scanSettings = settings.value
                 withContext(Dispatchers.IO) {
-                    scanSettings.scanEngine.decoder().use { decoder ->
+                    ZxingDecoder().use { decoder ->
                         files.forEachIndexed { index, (uri, type, fileName) ->
                             kotlinx.coroutines.currentCoroutineContext().ensureActive()
                             mutableImageImport.value = ImageImportProgress(index + 1, files.size, fileName)
@@ -638,10 +619,10 @@ class ScannerViewModel(
         }
     }
 
-    private suspend fun outputDocument(uri: Uri, backup: Boolean = false, write: suspend (Writer) -> Unit) {
+    private suspend fun outputDocument(uri: Uri, backup: Boolean = false, write: suspend (Sink) -> Unit) {
         val cache = File.createTempFile("history-export-", ".json", getApplication<Application>().cacheDir)
         try {
-            cache.bufferedWriter(Charsets.UTF_8).use { write(it) }
+            cache.outputStream().asSink().buffered().use { write(it) }
             if (backup && cache.length() > HistoryBackup.MAX_BYTES) throw BackupTooLargeException()
             mutableTransfer.update { it?.copy(saving = true) }
             requireNotNull(getApplication<Application>().contentResolver.openOutputStream(uri, "wt")).use { output ->
@@ -671,5 +652,5 @@ class ScannerViewModel(
             .onFailure { message.value = UiText(R.string.history_delete_error) }
         }
     }
-    override fun onCleared() { mlKitController.close(); db.close() }
+    override fun onCleared() { db.close() }
 }

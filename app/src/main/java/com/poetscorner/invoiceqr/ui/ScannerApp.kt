@@ -68,8 +68,6 @@ import android.text.TextUtils
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.poetscorner.invoiceqr.data.ScannerSettings
-import com.poetscorner.invoiceqr.data.ScanEngine
-import com.poetscorner.invoiceqr.scanner.MlKitModuleState
 import com.poetscorner.invoiceqr.data.HistoryDateSource
 import com.poetscorner.invoiceqr.data.HistoryDeletionPlan
 import com.poetscorner.invoiceqr.data.HistoryFilter
@@ -77,8 +75,11 @@ import com.poetscorner.invoiceqr.data.HistoryPageState
 import com.poetscorner.invoiceqr.data.HistorySummary
 import com.poetscorner.invoiceqr.data.InvoiceAnnotation
 import com.poetscorner.invoiceqr.data.InvoiceCategories
+import com.poetscorner.invoiceqr.data.label
 import com.poetscorner.invoiceqr.domain.Invoice
 import com.poetscorner.invoiceqr.domain.InvoiceType
+import com.poetscorner.invoiceqr.domain.asUiText
+import com.poetscorner.invoiceqr.domain.resourceId
 import com.poetscorner.invoiceqr.domain.ZatcaParser
 import com.poetscorner.invoiceqr.ui.theme.ZatcaQrcodeScannerTheme
 import com.poetscorner.invoiceqr.ui.text.localized
@@ -106,7 +107,6 @@ private fun ScannerContent(vm: ScannerViewModel) {
     val settingsListState = rememberLazyListState()
     val previousTab by vm.previousTab.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val mlKitModule by vm.mlKitModule.collectAsStateWithLifecycle()
     val history by vm.historyState.collectAsStateWithLifecycle()
     val result by vm.result.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
@@ -136,7 +136,6 @@ private fun ScannerContent(vm: ScannerViewModel) {
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         vm.recordReviewUse()
-        vm.refreshMlKitOnResume()
         vm.refreshStatisticsPeriod()
     }
     val screen by vm.screen.collectAsStateWithLifecycle()
@@ -451,8 +450,6 @@ private fun ScannerContent(vm: ScannerViewModel) {
                             pendingFileAction = "import"
                             importBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
                         },
-                        mlKitModule = mlKitModule, onDownloadMlKit = vm::downloadMlKit,
-                        onEngine = vm::selectScanEngine,
                         onRate = { if (!openAppStore(context)) vm.message.value = UiText(R.string.store_open_error) },
                         onShare = { if (!shareApp(context)) vm.message.value = UiText(R.string.share_error) })
                 }
@@ -562,11 +559,11 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
                         AppIcon(R.drawable.ic_share, description = stringResource(R.string.share_invoice))
                     }
                 }
-                Text(stringResource(R.string.invoice_summary, stringResource(invoice.type.label), stringResource(if (invoice.phase2) R.string.phase_two else R.string.phase_one)))
-                invoice.error?.let { Text(it.localized()) }
+                Text(stringResource(R.string.invoice_summary, stringResource(invoice.type.label.resourceId), stringResource(if (invoice.phase2) R.string.phase_two else R.string.phase_one)))
+                invoice.error?.let { Text(it.asUiText().localized()) }
                 if (!invoice.passed) Text(stringResource(R.string.result_review_hint), style = MaterialTheme.typography.bodyMedium)
                 relevantChecks.filterNot { it.passed }.forEach { check ->
-                    Text(stringResource(R.string.check_status, "✕", check.label.localized(), check.phase),
+                    Text(stringResource(R.string.check_status, "✕", check.label.asUiText().localized(), check.phase),
                         style = MaterialTheme.typography.bodySmall)
                 }
                 Text(stringResource(R.string.result_checked_at, checkedAtText), style = MaterialTheme.typography.bodySmall)
@@ -602,7 +599,7 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
                 Text(stringResource(R.string.phase_one_report, stringResource(if (invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }) R.string.checks_passed else R.string.checks_failed)))
                 if (invoice.phase2) Text(stringResource(R.string.phase_two_report, stringResource(if (invoice.error == null && relevantChecks.all { it.passed }) R.string.structural_passed else R.string.checks_failed)))
             }
-            items(relevantChecks) { check -> Text(stringResource(R.string.check_status, if(check.passed) "✓" else "✕", check.label.localized(), check.phase), color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
+            items(relevantChecks) { check -> Text(stringResource(R.string.check_status, if(check.passed) "✓" else "✕", check.label.asUiText().localized(), check.phase), color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
         }
         item {
             TextButton(onClick = { raw = !raw }, modifier = Modifier.fillMaxWidth()) {
@@ -767,7 +764,7 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(ZatcaParser.names.getValue(tag)), style = MaterialTheme.typography.labelMedium,
+        Text(stringResource(ZatcaParser.names.getValue(tag).resourceId), style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         CompositionLocalProvider(LocalLayoutDirection provides
             (if (tag == 2) LayoutDirection.Ltr else LocalLayoutDirection.current)) {
@@ -792,10 +789,8 @@ private fun InvoiceField(invoice: Invoice, tag: Int) {
 
 @Composable
 private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> ScannerSettings) -> Unit,
-    mlKitModule: MlKitModuleState,
     listState: LazyListState,
     transfersEnabled: Boolean, onBackup: () -> Unit, onImportBackup: () -> Unit,
-    onDownloadMlKit: () -> Unit, onEngine: (ScanEngine) -> Unit,
     onRate: () -> Unit, onShare: () -> Unit) {
     val portraitLockSupported = portraitLockApplies(true,
         LocalConfiguration.current.smallestScreenWidthDp, LocalContext.current.activity()?.isInMultiWindowMode == true)
@@ -823,17 +818,14 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
         item { Toggle(stringResource(R.string.scan_crop), s.cropEnabled) { v -> update { it.copy(cropEnabled = v) } } }
         item { Text(stringResource(R.string.settings_advanced), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
-        item { ScanEnginePicker(s.scanEngine, mlKitModule, onEngine, onDownloadMlKit) }
-        if (s.scanEngine == ScanEngine.ZXING) {
-            item { Toggle(stringResource(R.string.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
-            item { Toggle(stringResource(R.string.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }
-            item { Toggle(stringResource(R.string.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
-            item { Toggle(stringResource(R.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
-            item { Choice(stringResource(R.string.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(R.string.bin_local), "GLOBAL_HISTOGRAM" to stringResource(R.string.bin_global), "FIXED_THRESHOLD" to stringResource(R.string.bin_fixed), "BOOL_CAST" to stringResource(R.string.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
-            item { Toggle(stringResource(R.string.multi_frame_recovery), s.multiFrameRecovery) { v ->
-                update { it.copy(multiFrameRecovery = v) }
-            } }
-        }
+        item { Toggle(stringResource(R.string.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
+        item { Toggle(stringResource(R.string.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }
+        item { Toggle(stringResource(R.string.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
+        item { Toggle(stringResource(R.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
+        item { Choice(stringResource(R.string.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(R.string.bin_local), "GLOBAL_HISTOGRAM" to stringResource(R.string.bin_global), "FIXED_THRESHOLD" to stringResource(R.string.bin_fixed), "BOOL_CAST" to stringResource(R.string.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
+        item { Toggle(stringResource(R.string.multi_frame_recovery), s.multiFrameRecovery) { v ->
+            update { it.copy(multiFrameRecovery = v) }
+        } }
         item { Text(stringResource(R.string.camera_settings_note), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { BackupSection(transfersEnabled, onBackup, onImportBackup) }

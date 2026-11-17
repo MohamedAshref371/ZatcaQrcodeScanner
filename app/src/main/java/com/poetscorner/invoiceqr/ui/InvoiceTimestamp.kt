@@ -3,6 +3,7 @@ package com.poetscorner.invoiceqr.ui
 import android.content.Context
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.domain.ZatcaParser
+import kotlinx.datetime.toJavaLocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -13,8 +14,8 @@ internal fun formatInvoiceTimestamp(value: String, locale: Locale): InvoiceTimes
     // Format the invoice's own clock time; never convert to the device's time zone.
     val label = if (value.endsWith('Z')) R.string.invoice_date_utc else R.string.invoice_date_local
     return InvoiceTimestampDisplay(
-        timestamp.format(DateTimeFormatter.ofPattern("EEEE d MMMM uuuu", locale)),
-        timestamp.format(DateTimeFormatter.ofPattern("h:mm:ss a", locale)),
+        timestamp.local.toJavaLocalDateTime().format(DateTimeFormatter.ofPattern("EEEE d MMMM uuuu", locale)),
+        timestamp.local.toJavaLocalDateTime().format(DateTimeFormatter.ofPattern("h:mm:ss a", locale)),
         label
     )
 }

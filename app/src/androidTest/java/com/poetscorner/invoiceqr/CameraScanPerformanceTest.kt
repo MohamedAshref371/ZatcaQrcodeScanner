@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.data.SettingsRepository
 import com.poetscorner.invoiceqr.ui.CameraFrameTiming
@@ -33,7 +32,7 @@ class CameraScanPerformanceTest {
             compose.onNodeWithTag("continuous_scan_toggle").performClick()
             for (cropEnabled in listOf(true, false)) {
                 CameraFrameTiming.clear()
-                settings.save(ScannerSettings(scanEngine = ScanEngine.ZXING, resolution = "HD",
+                settings.save(ScannerSettings(resolution = "HD",
                     speed = "FASTEST", cropEnabled = cropEnabled))
                 compose.waitUntil(30_000) {
                     CameraFrameTiming.snapshot().count { it.cropEnabled == cropEnabled } >= 3

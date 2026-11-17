@@ -1,19 +1,16 @@
 package com.poetscorner.invoiceqr.data
 
 import androidx.room.withTransaction
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 
 /** Every page is read from one consistent snapshot, including during history deletion/import. */
 internal suspend fun ScanDatabase.statistics(request: StatisticsRequest): StatisticsResult = withTransaction {
-    val accumulator = StatisticsAccumulator(request)
-    var afterId = 0L
-    while (true) {
-        currentCoroutineContext().ensureActive()
-        val page = scans().statisticsRows(statisticsQuery(request, afterId))
-        if (page.isEmpty()) break
-        page.forEach(accumulator::add)
-        afterId = page.last().id
-    }
-    accumulator.finish()
+    readStatistics(request) { scans().statisticsRows(statisticsQuery(request, it)) }
+}
+
+/** Reads only the selected group, using the same filters and amount parser as the overview. */
+internal suspend fun ScanDatabase.statisticsBreakdown(selection: StatisticsSelection): StatisticsGroupBreakdown = withTransaction {
+    require(selection.request.categoryCalculationActive)
+    val originalRequest = selection.request.copy(grouping = StatisticsGrouping.CATEGORY)
+    readStatistics(originalRequest) { scans().statisticsRows(statisticsQuery(selection.request, it, selection.key)) }
+        .toBreakdown(selection.request)
 }

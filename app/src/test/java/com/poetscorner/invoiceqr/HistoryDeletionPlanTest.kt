@@ -6,6 +6,8 @@ import com.poetscorner.invoiceqr.data.HistoryDeletionPlan
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import kotlinx.datetime.toKotlinLocalDate
+import kotlinx.datetime.TimeZone
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -23,7 +25,7 @@ class HistoryDeletionPlanTest {
             HistoryDeletionPeriod.TWO_YEARS to today.minusYears(2)
         )
         expected.forEach { (period, cutoff) ->
-            val plan = HistoryDeletionPlan.create(HistoryDateSource.SCAN, period, today, zone)
+            val plan = HistoryDeletionPlan.create(HistoryDateSource.SCAN, period, today.toKotlinLocalDate(), TimeZone.of(zone.id))
             assertEquals(cutoff.toEpochDay(), plan.cutoffDay)
             assertEquals(cutoff.atStartOfDay(zone).toInstant().toEpochMilli(), plan.cutoffScanTime)
         }
@@ -31,7 +33,7 @@ class HistoryDeletionPlanTest {
 
     @Test fun allHasNoCutoff() {
         val plan = HistoryDeletionPlan.create(HistoryDateSource.INVOICE,
-            HistoryDeletionPeriod.ALL, today, zone)
+            HistoryDeletionPeriod.ALL, today.toKotlinLocalDate(), TimeZone.of(zone.id))
         assertNull(plan.cutoffDay)
         assertNull(plan.cutoffScanTime)
     }

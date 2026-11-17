@@ -5,11 +5,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.math.BigDecimal
+import com.poetscorner.invoiceqr.domain.ExactAmount
 
 data class HistoryPageState(val filter: HistoryFilter = HistoryFilter(), val entries: List<HistorySummary> = emptyList(),
     val total: Int = 0, val matching: Int = 0, val loading: Boolean = true, val loadingMore: Boolean = false,
-    val failed: Boolean = false, val amount: BigDecimal? = null, val displayedFilter: HistoryFilter = filter) {
+    val failed: Boolean = false, val amount: ExactAmount? = null, val displayedFilter: HistoryFilter = filter) {
     val canExport get() = !loading && !failed && entries.isNotEmpty() && matching > 0
     val hasMore get() = entries.size < matching
 
@@ -18,9 +18,15 @@ data class HistoryPageState(val filter: HistoryFilter = HistoryFilter(), val ent
         else copy(filter = activeFilter, loading = true, loadingMore = false, failed = false)
 }
 
+interface HistoryPageSource {
+    fun observeCounts(query: BoundQuery): Flow<HistoryCounts>
+    suspend fun overview(filter: HistoryFilter, rowLimit: Int): HistoryOverview
+    suspend fun summaries(query: BoundQuery): List<HistorySummary>
+}
+
 /** Keyset pages contain card fields only. Raw payloads are fetched only when a card is opened. */
 @OptIn(ExperimentalCoroutinesApi::class)
-class HistoryPager(private val dao: ScanDao, private val scope: CoroutineScope) {
+class HistoryPager(private val source: HistoryPageSource, private val scope: CoroutineScope) {
     private data class Request(val filter: HistoryFilter, val revision: Long = 0)
     private val request = MutableStateFlow(Request(HistoryFilter()))
     private val mutableState = MutableStateFlow(HistoryPageState())
@@ -30,7 +36,7 @@ class HistoryPager(private val dao: ScanDao, private val scope: CoroutineScope) 
     init {
         scope.launch {
             request.flatMapLatest { req ->
-                dao.observeCounts(HistoryQueries(req.filter).counts()).map { req to it }
+                source.observeCounts(HistoryQueries(req.filter).counts()).map { req to it }
                     .catch { error ->
                         if (error is CancellationException) throw error
                         if (request.value == req) mutableState.value = mutableState.value.copy(loading = false, loadingMore = false, failed = true)
@@ -42,7 +48,7 @@ class HistoryPager(private val dao: ScanDao, private val scope: CoroutineScope) 
                 val rowLimit = if (previous.displayedFilter == req.filter) maxOf(50, previous.entries.size) else 50
                 mutableState.value = previous.copy(filter = req.filter, loading = true, loadingMore = false, failed = false)
                 try {
-                    val overview = dao.overview(req.filter, rowLimit)
+                    val overview = source.overview(req.filter, rowLimit)
                     if (generation == currentGeneration && request.value == req) {
                         mutableState.value = HistoryPageState(req.filter, overview.rows, overview.counts.total,
                             overview.counts.matching, loading = false, amount = overview.amount)
@@ -76,7 +82,7 @@ class HistoryPager(private val dao: ScanDao, private val scope: CoroutineScope) 
         mutableState.value = current.copy(loadingMore = true)
         scope.launch {
             try {
-                val rows = dao.summaries(HistoryQueries(current.filter).page(HistoryCursor(last.scannedAt, last.id)))
+                val rows = source.summaries(HistoryQueries(current.filter).page(HistoryCursor(last.scannedAt, last.id)))
                 if (generation == currentGeneration && request.value == req) {
                     mutableState.value = current.copy(entries = current.entries + rows,
                         matching = if (rows.isEmpty()) current.entries.size else current.matching)

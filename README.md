@@ -12,7 +12,7 @@ Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL)
 
 - Read invoice QR codes with the camera, choose images and PDFs together through the same import button, receive images and PDFs shared by other apps, or paste Base64 manually. A single image opens its result; multiple files are saved automatically with an import summary. Each PDF is scanned for all distinct invoice QR codes across its pages.
 - Batch imports show the current file and PDF page. Cancelling keeps completed files in history and leaves the unfinished file unsaved; each file is saved in one database transaction.
-- Use ZXing by default, or download the optional Google ML Kit scanning component.
+- Scan offline with ZXing-C++.
 - Scan individual invoices or enable continuous scanning with a session counter and result notifications.
 - View seller, VAT number, timestamp, total including VAT, tax, and phase-two fields when present.
 - See separate result levels for QR structure, core fields, phase-two fields, cryptographic authenticity and official acceptance. Expand advanced fields, check details, and the original QR content when needed.
@@ -22,20 +22,9 @@ Requires **Android 8.0 (API 26)** or later. Supports English (LTR), Arabic (RTL)
 - Use all invoice features for free, without ads or an account.
 
 
-## Offline scanning and engine downloads
+## Offline scanning
 
-Both scanning engines process invoice images on the device:
-
-| Engine | Availability | Setup |
-|---|---|---|
-| ZXing | Included and selected by default | Works offline immediately |
-| Google ML Kit | Optional component managed by Google Play services | May require an internet connection to download before use; scanning works offline afterward |
-
-The current ML Kit dependency is `com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1`. Its model is **not bundled in the APK**. Settings check whether the component is already available and show a download button when needed, with progress, paused, installation, failure, and retry states. ML Kit cannot be selected until availability is confirmed. If a previously selected ML Kit component becomes unavailable, scanning uses ZXing temporarily.
-
-The component can already be available through Google Play services, including from another app. Reinstalling this app does not guarantee that another download will be necessary. The radio buttons indicate the selected engine; component availability is separate from selection.
-
-Engine preferences are stored in DataStore and apply to both camera and gallery scanning. ZXing-specific options appear only when ZXing is selected. Resolution, torch, tap-to-focus, and zoom controls are shared. **Crop scan area**, below **Scan frequency**, is enabled by default and restricts both engines to the visible square. Turning it off hides the square and shading and scans the whole visible camera preview. The choice is saved across restarts and does not affect gallery images. ML Kit receives an NV21 image of the selected area with the frame rotation and plane stride taken into account.
+ZXing-C++ processes images on the device. **Crop scan area**, below **Scan frequency**, is enabled by default and restricts scanning to the visible square. Turning it off hides the square and shading and scans the full camera preview. The choice is saved across restarts and applies to the camera.
 
 ## Results, history, and export
 
@@ -126,18 +115,14 @@ Do not include both dependencies: they contain duplicate classes and native libr
 ```text
 app/src/main/java/com/poetscorner/invoiceqr/
   MainActivity.kt
-  domain/ZatcaParser.kt                    # Base64, TLV, invoice fields and checks
   scanner/QrScanner.kt                     # ZXing options, gallery decoding and EXIF
-  scanner/QrDecoder.kt                     # Camera/gallery adapters for both engines
-  scanner/GoogleMlKitModuleInstaller.kt    # Google Play services module installation
-  scanner/MlKitModuleController.kt         # Availability and download state
+  scanner/QrDecoder.kt                     # ZXing camera and gallery adapter
   data/LocalData.kt                        # Room and settings DataStore
   data/HistoryExporter.kt                  # Streaming history CSV export
   data/ReviewRepository.kt                 # Local usage and one-time review eligibility
   ui/ScannerViewModel.kt                   # App state and background operations
   ui/CameraScanner.kt                      # CameraX, permission and camera controls
   ui/ScannerApp.kt                         # Navigation, results and settings
-  ui/ScanEnginePicker.kt                   # Engine selection and download controls
   ui/HistoryScreen.kt                      # Search, summary and paged history
   ui/theme/                               # Material 3 colors, shapes and typography
 ```
@@ -175,11 +160,11 @@ The app makes at most one automatic Google Play review attempt after all three c
 Run the local checks:
 
 ```powershell
-./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest
+./gradlew.bat :shared:testAndroidHostTest :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest
 python tools/check_localization.py
 ```
 
-Unit coverage includes parsing, dates, Base64/TLV edge cases, scanning gates, search/export rules, review eligibility, and ML Kit availability/download states. Device tests cover navigation, history paging, continuous scanning, localization, and engine selection. A built device-test APK does not mean those tests have run on a device.
+Unit coverage includes parsing, dates, Base64/TLV edge cases, scanning gates, search/export rules, and review eligibility. Device tests cover navigation, history paging, continuous scanning, and localization. A built device-test APK does not mean those tests have run on a device.
 
 To run device tests in a separate `.validation` app without replacing the normal installation:
 
@@ -197,14 +182,12 @@ To run only localization tests, add:
 
 Measured history performance and the associated device-test scope are documented in [docs/history-performance.md (Arabic)](docs/history-performance.md). Compose Foundation is pinned to `1.9.2` to keep compile/runtime APIs aligned after a previous `FlowRow` ABI mismatch.
 
-Before distribution, check real camera behavior, printed and screen-displayed QR codes, orientation changes, large fonts, both languages/themes, permission denial, torch/zoom, gallery input, export files, and real ML Kit downloads. A live ML Kit download is not established by the simulated-state tests.
+Before distribution, check real camera behavior, printed and screen-displayed QR codes, orientation changes, large fonts, both languages/themes, permission denial, torch/zoom, gallery input, and export files.
 
 ## References
 
 - [Official zxing-cpp Android wrapper](https://github.com/zxing-cpp/zxing-cpp/tree/v3.1.1/wrappers/android)
 - [Official BarcodeReader options](https://github.com/zxing-cpp/zxing-cpp/blob/v3.1.1/wrappers/android/zxingcpp/src/main/java/zxingcpp/BarcodeReader.kt)
-- [Google ML Kit barcode scanning](https://developers.google.com/ml-kit/vision/barcode-scanning/android)
-- [ML Kit model installation paths](https://developers.google.com/ml-kit/tips/installation-paths)
 - [Android per-app languages](https://developer.android.com/guide/topics/resources/app-languages)
 - [Reference project: hid-barcode-scanner](https://github.com/Fabi019/hid-barcode-scanner)
 - [ZATCA QR code specification](https://zatca.gov.sa/ar/E-Invoicing/SystemsDevelopers/Documents/QRCodeCreation.pdf)

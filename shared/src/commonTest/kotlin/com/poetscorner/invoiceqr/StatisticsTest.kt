@@ -1,15 +1,14 @@
 package com.poetscorner.invoiceqr
 
 import com.poetscorner.invoiceqr.data.*
-import org.junit.Assert.*
-import org.junit.Test
-import java.math.BigDecimal
-import java.time.LocalDate
+import kotlin.test.*
+import com.poetscorner.invoiceqr.domain.ExactAmount
+import kotlinx.datetime.LocalDate
 
 class StatisticsTest {
     private fun row(id: Long = 1, seller: String = "Seller", vat: String = "3001", date: String? = "2026-01-01",
         total: String = "115.00", tax: String = "15.00") = StatisticsInvoice(id, seller, vat,
-        date?.let { LocalDate.parse(it).toEpochDay() }, total, tax)
+        date?.let { LocalDate.parse(it).toEpochDays() }, total, tax)
     private fun calculate(request: StatisticsRequest = StatisticsRequest(), vararg rows: StatisticsInvoice): StatisticsResult =
         StatisticsAccumulator(request).apply { rows.forEach(::add) }.finish()
 
@@ -17,8 +16,8 @@ class StatisticsTest {
         val invoice = row(total = "0.10", tax = "0.01")
         val result = calculate(StatisticsRequest(), invoice, invoice, row(total = "0.20", tax = "0.02"))
         assertEquals(3, result.summary.count)
-        assertEquals(BigDecimal("0.40"), result.summary.total)
-        assertEquals(BigDecimal("0.04"), result.summary.tax)
+        assertEquals("0.40", result.summary.total.toPlainString())
+        assertEquals("0.04", result.summary.tax.toPlainString())
         assertEquals(result.summary, result.groups.single().totals)
     }
 
@@ -26,8 +25,8 @@ class StatisticsTest {
         val result = calculate(StatisticsRequest(), row(total = "bad", tax = "15"), row(total = "100", tax = ""),
             row(total = "-1", tax = "1.234"), row(total = "1e2", tax = "NaN"))
         assertEquals(4, result.summary.count)
-        assertEquals(BigDecimal("100.00"), result.summary.total)
-        assertEquals(BigDecimal("15.00"), result.summary.tax)
+        assertEquals("100.00", result.summary.total.toPlainString())
+        assertEquals("15.00", result.summary.tax.toPlainString())
         assertEquals(3, result.summary.missingTotal)
         assertEquals(3, result.summary.missingTax)
     }
@@ -48,7 +47,7 @@ class StatisticsTest {
             row().copy(category = 2), row().copy(category = 1), row().copy(category = 2), row()).groups
         assertEquals(listOf("0", "1", "2"), groups.map { it.key.text })
         assertEquals(listOf(1, 1, 2), groups.map { it.totals.count })
-        assertEquals(BigDecimal("230.00"), groups.last().totals.total)
+        assertEquals("230.00", groups.last().totals.total.toPlainString())
         val selected = StatisticsSelection(StatisticsRequest(grouping = StatisticsGrouping.CATEGORY), StatisticsKey(text = "2"))
         assertTrue(selected.matches("Seller", "3001", null, category = 2))
         assertFalse(selected.matches("Seller", "3001", null, category = 1))
@@ -68,25 +67,25 @@ class StatisticsTest {
             assertTrue(request.copy(grouping = grouping).categoryCalculationActive)
             assertEquals(4, result.summary.count)
             assertEquals(2, result.summary.ignoredCount)
-            assertEquals(BigDecimal("60.00"), result.summary.total)
-            assertEquals(BigDecimal("9.00"), result.summary.tax)
+            assertEquals("60.00", result.summary.total.toPlainString())
+            assertEquals("9.00", result.summary.tax.toPlainString())
             assertEquals(0, result.summary.missingTotal)
             assertEquals(0, result.summary.missingTax)
             assertEquals(result.summary.count, result.groups.sumOf { it.totals.count })
-            assertEquals(result.summary.total, result.groups.fold(BigDecimal.ZERO) { sum, group -> sum + group.totals.total })
-            assertEquals(result.summary.tax, result.groups.fold(BigDecimal.ZERO) { sum, group -> sum + group.totals.tax })
+            assertEquals(result.summary.total, result.groups.fold(ExactAmount.ZERO) { sum, group -> sum + group.totals.total })
+            assertEquals(result.summary.tax, result.groups.fold(ExactAmount.ZERO) { sum, group -> sum + group.totals.tax })
         }
         val byCategory = request.copy(grouping = StatisticsGrouping.CATEGORY)
         assertFalse(byCategory.categoryCalculationActive)
         val raw = calculate(byCategory, *rows)
         assertEquals(4, raw.summary.count)
         assertEquals(0, raw.summary.ignoredCount)
-        assertEquals(BigDecimal("640.00"), raw.summary.total)
-        assertEquals(BigDecimal("96.00"), raw.summary.tax)
+        assertEquals("640.00", raw.summary.total.toPlainString())
+        assertEquals("96.00", raw.summary.tax.toPlainString())
         assertEquals(1, raw.summary.missingTotal)
         assertEquals(1, raw.summary.missingTax)
-        assertEquals(BigDecimal("40.00"), raw.groups.single { it.key.text == "2" }.totals.total)
-        assertEquals(BigDecimal("500.00"), raw.groups.single { it.key.text == "3" }.totals.total)
+        assertEquals("40.00", raw.groups.single { it.key.text == "2" }.totals.total.toPlainString())
+        assertEquals("500.00", raw.groups.single { it.key.text == "3" }.totals.total.toPlainString())
         assertEquals(request.categoryCalculations, byCategory.categoryCalculations)
         assertEquals(StatisticsCategoryCalculation.ADD, request.calculationFor(1))
         assertTrue(request.withCategoryCalculation(2, StatisticsCategoryCalculation.ADD)
@@ -107,11 +106,11 @@ class StatisticsTest {
         assertEquals(calculate(request, *rows).summary, breakdown.net)
         assertEquals(raw.summary, breakdown.original)
         assertEquals(listOf(1, 2, 3), breakdown.categories.map { it.category })
-        assertEquals(BigDecimal("-40.00"), breakdown.categories[1].contribution.total)
-        assertEquals(BigDecimal("-8.00"), breakdown.categories[1].contribution.tax)
+        assertEquals("-40.00", breakdown.categories[1].contribution.total.toPlainString())
+        assertEquals("-8.00", breakdown.categories[1].contribution.tax.toPlainString())
         assertEquals(1, breakdown.categories[1].contribution.missingTotal)
-        assertEquals(BigDecimal("25.00"), breakdown.categories[2].original.total)
-        assertEquals(BigDecimal("0.00"), breakdown.categories[2].contribution.total)
+        assertEquals("25.00", breakdown.categories[2].original.total.toPlainString())
+        assertEquals("0.00", breakdown.categories[2].contribution.total.toPlainString())
         assertEquals(1, breakdown.categories[2].contribution.ignoredCount)
     }
 
@@ -128,11 +127,11 @@ class StatisticsTest {
         )
         for ((grouping, counts) in expected) {
             val result = calculate(StatisticsRequest(grouping = grouping), *rows)
-            assertEquals(grouping.name, counts, result.groups.map { it.totals.count })
+            assertEquals(counts, result.groups.map { it.totals.count }, grouping.name)
             assertEquals(8, result.summary.count)
         }
         val quarter = calculate(StatisticsRequest(grouping = StatisticsGrouping.QUARTER), *rows).groups[2]
-        assertEquals(LocalDate.of(2026, 4, 1).toEpochDay(), quarter.key.periodStart)
+        assertEquals(LocalDate(2026, 4, 1).toEpochDays(), quarter.key.periodStart)
     }
 
     @Test fun unknownDatesRemainGroupedAndAllSortsWorkInBothDirections() {
@@ -144,8 +143,8 @@ class StatisticsTest {
             row(seller = "B", total = "10", tax = "2"), row(seller = "B", total = "10", tax = "2"))
         for (sort in StatisticsSort.entries) for (descending in listOf(false, true)) {
             val result = calculate(StatisticsRequest(sort = sort, descending = descending), *rows)
-            assertEquals("$sort $descending", if (descending) listOf("B", "A") else listOf("A", "B"),
-                result.groups.map { it.key.text })
+            assertEquals(if (descending) listOf("B", "A") else listOf("A", "B"),
+                result.groups.map { it.key.text }, "$sort $descending")
         }
     }
 
@@ -153,7 +152,7 @@ class StatisticsTest {
         val result = calculate()
         assertEquals(0, result.summary.count)
         assertTrue(result.groups.isEmpty())
-        assertEquals(BigDecimal("0.00"), result.summary.total)
+        assertEquals("0.00", result.summary.total.toPlainString())
     }
 
     @Test fun dateShortcutsUseFullGregorianPeriodsAndPreserveOtherFilters() {
@@ -170,8 +169,8 @@ class StatisticsTest {
         )
         for ((preset, today, expected) in examples) {
             val result = request.withPeriod(preset, LocalDate.parse(today))
-            assertEquals(LocalDate.parse(expected.first).toEpochDay(), result.fromDay)
-            assertEquals(LocalDate.parse(expected.second).toEpochDay(), result.toDay)
+            assertEquals(LocalDate.parse(expected.first).toEpochDays(), result.fromDay)
+            assertEquals(LocalDate.parse(expected.second).toEpochDays(), result.toDay)
             assertEquals(preset, result.datePreset)
             assertEquals(request, result.copy(fromDay = null, toDay = null, datePreset = null))
         }
@@ -182,7 +181,7 @@ class StatisticsTest {
         assertTrue(seller.matches("\u00a0Market\t", "3001", null))
         assertFalse(seller.matches("Market Branch", "3001", null))
         assertFalse(seller.matches("Market", "4001", null))
-        val start = LocalDate.of(2026, 4, 1).toEpochDay()
+        val start = LocalDate(2026, 4, 1).toEpochDays()
         val quarter = StatisticsSelection(StatisticsRequest(grouping = StatisticsGrouping.QUARTER,
             fromDay = start + 10, toDay = start + 20), StatisticsKey(periodStart = start))
         assertTrue(quarter.matches("A", "3001", start + 10))
@@ -218,13 +217,13 @@ class StatisticsTest {
 
     @Test fun relativeDatesMoveForwardWhileManualDatesStayFixed() {
         val original = StatisticsRequest(excludedVat = "300000000000001")
-            .withPeriod(StatisticsPreset.THIS_MONTH, LocalDate.of(2026, 12, 15))
-        val moved = original.resolvePeriod(LocalDate.of(2027, 1, 3))
-        assertEquals(LocalDate.of(2027, 1, 1).toEpochDay(), moved.fromDay)
-        assertEquals(LocalDate.of(2027, 1, 31).toEpochDay(), moved.toDay)
+            .withPeriod(StatisticsPreset.THIS_MONTH, LocalDate(2026, 12, 15))
+        val moved = original.resolvePeriod(LocalDate(2027, 1, 3))
+        assertEquals(LocalDate(2027, 1, 1).toEpochDays(), moved.fromDay)
+        assertEquals(LocalDate(2027, 1, 31).toEpochDays(), moved.toDay)
         assertEquals(original.excludedVat, moved.excludedVat)
         val manual = original.copy(datePreset = null)
-        assertEquals(manual, manual.resolvePeriod(LocalDate.of(2027, 1, 3)))
+        assertEquals(manual, manual.resolvePeriod(LocalDate(2027, 1, 3)))
     }
 
     @Test fun switchingVatModeUsesOneNumberAndClearsTheOppositeFilter() {

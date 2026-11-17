@@ -1,9 +1,9 @@
-name: Stage 1 iOS verification
+name: KMP iOS verification
 
 on:
   push:
     branches: [new-kmp-invoiceqr]
-    paths: [.github/workflows/stage-1-ios-verification.yml]
+    paths: [.github/workflows/kmp-ios-verification.yml]
 
 permissions:
   contents: read
@@ -17,7 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: efd825e0af63aa0965dd778bce97c1a385f9934b
           persist-credentials: false
       - name: Check the simulator toolchain
         run: |
@@ -25,9 +24,9 @@ jobs:
           git rev-parse HEAD
           xcodebuild -version
           xcrun simctl list devices available
-      - name: Run stage 1 simulator tests
-        run: bash gradlew --no-daemon --stacktrace :shared:iosSimulatorArm64Test
-      - name: Verify all 23 tests executed
+      - name: Compile the iPhone target and run simulator tests
+        run: bash gradlew --no-daemon --stacktrace :shared:compileKotlinIosArm64 :shared:iosSimulatorArm64Test
+      - name: Verify all 62 tests executed
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -40,5 +39,5 @@ jobs:
               for name in ("tests", "failures", "errors", "skipped")
           }
           print(totals)
-          assert totals == {"tests": 23, "failures": 0, "errors": 0, "skipped": 0}
+          assert totals == {"tests": 62, "failures": 0, "errors": 0, "skipped": 0}
           PY

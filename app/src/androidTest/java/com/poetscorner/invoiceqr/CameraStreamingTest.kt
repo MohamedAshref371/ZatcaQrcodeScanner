@@ -13,7 +13,6 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.data.SettingsRepository
 import kotlinx.coroutines.flow.first
@@ -39,7 +38,7 @@ class CameraStreamingTest {
     @Before fun prepareCameraSettings() = runBlocking {
         val repository = SettingsRepository(compose.activity.applicationContext)
         original = repository.settings.first()
-        repository.save(ScannerSettings(scanEngine = ScanEngine.ZXING, lockPortrait = false))
+        repository.save(ScannerSettings(lockPortrait = false))
     }
 
     @After fun restoreSettings() = runBlocking {

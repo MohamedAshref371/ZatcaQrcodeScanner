@@ -10,15 +10,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
-import java.math.BigDecimal
-
-enum class ScanEngine {
-    ZXING, ML_KIT;
-
-    companion object {
-        fun fromPreference(value: String?): ScanEngine = entries.firstOrNull { it.name == value } ?: ZXING
-    }
-}
 
 @Entity(tableName = "scans", indices = [Index(value = ["payloadKey"], unique = true),
     Index(value = ["scannedAt", "id"]), Index(value = ["invoiceDay", "scannedAt", "id"])])
@@ -64,32 +55,11 @@ interface ScanDao {
     @RawQuery suspend fun amounts(query: SupportSQLiteQuery): List<HistoryAmount>
     /** One snapshot for the count, loaded card range and exact sum; never loads raw QR payloads. */
     @Transaction
-    suspend fun overview(filter: HistoryFilter, rowLimit: Int = 50): HistoryOverview {
-        require(rowLimit > 0)
-        val queries = HistoryQueries(filter)
-        val counts = counts(queries.counts())
-        val rows = mutableListOf<HistorySummary>()
-        while (rows.size < minOf(rowLimit, counts.matching)) {
-            val last = rows.lastOrNull()?.let { HistoryCursor(it.scannedAt, it.id) }
-            val page = summaries(queries.page(last, minOf(500, rowLimit - rows.size)))
-            if (page.isEmpty()) break
-            rows.addAll(page)
-        }
-        var amount = BigDecimal.ZERO.setScale(2)
-        var cursor: HistoryCursor? = null
-        val validAmount = Regex("[0-9]+(\\.[0-9]{1,2})?")
-        while (true) {
-            val batch = amounts(queries.amounts(cursor))
-            if (batch.isEmpty()) break
-            for (row in batch) {
-                if (!validAmount.matches(row.total)) return HistoryOverview(counts, rows, null)
-                amount = amount.add(BigDecimal(row.total))
-            }
-            val last = batch.last()
-            cursor = HistoryCursor(last.scannedAt, last.id)
-        }
-        return HistoryOverview(counts, rows, amount)
-    }
+    suspend fun overview(filter: HistoryFilter, rowLimit: Int = 50): HistoryOverview =
+        readHistoryOverview(filter, rowLimit,
+            count = { counts(it.sqlite()) },
+            summaries = { summaries(it.sqlite()) },
+            amounts = { amounts(it.sqlite()) })
     @Transaction
     suspend fun saveIfNew(scan: ScanEntity): SavedScan {
         val existing = byPayloadKey(scan.payloadKey)
@@ -145,7 +115,7 @@ abstract class ScanDatabase : RoomDatabase() {
                     for ((id, raw) in rows) {
                         val invoice = ZatcaParser.parse(raw)
                         val day = runCatching {
-                            ZatcaParser.parseTimestamp(invoice.value(3)).toLocalDate().toEpochDay()
+                            ZatcaParser.parseTimestamp(invoice.value(3)).local.date.toEpochDays()
                         }.getOrNull()
                         db.execSQL("UPDATE scans SET passed = ?, invoiceDay = ? WHERE id = ?",
                             arrayOf(if (invoice.passed) 1 else 0, day, id))
@@ -164,7 +134,7 @@ data class ScannerSettings(val harder: Boolean = true, val denoise: Boolean = fa
     val rotate: Boolean = true, val inverted: Boolean = false, val binarizer: String = "LOCAL_AVERAGE",
     val resolution: String = "HD", val speed: String = "NORMAL", val torch: Boolean = false,
     val theme: String = "SYSTEM", val goldenTheme: Boolean = false,
-    val scanEngine: ScanEngine = ScanEngine.ZXING, val cropEnabled: Boolean = true,
+    val cropEnabled: Boolean = true,
     val appTheme: String = if (goldenTheme) "GOLD" else "DEFAULT",
     val lockPortrait: Boolean = false, val multiFrameRecovery: Boolean = false) {
     val intervalMs get() = when (speed) { "FAST" -> 100L; "FASTEST" -> 50L; else -> 300L }
@@ -178,7 +148,6 @@ class SettingsRepository(private val context: Context) {
             p[stringPreferencesKey("speed")] ?: "NORMAL", p[booleanPreferencesKey("torch")] ?: false,
             p[stringPreferencesKey("theme")] ?: "SYSTEM",
             p[booleanPreferencesKey("goldenTheme")] ?: false,
-            ScanEngine.fromPreference(p[stringPreferencesKey("scan_engine")]),
             p[booleanPreferencesKey("crop_enabled")] ?: true,
             p[stringPreferencesKey("app_theme")] ?: p[stringPreferencesKey("supporter_theme")]
                 ?: if (p[booleanPreferencesKey("goldenTheme")] == true) "GOLD" else "DEFAULT",
@@ -192,7 +161,7 @@ class SettingsRepository(private val context: Context) {
             "lock_portrait" to s.lockPortrait, "multi_frame_recovery" to s.multiFrameRecovery)
             .forEach { (k,v) -> p[booleanPreferencesKey(k)] = v }
         mapOf("binarizer" to s.binarizer, "resolution" to s.resolution, "speed" to s.speed, "theme" to s.theme,
-            "scan_engine" to s.scanEngine.name, "app_theme" to s.appTheme)
+            "app_theme" to s.appTheme)
             .forEach { (k,v) -> p[stringPreferencesKey(k)] = v }
         p.remove(stringPreferencesKey("supporter_theme"))
     } }

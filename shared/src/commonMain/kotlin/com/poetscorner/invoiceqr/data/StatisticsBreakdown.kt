@@ -1,9 +1,6 @@
 package com.poetscorner.invoiceqr.data
 
-import androidx.room.withTransaction
-import java.math.BigDecimal
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
+import com.poetscorner.invoiceqr.domain.ExactAmount
 
 data class StatisticsCategoryContribution(val category: Int, val calculation: StatisticsCategoryCalculation,
     val original: StatisticsTotals, val contribution: StatisticsTotals)
@@ -16,9 +13,9 @@ data class StatisticsGroupBreakdownState(val selection: StatisticsSelection? = n
 
 private fun StatisticsTotals.contribution(calculation: StatisticsCategoryCalculation): StatisticsTotals = when (calculation) {
     StatisticsCategoryCalculation.ADD -> this
-    StatisticsCategoryCalculation.SUBTRACT -> copy(total = total.negate(), tax = tax.negate())
-    StatisticsCategoryCalculation.IGNORE -> copy(total = BigDecimal.ZERO.setScale(2),
-        tax = BigDecimal.ZERO.setScale(2), missingTotal = 0, missingTax = 0, ignoredCount = count)
+    StatisticsCategoryCalculation.SUBTRACT -> copy(total = -total, tax = -tax)
+    StatisticsCategoryCalculation.IGNORE -> copy(total = ExactAmount.ZERO,
+        tax = ExactAmount.ZERO, missingTotal = 0, missingTax = 0, ignoredCount = count)
 }
 
 private operator fun StatisticsTotals.plus(other: StatisticsTotals): StatisticsTotals = copy(
@@ -26,7 +23,7 @@ private operator fun StatisticsTotals.plus(other: StatisticsTotals): StatisticsT
     missingTotal = missingTotal + other.missingTotal, missingTax = missingTax + other.missingTax,
     ignoredCount = ignoredCount + other.ignoredCount)
 
-internal fun StatisticsResult.toBreakdown(request: StatisticsRequest): StatisticsGroupBreakdown {
+fun StatisticsResult.toBreakdown(request: StatisticsRequest): StatisticsGroupBreakdown {
     require(request.categoryCalculationActive)
     val categories = groups.map { group ->
         val category = group.key.text?.toIntOrNull() ?: InvoiceCategories.NONE
@@ -38,20 +35,4 @@ internal fun StatisticsResult.toBreakdown(request: StatisticsRequest): Statistic
     } })
     return StatisticsGroupBreakdown(summary,
         categories.fold(StatisticsTotals()) { sum, category -> sum + category.contribution }, categories)
-}
-
-/** Reads only the selected group, using the same filters and amount parser as the overview. */
-internal suspend fun ScanDatabase.statisticsBreakdown(selection: StatisticsSelection): StatisticsGroupBreakdown = withTransaction {
-    require(selection.request.categoryCalculationActive)
-    val originalRequest = selection.request.copy(grouping = StatisticsGrouping.CATEGORY)
-    val accumulator = StatisticsAccumulator(originalRequest)
-    var afterId = 0L
-    while (true) {
-        currentCoroutineContext().ensureActive()
-        val page = scans().statisticsRows(statisticsQuery(selection.request, afterId, selection.key))
-        if (page.isEmpty()) break
-        page.forEach(accumulator::add)
-        afterId = page.last().id
-    }
-    accumulator.finish().toBreakdown(selection.request)
 }

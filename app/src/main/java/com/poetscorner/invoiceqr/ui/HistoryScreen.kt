@@ -34,6 +34,7 @@ import com.poetscorner.invoiceqr.data.HistoryDeletionPeriod
 import com.poetscorner.invoiceqr.data.HistoryDeletionPlan
 import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.InvoiceCategories
+import com.poetscorner.invoiceqr.data.label
 import com.poetscorner.invoiceqr.data.StatisticsSelection
 import com.poetscorner.invoiceqr.data.StatisticsGroupBreakdownState
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -94,13 +95,14 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
         }
         if (showGroupBreakdown) item(key = "statistics_breakdown") {
             val current = groupBreakdown?.takeIf { it.selection == groupSelection }
+            val breakdown = current?.result
             when {
                 current == null || current.loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
                 current.failed -> {
                     Text(stringResource(R.string.history_load_error))
                     TextButton(onClick = onBreakdownRetry) { Text(stringResource(R.string.history_retry)) }
                 }
-                current.result != null -> StatisticsBreakdownCard(current.result)
+                breakdown != null -> StatisticsBreakdownCard(breakdown)
             }
         }
         if (groupTitle == null) item {
@@ -153,7 +155,7 @@ internal fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (Str
                         countFormat.format(state.matching)),
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                     Text(stringResource(if (filtered) R.string.history_summary_result_total else R.string.history_summary_total,
-                        state.amount?.let { amountFormat.format(it) } ?: stringResource(R.string.history_total_unavailable)),
+                        state.amount?.let { amountFormat.format(it.toPlainString().toBigDecimal()) } ?: stringResource(R.string.history_total_unavailable)),
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 }
             }

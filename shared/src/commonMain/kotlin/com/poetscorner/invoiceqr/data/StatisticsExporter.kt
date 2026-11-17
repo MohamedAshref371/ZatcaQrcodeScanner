@@ -1,12 +1,17 @@
 package com.poetscorner.invoiceqr.data
 
-import java.io.Writer
+import kotlinx.io.Sink
+import kotlinx.io.writeString
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
 object StatisticsExporter {
+    suspend fun write(sink: Sink, result: StatisticsResult, headers: List<String>, summaryTitle: String,
+        title: (StatisticsKey) -> String) =
+        write({ sink.writeString(it) }, result, headers, summaryTitle, title)
+
     /** Export the displayed snapshot in its current order, with machine-readable exact amounts. */
-    suspend fun write(writer: Writer, result: StatisticsResult, headers: List<String>, summaryTitle: String,
+    suspend fun write(write: (String) -> Unit, result: StatisticsResult, headers: List<String>, summaryTitle: String,
         title: (StatisticsKey) -> String) {
         require(headers.size == 6)
         val columns = buildList {
@@ -19,13 +24,13 @@ object StatisticsExporter {
             return "\"${safe.replace("\"", "\"\"")}\""
         }
         fun line(values: List<String>) {
-            writer.write(columns.joinToString(",", postfix = "\r\n") { quote(values[it]) })
+            write(columns.joinToString(",", postfix = "\r\n") { quote(values[it]) })
         }
         fun row(label: String, totals: StatisticsTotals) = line(listOf(label, totals.count.toString(),
             if (totals.count > totals.ignoredCount && totals.count - totals.ignoredCount == totals.missingTotal) "" else totals.total.toPlainString(),
             if (totals.count > totals.ignoredCount && totals.count - totals.ignoredCount == totals.missingTax) "" else totals.tax.toPlainString(),
             totals.missingTotal.toString(), totals.missingTax.toString()))
-        writer.write("\uFEFF")
+        write("\uFEFF")
         line(headers)
         for (group in result.groups) {
             currentCoroutineContext().ensureActive()

@@ -3,16 +3,15 @@ package com.poetscorner.invoiceqr
 import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.HistoryPageState
 import com.poetscorner.invoiceqr.data.HistorySummary
-import org.junit.Assert.*
-import org.junit.Test
-import java.math.BigDecimal
+import kotlin.test.*
+import com.poetscorner.invoiceqr.domain.ExactAmount
 
 class HistoryDisplayTest {
     @Test fun newSearchKeepsCardsAndSummaryBeforeThePagerReceivesTheFilter() {
         val oldFilter = HistoryFilter("previous")
         val ready = HistoryPageState(filter = oldFilter,
             entries = listOf(HistorySummary(1, "Previous seller", "3001", "115.00", 1, true, 1)),
-            total = 100, matching = 1, loading = false, amount = BigDecimal("115.00"))
+            total = 100, matching = 1, loading = false, amount = ExactAmount.parseInvoiceAmount("115.00"))
         val pending = ready.forDisplay(HistoryFilter("next"))
         assertSame(ready.entries, pending.entries)
         assertEquals(ready.amount, pending.amount)

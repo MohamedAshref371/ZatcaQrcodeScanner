@@ -14,9 +14,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.data.ScannerSettings
-import com.poetscorner.invoiceqr.scanner.decoder
+import com.poetscorner.invoiceqr.scanner.ZxingDecoder
 import com.poetscorner.invoiceqr.scanner.invoicesInPdf
 import com.poetscorner.invoiceqr.ui.ImageImportPhase
 import com.poetscorner.invoiceqr.ui.ScannerViewModel
@@ -125,7 +124,7 @@ class PdfInvoiceImportTest {
             val visited = mutableListOf<Int>()
             val pages = mutableListOf<Pair<Int, Int>>()
             val settings = ScannerSettings()
-            val result = ScanEngine.ZXING.decoder().use { decoder ->
+            val result = ZxingDecoder().use { decoder ->
                 invoicesInPdf(app, Uri.fromFile(pdf), onPage = { page, total -> pages += page to total }) { bitmap ->
                     visited += bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
                     decoder.readAll(bitmap, settings)
@@ -163,7 +162,7 @@ class PdfInvoiceImportTest {
         val pdf = pdfWithTwoCodesOnOnePage()
         try {
             val settings = ScannerSettings()
-            val result = ScanEngine.ZXING.decoder().use { decoder ->
+            val result = ZxingDecoder().use { decoder ->
                 invoicesInPdf(app, Uri.fromFile(pdf)) { decoder.readAll(it, settings) }
             }
             assertEquals("Store", result.single().value(1))

@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.selected
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.*
 import java.text.NumberFormat
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -332,8 +333,8 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Mo
                     color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
             }
             val contributingCount = totals.count - totals.ignoredCount
-            val total = if (contributingCount > 0 && totals.missingTotal == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.total)
-            val tax = if (contributingCount > 0 && totals.missingTax == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.tax)
+            val total = if (contributingCount > 0 && totals.missingTotal == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.total.toPlainString().toBigDecimal())
+            val tax = if (contributingCount > 0 && totals.missingTax == contributingCount) stringResource(R.string.history_total_unavailable) else money.format(totals.tax.toPlainString().toBigDecimal())
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -420,7 +421,7 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
                     ExposedDropdownMenu(expanded = shortcutsExpanded, onDismissRequest = { shortcutsExpanded = false }) {
                         StatisticsPreset.entries.forEach { preset ->
                             DropdownMenuItem(text = { Text(stringResource(preset.label())) }, onClick = {
-                                val period = request.withPeriod(preset, today)
+                                val period = request.withPeriod(preset, today.toKotlinLocalDate())
                                 datePreset = period.datePreset
                                 from = period.fromDay; to = period.toDay
                                 shortcutsExpanded = false

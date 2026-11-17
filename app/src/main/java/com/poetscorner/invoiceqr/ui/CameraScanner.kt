@@ -54,7 +54,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.domain.ZatcaParser
 import com.poetscorner.invoiceqr.scanner.AndroidZxingQrReader
@@ -63,7 +62,7 @@ import com.poetscorner.invoiceqr.scanner.QrDeliveryGate
 import com.poetscorner.invoiceqr.scanner.QrFormat
 import com.poetscorner.invoiceqr.scanner.QrReadError
 import com.poetscorner.invoiceqr.scanner.ScanWindow
-import com.poetscorner.invoiceqr.scanner.decoder
+import com.poetscorner.invoiceqr.scanner.ZxingDecoder
 import com.poetscorner.invoiceqr.scanner.previewCropInBuffer
 import com.poetscorner.invoiceqr.scanner.qrReadOptions
 import com.poetscorner.invoiceqr.scanner.scanGuideWindow
@@ -148,9 +147,9 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
     val scope = rememberCoroutineScope()
     val deliveryGate by rememberUpdatedState(remember(continuous) { QrDeliveryGate(continuous) })
     // Switching scan mode updates delivery rules without rebinding the camera.
-    DisposableEffect(owner, settings.resolution, settings.scanEngine) {
+    DisposableEffect(owner, settings.resolution) {
         val executor = Executors.newSingleThreadExecutor()
-        val decoder = settings.scanEngine.decoder()
+        val decoder = ZxingDecoder()
         val recovery = MultiFrameQrRecovery()
         val providerFuture = ProcessCameraProvider.getInstance(context)
         val delivered = AtomicBoolean(false)
@@ -200,8 +199,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
                             } ?: return@setAnalyzer
                             val cropFinished = if (cropStarted != 0L) SystemClock.elapsedRealtimeNanos() else 0L
                             image.setCropRect(crop)
-                            val result = if (currentSettings.multiFrameRecovery &&
-                                currentSettings.scanEngine == ScanEngine.ZXING) {
+                            val result = if (currentSettings.multiFrameRecovery) {
                                 val observed = AndroidZxingQrReader.read(image,
                                     currentSettings.qrReadOptions(maxSymbols = 3, returnErrors = true))
                                     .filter { it.format == QrFormat.QR_CODE || it.format == QrFormat.MODEL_2 }

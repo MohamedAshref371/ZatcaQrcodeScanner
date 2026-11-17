@@ -21,12 +21,19 @@ kotlin {
     iosSimulatorArm64()
 
     sourceSets {
+        commonMain.dependencies {
+            api(libs.kotlinx.datetime)
+            api(libs.kotlinx.coroutines.core)
+            api(libs.kotlinx.io.core)
+            implementation(libs.kotlinx.serialization.json)
+        }
         androidMain.dependencies {
             implementation(libs.androidx.camera.core)
             implementation(libs.zxing.android)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

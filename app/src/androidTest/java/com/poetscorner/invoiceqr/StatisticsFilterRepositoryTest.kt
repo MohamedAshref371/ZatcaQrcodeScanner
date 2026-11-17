@@ -9,6 +9,7 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.LocalDate
 
 @RunWith(AndroidJUnit4::class)
@@ -24,7 +25,7 @@ class StatisticsFilterRepositoryTest {
 
     @Test fun savesEveryFilterAndRestoresRelativeIntentInANewRepository() {
         val request = StatisticsRequest(seller = "Market", vat = "300", excludedVat = "٣٠٠٠٠٠٠٠٠٠٠٠٠٠١")
-            .withPeriod(StatisticsPreset.LAST_QUARTER, LocalDate.of(2026, 12, 20))
+            .withPeriod(StatisticsPreset.LAST_QUARTER, LocalDate.of(2026, 12, 20).toKotlinLocalDate())
         StatisticsFilterRepository(preferences).save(request)
         assertTrue(StatisticsFilterRepository(preferences).hasSavedFilters)
         assertTrue(preferences.edit().commit())

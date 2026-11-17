@@ -7,6 +7,7 @@ import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.poetscorner.invoiceqr.domain.ZatcaParser
+import com.poetscorner.invoiceqr.domain.asUiText
 import com.poetscorner.invoiceqr.ui.text.UiText
 import java.util.Locale
 import org.junit.Assert.*
@@ -39,8 +40,8 @@ class LocalizationTest {
         assertEquals("Seller name is present", check.resolve(context("en")))
         assertEquals("وجود اسم البائع", check.resolve(context("ar")))
         val bad = ZatcaParser.parse("https://example.org")
-        assertEquals(context("en").getString(R.string.error_base64), bad.error!!.resolve(context("en")))
-        assertEquals(context("ar").getString(R.string.error_base64), bad.error!!.resolve(context("ar")))
+        assertEquals(context("en").getString(R.string.error_base64), bad.error!!.asUiText().resolve(context("en")))
+        assertEquals(context("ar").getString(R.string.error_base64), bad.error!!.asUiText().resolve(context("ar")))
         val formatted = UiText(R.string.error_tag_duplicate, 6)
         assertTrue(formatted.resolve(context("en")).contains("6"))
     }

@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.poetscorner.invoiceqr.R
 import com.poetscorner.invoiceqr.data.InvoiceCategories
+import com.poetscorner.invoiceqr.data.label
 import com.poetscorner.invoiceqr.data.StatisticsCategoryCalculation
 import com.poetscorner.invoiceqr.data.StatisticsGroupBreakdown
 import com.poetscorner.invoiceqr.data.StatisticsTotals
@@ -29,7 +30,7 @@ internal fun StatisticsBreakdownCard(breakdown: StatisticsGroupBreakdown) {
         val missing = if (tax) totals.missingTax else totals.missingTotal
         val contributing = totals.count - totals.ignoredCount
         if (contributing > 0 && missing == contributing) return stringResource(R.string.history_total_unavailable)
-        return money.format(if (tax) totals.tax else totals.total)
+        return money.format((if (tax) totals.tax else totals.total).toPlainString().toBigDecimal())
     }
     @Composable fun amountRow(label: String, original: StatisticsTotals, contribution: StatisticsTotals,
         tax: Boolean, emphasized: Boolean = false) {

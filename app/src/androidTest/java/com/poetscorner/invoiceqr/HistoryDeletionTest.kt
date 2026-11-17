@@ -14,7 +14,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.LocalDate
+import kotlinx.datetime.TimeZone
 import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
@@ -48,7 +50,7 @@ class HistoryDeletionTest {
             db.scans().insert(scan(index + 1L, time))
         }
         val plan = HistoryDeletionPlan.create(HistoryDateSource.SCAN,
-            HistoryDeletionPeriod.THREE_DAYS, today, zone)
+            HistoryDeletionPeriod.THREE_DAYS, today.toKotlinLocalDate(), TimeZone.of(zone.id))
         assertEquals(1, db.scans().deletionCount(plan))
         db.scans().deleteSelection(plan)
         assertEquals(listOf(3L, 2L), db.scans().all().map { it.id })
@@ -61,7 +63,7 @@ class HistoryDeletionTest {
         db.scans().insert(scan(2, 0).copy(details = scan(2, 0).details.copy(invoiceDay = cutoff)))
         db.scans().insert(scan(3, 0))
         val plan = HistoryDeletionPlan.create(HistoryDateSource.INVOICE,
-            HistoryDeletionPeriod.TWO_YEARS, today)
+            HistoryDeletionPeriod.TWO_YEARS, today.toKotlinLocalDate())
         assertEquals(1, db.scans().deletionCount(plan))
         db.scans().deleteSelection(plan)
         assertEquals(listOf(3L, 2L), db.scans().all().map { it.id })

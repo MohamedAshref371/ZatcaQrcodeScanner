@@ -10,7 +10,6 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.math.BigDecimal
 
 @RunWith(AndroidJUnit4::class)
 class StatisticsStorageTest {
@@ -40,8 +39,8 @@ class StatisticsStorageTest {
         db.scans().insert(invalid.copy(details = invalid.details.copy(total = "invalid", tax = "1.00")))
         val result = calculate(StatisticsRequest())
         assertEquals(451, result.summary.count)
-        assertEquals(BigDecimal("51750.00"), result.summary.total)
-        assertEquals(BigDecimal("6751.00"), result.summary.tax)
+        assertEquals("51750.00", result.summary.total.toPlainString())
+        assertEquals("6751.00", result.summary.tax.toPlainString())
         assertEquals(1, result.summary.missingTotal)
         val dates = calculate(StatisticsRequest(grouping = StatisticsGrouping.DAY))
         assertEquals(1, dates.groups.last().totals.count)
@@ -128,14 +127,14 @@ class StatisticsStorageTest {
         val breakdown = db.statisticsBreakdown(StatisticsSelection(request, group.key))
         assertEquals(group.totals, breakdown.net)
         assertEquals(204, breakdown.original.count)
-        assertEquals(BigDecimal("23180.00"), breakdown.original.total)
-        assertEquals(BigDecimal("3027.00"), breakdown.original.tax)
-        assertEquals(BigDecimal("23075.00"), breakdown.net.total)
-        assertEquals(BigDecimal("3007.00"), breakdown.net.tax)
+        assertEquals("23180.00", breakdown.original.total.toPlainString())
+        assertEquals("3027.00", breakdown.original.tax.toPlainString())
+        assertEquals("23075.00", breakdown.net.total.toPlainString())
+        assertEquals("3007.00", breakdown.net.tax.toPlainString())
         assertEquals(1, breakdown.net.ignoredCount)
         assertEquals(1, breakdown.net.missingTotal)
         assertEquals(listOf(1, 2, 3), breakdown.categories.map { it.category })
-        assertEquals(BigDecimal("-40.00"), breakdown.categories[1].contribution.total)
-        assertEquals(BigDecimal("0.00"), breakdown.categories[2].contribution.total)
+        assertEquals("-40.00", breakdown.categories[1].contribution.total.toPlainString())
+        assertEquals("0.00", breakdown.categories[2].contribution.total.toPlainString())
     }
 }

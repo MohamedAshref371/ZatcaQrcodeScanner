@@ -1,10 +1,9 @@
 package com.poetscorner.invoiceqr.data
 
-import androidx.sqlite.db.SimpleSQLiteQuery
-import java.io.Serializable
-import java.math.BigDecimal
-import java.time.LocalDate
-import java.util.Locale
+import com.poetscorner.invoiceqr.domain.ExactAmount
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.datetime.*
 
 enum class StatisticsGrouping { SELLER, VAT, CATEGORY, DAY, MONTH, QUARTER, HALF_YEAR, YEAR }
 enum class StatisticsSort { GROUP, COUNT, TOTAL, TAX }
@@ -19,7 +18,9 @@ data class StatisticsRequest(
     val excludedVat: String = "", val datePreset: StatisticsPreset? = null,
     val vatMode: StatisticsVatMode = if (excludedVat.isNotBlank()) StatisticsVatMode.EXCLUDE else StatisticsVatMode.INCLUDE,
     val categoryCalculations: Map<Int, StatisticsCategoryCalculation> = emptyMap()
-) : Serializable {
+) : SavedStateValue {
+    private companion object { const val serialVersionUID = 3314063135706167752L }
+
     init { require(fromDay == null || toDay == null || fromDay <= toDay) }
     val filtered get() = seller.isNotBlank() || vat.isNotBlank() || excludedVat.isNotBlank() || fromDay != null || toDay != null || datePreset != null
     val categoryCalculationActive get() = grouping != StatisticsGrouping.CATEGORY && categoryCalculations.isNotEmpty()
@@ -35,13 +36,13 @@ fun StatisticsRequest.withCategoryCalculation(category: Int, calculation: Statis
     })
 }
 
-internal fun StatisticsRequest.withVatFilter(mode: StatisticsVatMode, number: String): StatisticsRequest {
+fun StatisticsRequest.withVatFilter(mode: StatisticsVatMode, number: String): StatisticsRequest {
     val normalized = normalizeVatNumber(number)
     return copy(vatMode = mode, vat = if (mode == StatisticsVatMode.INCLUDE) normalized else "",
         excludedVat = if (mode == StatisticsVatMode.EXCLUDE) normalized else "")
 }
 
-internal fun normalizeVatNumber(value: String): String = value.trim().map {
+fun normalizeVatNumber(value: String): String = value.trim().map {
     when (it) {
         in '\u0660'..'\u0669' -> (it - '\u0660').digitToChar()
         in '\u06F0'..'\u06F9' -> (it - '\u06F0').digitToChar()
@@ -49,18 +50,22 @@ internal fun normalizeVatNumber(value: String): String = value.trim().map {
     }
 }.joinToString("")
 
-fun StatisticsRequest.resolvePeriod(today: LocalDate = LocalDate.now()): StatisticsRequest =
+fun StatisticsRequest.resolvePeriod(today: LocalDate = today()): StatisticsRequest =
     datePreset?.let { withPeriod(it, today) } ?: this
 
 data class StatisticsInvoice(val id: Long, val seller: String, val vat: String,
     val invoiceDay: Long?, val total: String, val tax: String, val category: Int = InvoiceCategories.NONE)
-data class StatisticsKey(val text: String? = null, val periodStart: Long? = null) : Serializable {
+data class StatisticsKey(val text: String? = null, val periodStart: Long? = null) : SavedStateValue {
+    private companion object { const val serialVersionUID = -7878493686484506581L }
+
     val unknown get() = text == null && periodStart == null
 }
 
-data class StatisticsSelection(val request: StatisticsRequest, val key: StatisticsKey) : Serializable
+data class StatisticsSelection(val request: StatisticsRequest, val key: StatisticsKey) : SavedStateValue {
+    private companion object { const val serialVersionUID = 4886106675832219751L }
+}
 internal fun StatisticsSelection.matches(seller: String, vat: String, day: Long?, category: Int = InvoiceCategories.NONE): Boolean {
-    val vatTerm = request.vat.trim().map { if (it.isDigit()) Character.digit(it, 10).digitToChar() else it }.joinToString("")
+    val vatTerm = request.vat.trim().normalizeDigits()
     if (!seller.contains(request.seller.trim(), ignoreCase = true) || !vat.contains(vatTerm)) return false
     val excluded = normalizeVatNumber(request.excludedVat)
     if (excluded.isNotEmpty() && normalizeVatNumber(vat).contains(excluded)) return false
@@ -71,39 +76,39 @@ internal fun StatisticsSelection.matches(seller: String, vat: String, day: Long?
         StatisticsGrouping.VAT -> vat.trim().ifEmpty { null } == key.text
         StatisticsGrouping.CATEGORY -> category.toString() == key.text
         else -> if (key.periodStart == null) day == null else day != null &&
-            day >= key.periodStart && day <= request.grouping.periodEnd(LocalDate.ofEpochDay(key.periodStart)).toEpochDay()
+            day >= key.periodStart && day <= request.grouping.periodEnd(dateFromEpochDay(key.periodStart)).toEpochDays()
     }
 }
 enum class StatisticsPreset { THIS_MONTH, LAST_MONTH, THIS_QUARTER, LAST_QUARTER, THIS_YEAR }
 
-fun StatisticsRequest.withPeriod(preset: StatisticsPreset, today: LocalDate = LocalDate.now()): StatisticsRequest {
+fun StatisticsRequest.withPeriod(preset: StatisticsPreset, today: LocalDate = today()): StatisticsRequest {
     val first = when (preset) {
-        StatisticsPreset.THIS_MONTH -> today.withDayOfMonth(1)
-        StatisticsPreset.LAST_MONTH -> today.withDayOfMonth(1).minusMonths(1)
+        StatisticsPreset.THIS_MONTH -> LocalDate(today.year, today.month, 1)
+        StatisticsPreset.LAST_MONTH -> LocalDate(today.year, today.month, 1).minus(1, DateTimeUnit.MONTH)
         StatisticsPreset.THIS_QUARTER, StatisticsPreset.LAST_QUARTER ->
-            LocalDate.of(today.year, (today.monthValue - 1) / 3 * 3 + 1, 1).let {
-                if (preset == StatisticsPreset.LAST_QUARTER) it.minusMonths(3) else it
+            LocalDate(today.year, (today.month.number - 1) / 3 * 3 + 1, 1).let {
+                if (preset == StatisticsPreset.LAST_QUARTER) it.minus(3, DateTimeUnit.MONTH) else it
             }
-        StatisticsPreset.THIS_YEAR -> today.withDayOfYear(1)
+        StatisticsPreset.THIS_YEAR -> LocalDate(today.year, 1, 1)
     }
     val end = when (preset) {
-        StatisticsPreset.THIS_QUARTER, StatisticsPreset.LAST_QUARTER -> first.plusMonths(3)
-        StatisticsPreset.THIS_YEAR -> first.plusYears(1)
-        else -> first.plusMonths(1)
-    }.minusDays(1)
-    return copy(fromDay = first.toEpochDay(), toDay = end.toEpochDay(), datePreset = preset)
+        StatisticsPreset.THIS_QUARTER, StatisticsPreset.LAST_QUARTER -> first.plus(3, DateTimeUnit.MONTH)
+        StatisticsPreset.THIS_YEAR -> first.plus(1, DateTimeUnit.YEAR)
+        else -> first.plus(1, DateTimeUnit.MONTH)
+    }.minus(1, DateTimeUnit.DAY)
+    return copy(fromDay = first.toEpochDays(), toDay = end.toEpochDays(), datePreset = preset)
 }
 
 internal fun StatisticsGrouping.periodEnd(start: LocalDate): LocalDate = when (this) {
-    StatisticsGrouping.DAY -> start.plusDays(1)
-    StatisticsGrouping.MONTH -> start.plusMonths(1)
-    StatisticsGrouping.QUARTER -> start.plusMonths(3)
-    StatisticsGrouping.HALF_YEAR -> start.plusMonths(6)
-    StatisticsGrouping.YEAR -> start.plusYears(1)
+    StatisticsGrouping.DAY -> start.plus(1, DateTimeUnit.DAY)
+    StatisticsGrouping.MONTH -> start.plus(1, DateTimeUnit.MONTH)
+    StatisticsGrouping.QUARTER -> start.plus(3, DateTimeUnit.MONTH)
+    StatisticsGrouping.HALF_YEAR -> start.plus(6, DateTimeUnit.MONTH)
+    StatisticsGrouping.YEAR -> start.plus(1, DateTimeUnit.YEAR)
     else -> error("Not a calendar grouping")
-}.minusDays(1)
-data class StatisticsTotals(val count: Int = 0, val total: BigDecimal = BigDecimal.ZERO.setScale(2),
-    val tax: BigDecimal = BigDecimal.ZERO.setScale(2), val missingTotal: Int = 0, val missingTax: Int = 0,
+}.minus(1, DateTimeUnit.DAY)
+data class StatisticsTotals(val count: Int = 0, val total: ExactAmount = ExactAmount.ZERO,
+    val tax: ExactAmount = ExactAmount.ZERO, val missingTotal: Int = 0, val missingTax: Int = 0,
     val ignoredCount: Int = 0)
 data class StatisticsGroup(val key: StatisticsKey, val totals: StatisticsTotals)
 data class StatisticsResult(val summary: StatisticsTotals = StatisticsTotals(), val groups: List<StatisticsGroup> = emptyList())
@@ -118,11 +123,11 @@ internal fun statisticsConditions(request: StatisticsRequest, key: StatisticsKey
     val clauses = mutableListOf<String>()
     val args = mutableListOf<Any>()
     request.seller.trim().takeIf { it.isNotEmpty() }?.let {
-        clauses += "instr(sellerSearch, ?) > 0"; args += it.lowercase(Locale.ROOT)
+        clauses += "instr(sellerSearch, ?) > 0"; args += it.lowercase()
     }
     request.vat.trim().takeIf { it.isNotEmpty() }?.let {
         clauses += "instr(vat, ?) > 0"
-        args += it.map { c -> if (c.isDigit()) Character.digit(c, 10).digitToChar() else c }.joinToString("")
+        args += it.normalizeDigits()
     }
     normalizeVatNumber(request.excludedVat).takeIf { it.isNotEmpty() }?.let {
         var normalizedColumn = "trim(vat, ?)"
@@ -147,38 +152,36 @@ internal fun statisticsConditions(request: StatisticsRequest, key: StatisticsKey
         else {
             clauses += "invoiceDay >= ? AND invoiceDay <= ?"
             args += key.periodStart
-            args += request.grouping.periodEnd(LocalDate.ofEpochDay(key.periodStart)).toEpochDay()
+            args += request.grouping.periodEnd(dateFromEpochDay(key.periodStart)).toEpochDays()
         }
     }
     return clauses to args
 }
 
-fun statisticsQuery(request: StatisticsRequest, afterId: Long = 0, key: StatisticsKey? = null): SimpleSQLiteQuery {
+fun statisticsQuery(request: StatisticsRequest, afterId: Long = 0, key: StatisticsKey? = null): BoundQuery {
     val (clauses, args) = statisticsConditions(request, key)
     clauses += "id > ?"; args += afterId
-    return SimpleSQLiteQuery("SELECT id, seller, vat, invoiceDay, total, tax, category FROM scans WHERE " +
-        clauses.joinToString(" AND ") + " ORDER BY id LIMIT 200", args.toTypedArray())
+    return BoundQuery("SELECT id, seller, vat, invoiceDay, total, tax, category FROM scans WHERE " +
+        clauses.joinToString(" AND ") + " ORDER BY id LIMIT 200", args)
 }
 
 /** Exact decimal accumulation; only grouped summaries and one input page are retained. */
 class StatisticsAccumulator(private val request: StatisticsRequest) {
     private val groups = mutableMapOf<StatisticsKey, StatisticsTotals>()
     private var summary = StatisticsTotals()
-    private val amountPattern = Regex("[0-9]+(\\.[0-9]{1,2})?")
-    private fun amount(value: String) = value.takeIf(amountPattern::matches)?.toBigDecimalOrNull()
     fun add(row: StatisticsInvoice) {
-        val total = amount(row.total)
-        val tax = amount(row.tax)
+        val total = ExactAmount.parseInvoiceAmount(row.total)
+        val tax = ExactAmount.parseInvoiceAmount(row.tax)
         val calculation = if (request.grouping == StatisticsGrouping.CATEGORY) StatisticsCategoryCalculation.ADD
             else request.calculationFor(row.category)
-        val multiplier = when (calculation) {
-            StatisticsCategoryCalculation.ADD -> BigDecimal.ONE
-            StatisticsCategoryCalculation.SUBTRACT -> BigDecimal.ONE.negate()
-            StatisticsCategoryCalculation.IGNORE -> BigDecimal.ZERO
+        fun contribution(amount: ExactAmount?): ExactAmount = when (calculation) {
+            StatisticsCategoryCalculation.ADD -> amount ?: ExactAmount.ZERO
+            StatisticsCategoryCalculation.SUBTRACT -> -(amount ?: ExactAmount.ZERO)
+            StatisticsCategoryCalculation.IGNORE -> ExactAmount.ZERO
         }
         fun StatisticsTotals.add() = copy(count = count + 1,
-            total = this.total + (total ?: BigDecimal.ZERO) * multiplier,
-            tax = this.tax + (tax ?: BigDecimal.ZERO) * multiplier,
+            total = this.total + contribution(total),
+            tax = this.tax + contribution(tax),
             missingTotal = missingTotal + if (calculation != StatisticsCategoryCalculation.IGNORE && total == null) 1 else 0,
             missingTax = missingTax + if (calculation != StatisticsCategoryCalculation.IGNORE && tax == null) 1 else 0,
             ignoredCount = ignoredCount + if (calculation == StatisticsCategoryCalculation.IGNORE) 1 else 0)
@@ -187,15 +190,15 @@ class StatisticsAccumulator(private val request: StatisticsRequest) {
             StatisticsGrouping.VAT -> StatisticsKey(text = row.vat.trim().takeIf(String::isNotEmpty))
             StatisticsGrouping.CATEGORY -> StatisticsKey(text = row.category.toString())
             else -> {
-                val day = row.invoiceDay?.let(LocalDate::ofEpochDay)
+                val day = row.invoiceDay?.let(::dateFromEpochDay)
                 val start = day?.let { when (request.grouping) {
                     StatisticsGrouping.DAY -> it
-                    StatisticsGrouping.MONTH -> it.withDayOfMonth(1)
-                    StatisticsGrouping.QUARTER -> LocalDate.of(it.year, ((it.monthValue - 1) / 3) * 3 + 1, 1)
-                    StatisticsGrouping.HALF_YEAR -> LocalDate.of(it.year, if (it.monthValue <= 6) 1 else 7, 1)
-                    else -> it.withDayOfYear(1)
+                    StatisticsGrouping.MONTH -> LocalDate(it.year, it.month, 1)
+                    StatisticsGrouping.QUARTER -> LocalDate(it.year, ((it.month.number - 1) / 3) * 3 + 1, 1)
+                    StatisticsGrouping.HALF_YEAR -> LocalDate(it.year, if (it.month.number <= 6) 1 else 7, 1)
+                    else -> LocalDate(it.year, 1, 1)
                 } }
-                StatisticsKey(periodStart = start?.toEpochDay())
+                StatisticsKey(periodStart = start?.toEpochDays())
             }
         }
         groups[key] = (groups[key] ?: StatisticsTotals()).add()
@@ -205,7 +208,7 @@ class StatisticsAccumulator(private val request: StatisticsRequest) {
         val byKey = Comparator<StatisticsGroup> { a, b ->
             when {
                 a.key.periodStart != null && b.key.periodStart != null -> a.key.periodStart.compareTo(b.key.periodStart)
-                else -> String.CASE_INSENSITIVE_ORDER.compare(a.key.text.orEmpty(), b.key.text.orEmpty())
+                else -> a.key.text.orEmpty().compareTo(b.key.text.orEmpty(), ignoreCase = true)
             }
         }
         val selected = when (request.sort) {
@@ -219,5 +222,18 @@ class StatisticsAccumulator(private val request: StatisticsRequest) {
             compareBy<StatisticsGroup> { it.key.unknown }.then(direction)
         else direction.then(byKey)
         return StatisticsResult(summary, groups.map { StatisticsGroup(it.key, it.value) }.sortedWith(comparator))
+    }
+}
+
+/** Accumulate in keyset order while the caller holds its database snapshot. */
+suspend fun readStatistics(request: StatisticsRequest, page: suspend (Long) -> List<StatisticsInvoice>): StatisticsResult {
+    val accumulator = StatisticsAccumulator(request)
+    var afterId = 0L
+    while (true) {
+        currentCoroutineContext().ensureActive()
+        val rows = page(afterId)
+        if (rows.isEmpty()) return accumulator.finish()
+        rows.forEach(accumulator::add)
+        afterId = rows.last().id
     }
 }

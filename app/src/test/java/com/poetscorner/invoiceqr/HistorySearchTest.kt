@@ -2,6 +2,7 @@ package com.poetscorner.invoiceqr
 
 import com.poetscorner.invoiceqr.data.HistoryEntry
 import com.poetscorner.invoiceqr.data.HistoryDateSource
+import com.poetscorner.invoiceqr.data.apply
 import com.poetscorner.invoiceqr.data.HistoryFilter
 import com.poetscorner.invoiceqr.data.ScanEntity
 import com.poetscorner.invoiceqr.data.filterHistory

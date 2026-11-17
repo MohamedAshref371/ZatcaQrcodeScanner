@@ -2,16 +2,15 @@ package com.poetscorner.invoiceqr
 
 import com.poetscorner.invoiceqr.domain.ZatcaParser
 import com.poetscorner.invoiceqr.domain.InvoiceType
-import com.poetscorner.invoiceqr.data.ScanEntity
-import org.junit.Assert.*
-import org.junit.Test
-import java.util.Base64
-import java.time.ZoneOffset
+import com.poetscorner.invoiceqr.domain.InvoiceLabel
+import kotlin.test.*
+import kotlin.io.encoding.Base64
+import kotlinx.datetime.UtcOffset
 
 class ZatcaParserTest {
     @Test fun scanRejectionDistinguishesMalformedPayloadsFromInvoiceCheckFailures() {
         listOf("https://example.org", "%%%", "", "aGVsbG8=", "AQVB").forEach { raw ->
-            assertNotNull(raw, ZatcaParser.parse(raw).error)
+            assertNotNull(ZatcaParser.parse(raw).error, raw)
         }
         // A readable invoice with failing business checks should still open its report.
         val invoice = parse(tlv(1, "Seller") + tlv(2, "invalid VAT"))
@@ -19,9 +18,21 @@ class ZatcaParserTest {
         assertFalse(invoice.passed)
         assertNull(parse(valid()).error)
     }
+    @Test fun retainsAndroidBase64PaddingAcceptance() {
+        // All three accepted forms decode to the same seller-only TLV.
+        for (raw in listOf("AQJBQg==", "AQJBQg", "AQJBQh==")) {
+            val invoice = ZatcaParser.parse(raw)
+            assertNull(invoice.error, raw)
+            assertEquals("AB", invoice.value(1), raw)
+        }
+        for (raw in listOf("AQJBQg=", "AQJBQg===", "AQJBQg==A")) {
+            assertEquals(InvoiceLabel.ERROR_BASE64, ZatcaParser.parse(raw).error?.label, raw)
+        }
+    }
+
     private fun tlv(tag: Int, text: String): ByteArray = text.toByteArray().let { byteArrayOf(tag.toByte(), it.size.toByte()) + it }
     private fun valid() = tlv(1, "متجر الاختبار") + tlv(2, "310123456789013") + tlv(3, "2026-10-19T12:30:00Z") + tlv(4, "115.00") + tlv(5, "15.00")
-    private fun parse(bytes: ByteArray) = ZatcaParser.parse(Base64.getEncoder().encodeToString(bytes))
+    private fun parse(bytes: ByteArray) = ZatcaParser.parse(Base64.Default.encode(bytes))
     @Test fun arabicUtf8AndValidPhaseOne() {
         val result = parse(valid())
         assertTrue(result.passed); assertFalse(result.phase2); assertEquals("متجر الاختبار", result.value(1))
@@ -30,9 +41,9 @@ class ZatcaParserTest {
         val invoice = parse(tlv(1, "Seller") + tlv(2, "310123456789014") +
             tlv(3, "2026-10-19T12:30:00Z") + tlv(4, "115.00") + tlv(5, "15.00"))
         assertNull(invoice.error)
-        assertFalse(invoice.checks.first { it.label.id == R.string.check_vat }.passed)
+        assertFalse(invoice.checks.first { it.label.label == InvoiceLabel.CHECK_VAT }.passed)
         assertFalse(invoice.passed)
-        assertTrue(parse(valid()).checks.first { it.label.id == R.string.check_vat }.passed)
+        assertTrue(parse(valid()).checks.first { it.label.label == InvoiceLabel.CHECK_VAT }.passed)
     }
     @Test fun phaseTwoRequiresTagsSixThroughEight() {
         assertFalse(parse(valid() + tlv(6, "hash")).passed)
@@ -40,10 +51,10 @@ class ZatcaParserTest {
     }
     @Test fun invoiceTypeIsDetectedAutomaticallyFromStampPresence() {
         val bytes = valid() + (6..8).fold(byteArrayOf()) { b, t -> b + tlv(t, "binary") }
-        val raw = Base64.getEncoder().encodeToString(bytes)
+        val raw = Base64.Default.encode(bytes)
         assertTrue(ZatcaParser.parse(raw).passed)
         assertEquals(InvoiceType.STANDARD, ZatcaParser.parse(raw).type)
-        val stamped = Base64.getEncoder().encodeToString(bytes + tlv(9, "stamp"))
+        val stamped = Base64.Default.encode(bytes + tlv(9, "stamp"))
         assertTrue(ZatcaParser.parse(stamped).passed)
         assertEquals(InvoiceType.SIMPLIFIED, ZatcaParser.parse(stamped).type)
     }
@@ -56,24 +67,13 @@ class ZatcaParserTest {
         assertEquals(InvoiceType.SIMPLIFIED, emptyStamp.type)
         assertFalse(emptyStamp.passed)
         assertFalse(parse(bytes + tlv(9, "stamp") + tlv(9, "duplicate")).passed)
-        val phaseOne = Base64.getEncoder().encodeToString(valid())
+        val phaseOne = Base64.Default.encode(valid())
         assertTrue(ZatcaParser.parse(phaseOne).passed)
         assertEquals(InvoiceType.STANDARD, ZatcaParser.parse(phaseOne).type)
     }
-    @Test fun historicalManualTypeDoesNotOverrideAutomaticClassification() {
-        val bytes = valid() + (6..8).fold(byteArrayOf()) { b, t -> b + tlv(t, "binary") }
-        val saved = ScanEntity(raw = Base64.getEncoder().encodeToString(bytes), seller = "متجر", passed = false,
-            phase = 2, invoiceType = "SIMPLIFIED")
-        val corrected = saved.revalidated()
-        assertEquals("STANDARD", corrected.invoiceType)
-        assertTrue(corrected.passed)
-        val stamped = saved.copy(raw = Base64.getEncoder().encodeToString(bytes + tlv(9, "stamp")), invoiceType = "STANDARD")
-        assertEquals("SIMPLIFIED", stamped.revalidated().invoiceType)
-        assertTrue(stamped.revalidated().passed)
-    }
     @Test fun hashAndSignatureKeepTheirOriginalBase64WithoutDoubleEncoding() {
-        val hash = Base64.getEncoder().encodeToString(ByteArray(32) { (it * 13).toByte() })
-        val signature = Base64.getEncoder().encodeToString(ByteArray(64) { (255 - it).toByte() })
+        val hash = Base64.Default.encode(ByteArray(32) { (it * 13).toByte() })
+        val signature = Base64.Default.encode(ByteArray(64) { (255 - it).toByte() })
         val key = byteArrayOf(0x30, 0x02, 0xff.toByte(), 0x80.toByte())
         val stamp = byteArrayOf(0x30, 0x03, 0xfe.toByte(), 0x81.toByte())
         val invoice = parse(valid() + tlv(6, hash) + tlv(7, signature) +
@@ -81,10 +81,10 @@ class ZatcaParserTest {
         assertTrue(invoice.passed)
         assertEquals(hash, invoice.value(6))
         assertEquals(signature, invoice.value(7))
-        assertEquals(32, Base64.getDecoder().decode(invoice.value(6)).size)
-        assertEquals(64, Base64.getDecoder().decode(invoice.value(7)).size)
-        assertEquals(Base64.getEncoder().encodeToString(key), invoice.value(8))
-        assertEquals(Base64.getEncoder().encodeToString(stamp), invoice.value(9))
+        assertEquals(32, Base64.Default.decode(invoice.value(6)).size)
+        assertEquals(64, Base64.Default.decode(invoice.value(7)).size)
+        assertEquals(Base64.Default.encode(key), invoice.value(8))
+        assertEquals(Base64.Default.encode(stamp), invoice.value(9))
         // History and JSON export reparse this same saved raw payload.
         assertEquals(hash, ZatcaParser.parse(invoice.raw).value(6))
         assertEquals(signature, ZatcaParser.parse(invoice.raw).value(7))
@@ -98,13 +98,13 @@ class ZatcaParserTest {
     }
     @Test fun malformedCalendarDateFails() {
         val bytes = tlv(1,"متجر") + tlv(2,"310123456789013") + tlv(3,"2026-02-30T12:00:00Z") + tlv(4,"10") + tlv(5,"1")
-        assertFalse(parse(bytes).checks.first { it.label.id == R.string.check_date }.passed)
+        assertFalse(parse(bytes).checks.first { it.label.label == InvoiceLabel.CHECK_DATE }.passed)
     }
     @Test fun saudiLocalTimestampAndUtcRepresentTheSameInstant() {
         val local = ZatcaParser.parseTimestamp("2024-11-29T14:25:00")
         val utc = ZatcaParser.parseTimestamp("2024-11-29T11:25:00Z")
-        assertEquals(ZoneOffset.ofHours(3), local.offset)
-        assertEquals(ZoneOffset.UTC, utc.offset)
+        assertEquals(UtcOffset(hours = 3), local.offset)
+        assertEquals(UtcOffset.ZERO, utc.offset)
         assertEquals(utc.toInstant(), local.toInstant())
         val text = "2024-11-29T14:25:00"
         val invoice = parse(tlv(1, "Seller") + tlv(2, "310123456789013") +
@@ -116,7 +116,7 @@ class ZatcaParserTest {
         val base = tlv(1, "Seller") + tlv(2, "310123456789013")
         val amounts = tlv(4, "115") + tlv(5, "15")
         for (value in listOf("2024-02-29T14:25:00", "2024-02-29T11:25:00Z")) {
-            assertTrue(value, parse(base + tlv(3, value) + amounts).passed)
+            assertTrue(parse(base + tlv(3, value) + amounts).passed, value)
         }
         for (value in listOf("2024-11-29T14:25:00.123", "2024-11-29T11:25:00.123Z",
             "2024-11-29T14:25:00+03:00", "2024-11-29T11:25:00+00:00",
@@ -124,16 +124,16 @@ class ZatcaParserTest {
             "2024-11-29T14:25:00z", "2024-11-29T14:25:00 ")) {
             val invoice = parse(base + tlv(3, value) + amounts)
             assertEquals(value, invoice.value(3))
-            assertFalse(value, invoice.checks.first { it.label.id == R.string.check_date }.passed)
-            assertFalse(value, invoice.passed)
-            assertTrue(value, runCatching { ZatcaParser.parseTimestamp(value) }.isFailure)
+            assertFalse(invoice.checks.first { it.label.label == InvoiceLabel.CHECK_DATE }.passed, value)
+            assertFalse(invoice.passed, value)
+            assertTrue(runCatching { ZatcaParser.parseTimestamp(value) }.isFailure, value)
         }
     }
     @Test fun invalidCalendarDatesAndTimesFail() {
         listOf("2024-11-31T14:25:00", "2023-02-29T14:25:00", "2024-11-29T24:25:00",
             "2024-11-29T14:60:00", "2024-11-29T14:25:60", "2024-11-29",
             "2024-11-29T14:25", "2024-11-29 14:25:00")
-            .forEach { assertTrue(it, runCatching { ZatcaParser.parseTimestamp(it) }.isFailure) }
+            .forEach { assertTrue(runCatching { ZatcaParser.parseTimestamp(it) }.isFailure, it) }
     }
     @Test fun berLengths81And82() {
         val data = "A".repeat(300).toByteArray()
@@ -154,8 +154,8 @@ class ZatcaParserTest {
         assertTrue(invoice("10000000000000000000.99", "00010000000000000000000.99").passed)
         assertTrue(invoice("10000000000000000000.99", "0").passed)
         val largerTax = invoice("10000000000000000000.98", "10000000000000000000.99")
-        assertTrue(largerTax.checks.first { it.label.id == R.string.check_tax }.passed)
-        assertFalse(largerTax.checks.first { it.label.id == R.string.check_tax_total }.passed)
+        assertTrue(largerTax.checks.first { it.label.label == InvoiceLabel.CHECK_TAX }.passed)
+        assertFalse(largerTax.checks.first { it.label.label == InvoiceLabel.CHECK_TAX_TOTAL }.passed)
         assertFalse(invoice("0", "10000000000000000000.99").passed)
     }
 

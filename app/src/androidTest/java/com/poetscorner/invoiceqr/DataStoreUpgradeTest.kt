@@ -2,7 +2,6 @@ package com.poetscorner.invoiceqr
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.poetscorner.invoiceqr.data.ScanEngine
 import com.poetscorner.invoiceqr.data.ScannerSettings
 import com.poetscorner.invoiceqr.data.SettingsRepository
 import kotlinx.coroutines.flow.first
@@ -52,11 +51,9 @@ class DataStoreUpgradeTest {
     private companion object {
         val legacySettings = ScannerSettings(harder = false, denoise = true, rotate = false,
             inverted = true, binarizer = "GLOBAL_HISTOGRAM", resolution = "FHD", speed = "FAST",
-            torch = false, theme = "DARK", goldenTheme = false,
-            scanEngine = ScanEngine.ML_KIT)
+            torch = false, theme = "DARK", goldenTheme = false)
         val updatedSettings = ScannerSettings(harder = true, denoise = false, rotate = true,
             inverted = false, binarizer = "LOCAL_AVERAGE", resolution = "HD", speed = "NORMAL",
-            torch = false, theme = "LIGHT", goldenTheme = false,
-            scanEngine = ScanEngine.ZXING)
+            torch = false, theme = "LIGHT", goldenTheme = false)
     }
 }

@@ -3,6 +3,7 @@ package com.poetscorner.invoiceqr.data
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.LocalDate
 
 /** Store filters independently of the invoice database and of temporary navigation state. */
@@ -28,7 +29,7 @@ internal class StatisticsFilterRepository(private val preferences: SharedPrefere
         }.toMap()
         return StatisticsRequest(seller = preferences.getString("seller", "").orEmpty(),
             fromDay = from, toDay = to, datePreset = preset, categoryCalculations = categoryCalculations)
-            .withVatFilter(mode, if (mode == StatisticsVatMode.EXCLUDE) excludedVat else includedVat).resolvePeriod(today)
+            .withVatFilter(mode, if (mode == StatisticsVatMode.EXCLUDE) excludedVat else includedVat).resolvePeriod(today.toKotlinLocalDate())
     }
 
     fun save(request: StatisticsRequest) {

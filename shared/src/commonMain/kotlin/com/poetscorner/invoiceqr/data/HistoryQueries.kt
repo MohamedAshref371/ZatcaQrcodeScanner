@@ -1,29 +1,15 @@
 package com.poetscorner.invoiceqr.data
 
-import androidx.sqlite.db.SimpleSQLiteQuery
+import com.poetscorner.invoiceqr.domain.ExactAmount
 import com.poetscorner.invoiceqr.domain.Invoice
 import com.poetscorner.invoiceqr.domain.ZatcaParser
-import java.security.MessageDigest
-import java.time.LocalDate
-import java.time.ZoneId
-import java.util.Locale
-import java.math.BigDecimal
-
-fun invoicePayloadKey(raw: String): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-        .digest(raw.filterNot { it.isWhitespace() }.trimEnd('=').toByteArray(Charsets.US_ASCII))
-    val hex = "0123456789abcdef"
-    return buildString(64) { digest.forEach { byte ->
-        val number = byte.toInt() and 255
-        append(hex[number ushr 4]); append(hex[number and 15])
-    } }
-}
+import kotlinx.datetime.TimeZone
 
 data class InvoiceDetails(val sellerSearch: String, val vat: String, val invoiceDate: String,
     val invoiceDay: Long?, val total: String, val tax: String, val hash: String, val hashPresent: Boolean = hash.isNotBlank()) {
     companion object {
-        fun from(invoice: Invoice, seller: String) = InvoiceDetails(seller.lowercase(Locale.ROOT), invoice.value(2),
-            invoice.value(3), runCatching { ZatcaParser.parseTimestamp(invoice.value(3)).toLocalDate().toEpochDay() }.getOrNull(),
+        fun from(invoice: Invoice, seller: String) = InvoiceDetails(seller.lowercase(), invoice.value(2),
+            invoice.value(3), runCatching { ZatcaParser.parseTimestamp(invoice.value(3)).local.date.toEpochDays() }.getOrNull(),
             invoice.value(4), invoice.value(5), invoice.value(6))
     }
 }
@@ -34,13 +20,15 @@ data class HistorySummary(val id: Long, val seller: String, val vat: String, val
 data class HistoryCounts(val total: Int, val matching: Int)
 data class HistoryCursor(val scannedAt: Long, val id: Long)
 data class HistoryAmount(val id: Long, val scannedAt: Long, val total: String)
-data class HistoryOverview(val counts: HistoryCounts, val rows: List<HistorySummary>, val amount: BigDecimal?)
+data class HistoryOverview(val counts: HistoryCounts, val rows: List<HistorySummary>, val amount: ExactAmount?)
 data class ExportInvoice(val id: Long, val scannedAt: Long, val seller: String, val vat: String,
     val invoiceDate: String, val total: String, val tax: String, val hash: String,
     val invoiceNumber: String, val category: Int, val note: String) {
     fun fields(categoryName: String): List<String> = listOf(invoiceNumber, seller, vat, invoiceDate,
         total, tax, hash, if (category == 0) "" else categoryName, note)
 }
+
+data class BoundQuery(val sql: String, val arguments: List<Any>)
 
 /** Only bound parameters contain user input; date predicates can use the matching index. */
 class HistoryQueries(private val filter: HistoryFilter) {
@@ -53,13 +41,13 @@ class HistoryQueries(private val filter: HistoryFilter) {
         }
         val term = filter.query.trim()
         if (term.isNotEmpty()) {
-            val digits = term.map { if (it.isDigit()) Character.digit(it, 10).digitToChar() else it }.joinToString("")
+            val digits = term.normalizeDigits()
             clauses += "(instr(sellerSearch, ?) > 0 OR instr(vat, ?) > 0)"
-            args += term.lowercase(Locale.ROOT); args += digits
+            args += term.lowercase(); args += digits
         }
         filter.annotationQuery.trim().takeIf { it.isNotEmpty() }?.let { annotationTerm ->
             clauses += "(instr(lower(invoiceNumber), ?) > 0 OR instr(lower(note), ?) > 0)"
-            val lowered = annotationTerm.lowercase(Locale.ROOT)
+            val lowered = annotationTerm.lowercase()
             args += lowered; args += lowered
         }
         filter.category?.let { clauses += "category = ?"; args += it }
@@ -67,13 +55,13 @@ class HistoryQueries(private val filter: HistoryFilter) {
             filter.fromDay?.let { clauses += "invoiceDay >= ?"; args += it }
             filter.toDay?.let { clauses += "invoiceDay <= ?"; args += it }
         } else {
-            val zone = ZoneId.of(filter.zoneId)
-            filter.fromDay?.let { clauses += "scannedAt >= ?"; args += LocalDate.ofEpochDay(it).atStartOfDay(zone).toInstant().toEpochMilli() }
-            filter.toDay?.let { clauses += "scannedAt < ?"; args += LocalDate.ofEpochDay(it).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() }
+            val zone = TimeZone.of(filter.zoneId)
+            filter.fromDay?.let { clauses += "scannedAt >= ?"; args += startOfDayMillis(it, zone) }
+            filter.toDay?.let { clauses += "scannedAt < ?"; args += startOfDayMillis(it, zone, next = true) }
         }
         return clauses to args
     }
-    private fun query(select: String, cursor: HistoryCursor? = null, limit: Int? = null, hashOnly: Boolean = false): SimpleSQLiteQuery {
+    private fun query(select: String, cursor: HistoryCursor? = null, limit: Int? = null, hashOnly: Boolean = false): BoundQuery {
         val (clauses, args) = conditions()
         if (cursor != null) {
             clauses += "(scannedAt < ? OR (scannedAt = ? AND id < ?))"
@@ -86,7 +74,7 @@ class HistoryQueries(private val filter: HistoryFilter) {
             args += limit
             " ORDER BY scannedAt DESC, id DESC LIMIT ?"
         }
-        return SimpleSQLiteQuery("SELECT $select FROM scans$where$suffix", args.toTypedArray())
+        return BoundQuery("SELECT $select FROM scans$where$suffix", args)
     }
     fun counts() = query("(SELECT COUNT(*) FROM scans) AS total, COUNT(*) AS matching")
     fun amounts(cursor: HistoryCursor? = null) = query("id, scannedAt, total", cursor, 200)
