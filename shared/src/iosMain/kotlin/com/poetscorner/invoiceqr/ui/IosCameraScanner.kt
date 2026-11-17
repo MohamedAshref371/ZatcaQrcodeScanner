@@ -27,6 +27,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import platform.AVFoundation.*
 import platform.CoreGraphics.CGPointMake
+import platform.CoreGraphics.CGRectMake
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
 import platform.CoreVideo.*
@@ -137,7 +138,7 @@ private class IosCaptureSession(
     private val session = AVCaptureSession()
     private val output = AVCaptureVideoDataOutput()
     private val preview = AVCaptureVideoPreviewLayer(session = session).apply { videoGravity = AVLayerVideoGravityResizeAspectFill }
-    val view: UIView = object : UIView() {
+    val view: UIView = object : UIView(frame = CGRectMake(0.0, 0.0, 0.0, 0.0)) {
         override fun layoutSubviews() {
             super.layoutSubviews()
             preview.frame = bounds
