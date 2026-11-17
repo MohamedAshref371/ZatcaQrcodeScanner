@@ -12,6 +12,3 @@ fun InvoiceCategories.label(id: Int): Int = when (id) {
         99 -> R.string.invoice_category_other
         else -> R.string.invoice_category_none
     }
-
-fun InvoiceAnnotation.Companion.from(scan: ScanEntity) =
-    InvoiceAnnotation(scan.invoiceNumber, scan.category, scan.note)

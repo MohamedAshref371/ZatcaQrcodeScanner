@@ -3,7 +3,6 @@
 package com.poetscorner.invoiceqr.ui
 
 import com.poetscorner.invoiceqr.data.*
-import com.poetscorner.invoiceqr.resources.gallery_error
 import kotlinx.coroutines.*
 import platform.Foundation.*
 
@@ -29,27 +28,31 @@ class IosInvoiceSession {
 
     /** Copies are app-owned. Keep them until the shared import, including single-photo scanning, finishes. */
     internal fun importInvoices(urls: List<NSURL>) {
-        val imports = urls.mapNotNull { url ->
-            val directory = NSURL.fileURLWithPath(NSTemporaryDirectory())
-                .URLByAppendingPathComponent("invoiceqr-import-${NSUUID().UUIDString}") ?: return@mapNotNull null
-            val target = directory.URLByAppendingPathComponent(url.lastPathComponent ?: "invoice-image") ?: return@mapNotNull null
-            val manager = NSFileManager.defaultManager
-            manager.createDirectoryAtURL(directory, withIntermediateDirectories = true, attributes = null, error = null)
-            if (manager.copyItemAtURL(url, target, error = null)) target else {
-                manager.removeItemAtURL(directory, error = null)
-                null
-            }
+        val owned = mutableListOf<NSURL>()
+        val imports = urls.map { url ->
+            copyForImport(url)?.also(owned::add) ?: url
         }
-        if (imports.size != urls.size) controller.message.value = com.poetscorner.invoiceqr.ui.text.UiText(
-            com.poetscorner.invoiceqr.resources.Res.string.gallery_error)
         val task = controller.importInvoiceFiles(imports.mapNotNull { it.absoluteString })
-        if (task == null) imports.forEach(::removeCopy)
-        else task.invokeOnCompletion { imports.forEach(::removeCopy) }
+        if (task == null) owned.forEach(::removeCopy)
+        else task.invokeOnCompletion { owned.forEach(::removeCopy) }
     }
     internal fun importBackup(url: NSURL) {
-        val task = url.absoluteString?.let(controller::importBackup)
-        if (task == null) return
-        // asCopy=true from the document picker: URL remains sandbox-local for this operation.
+        val copy = copyForImport(url)
+        val task = (copy ?: url).absoluteString?.let(controller::importBackup)
+        if (copy != null) {
+            if (task == null) removeCopy(copy)
+            else task.invokeOnCompletion { removeCopy(copy) }
+        }
+    }
+    private fun copyForImport(url: NSURL): NSURL? {
+        val directory = NSURL.fileURLWithPath(NSTemporaryDirectory())
+            .URLByAppendingPathComponent("invoiceqr-import-${NSUUID().UUIDString}") ?: return null
+        val target = directory.URLByAppendingPathComponent(url.lastPathComponent ?: "invoice-image") ?: return null
+        val manager = NSFileManager.defaultManager
+        manager.createDirectoryAtURL(directory, withIntermediateDirectories = true, attributes = null, error = null)
+        if (manager.copyItemAtURL(url, target, error = null)) return target
+        manager.removeItemAtURL(directory, error = null)
+        return null
     }
     suspend fun close() { job.cancelAndJoin(); database.close() }
     private fun removeCopy(url: NSURL) {

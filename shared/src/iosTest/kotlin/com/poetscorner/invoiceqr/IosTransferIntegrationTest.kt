@@ -84,6 +84,20 @@ class IosTransferIntegrationTest {
                 requireNotNull(controller.backup("backup.json")).join()
                 assertTrue(savedFiles.getValue("backup.json").contains("invoiceqr-history-backup"))
                 assertNull(controller.transfer.value)
+                val backupPath = Path(directory, "restore.json")
+                SystemFileSystem.sink(backupPath).buffered().use { it.writeString(savedFiles.getValue("backup.json")) }
+                database.scans().clear()
+                val backupUri = NSURL.fileURLWithPath(backupPath.toString()).absoluteString!!
+                requireNotNull(controller.importBackup(backupUri)).join()
+                assertEquals(Res.string.backup_import_success, controller.message.value?.id)
+                assertEquals(listOf(1, 0), controller.message.value?.args)
+                assertEquals(original.checkedAt, database.scans().all().single().scannedAt)
+                requireNotNull(controller.importBackup(backupUri)).join()
+                assertEquals(listOf(0, 1), controller.message.value?.args)
+                SystemFileSystem.sink(backupPath).buffered().use { it.writeString("invalid JSON") }
+                requireNotNull(controller.importBackup(backupUri)).join()
+                assertEquals(Res.string.backup_invalid, controller.message.value?.id)
+                assertEquals(1, database.scans().count())
                 files.saveDocument = { false }
                 controller.message.value = null
                 requireNotNull(controller.backup("cancelled.json")).join()

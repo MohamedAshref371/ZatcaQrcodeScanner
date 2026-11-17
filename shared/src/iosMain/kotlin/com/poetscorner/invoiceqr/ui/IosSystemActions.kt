@@ -40,8 +40,10 @@ class IosSystemActions(private val host: () -> UIViewController?) {
                 filePickerOpen = true
                 if (!photos.show(presenter) { urls ->
                     filePickerOpen = false
+                    // Keep failed provider items in the batch so shared import reports them as unreadable.
                     val copies = urls.filterNotNull()
-                    onSelection(copies)
+                    onSelection(urls.map { it ?: NSURL.fileURLWithPath(platform.Foundation.NSTemporaryDirectory() +
+                        "invoiceqr-missing-${platform.Foundation.NSUUID().UUIDString}.jpg") })
                     copies.forEach { url -> url.URLByDeletingLastPathComponent?.let {
                         platform.Foundation.NSFileManager.defaultManager.removeItemAtURL(it, error = null)
                     } }

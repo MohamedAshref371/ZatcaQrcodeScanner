@@ -373,17 +373,16 @@ class ScannerController(
     fun gallery(uri: String): Job? {
         if (busy.value) return null
         busy.value = true
-        return scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            try {
-                settingsLoaded.first { it }
-                val raw = withContext(Dispatchers.IO) {
-                    files.readImage(uri, settings.value)?.raw
-                }
-                if (raw == null) message.value = UiText(Res.string.gallery_no_qr) else process(raw)
-            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-            catch (_: Exception) { message.value = UiText(Res.string.gallery_error) }
-            finally { busy.value = false }
-        }
+        return scope.launch(start = CoroutineStart.UNDISPATCHED) { readGallery(uri) }
+    }
+    private suspend fun readGallery(uri: String) {
+        try {
+            settingsLoaded.first { it }
+            val raw = withContext(Dispatchers.IO) { files.readImage(uri, settings.value)?.raw }
+            if (raw == null) message.value = UiText(Res.string.gallery_no_qr) else process(raw)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { message.value = UiText(Res.string.gallery_error) }
+        finally { busy.value = false }
     }
     fun importInvoiceFiles(uris: List<String>): Job? {
         if (uris.isEmpty()) return null
@@ -393,7 +392,7 @@ class ScannerController(
         val job = scope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             val files = try {
                 withContext(Dispatchers.IO) {
-                    uris.distinct().map { uri -> files.describe(uri) }
+                    uris.distinct().map { uri -> this@ScannerController.files.describe(uri) }
                 }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 busy.value = false
@@ -409,8 +408,7 @@ class ScannerController(
                 return@launch
             }
             if (files.size == 1 && files.single().second == InvoiceFileType.IMAGE) {
-                busy.value = false
-                gallery(files.single().first)?.join()
+                readGallery(files.single().first)
                 return@launch
             }
             mutableImageImport.value = ImageImportProgress(1, files.size, files.first().third)

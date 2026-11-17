@@ -9,3 +9,6 @@ object InvoiceCategories {
 data class InvoiceAnnotation(val invoiceNumber: String = "", val category: Int = 0, val note: String = "") {
     companion object
 }
+
+fun InvoiceAnnotation.Companion.from(scan: ScanEntity) =
+    InvoiceAnnotation(scan.invoiceNumber, scan.category, scan.note)

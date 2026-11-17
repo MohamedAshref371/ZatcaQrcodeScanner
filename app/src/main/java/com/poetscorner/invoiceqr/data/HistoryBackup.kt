@@ -20,10 +20,7 @@ object HistoryBackup {
         HistoryBackupFormat.copyLimited(input.asSource(), output.asSink(), maxBytes)
 
     suspend fun write(db: ScanDatabase, output: Sink, progress: (Int, Int) -> Unit = { _, _ -> }) {
-        db.readSnapshot {
-            val dao = db.scans()
-            HistoryBackupFormat.write(output, dao.count(), dao::backupRows, progress)
-        }
+        DatabaseBackup.write(db, output, progress)
     }
 
     suspend fun write(db: ScanDatabase, output: Writer, progress: (Int, Int) -> Unit = { _, _ -> }) {
@@ -36,13 +33,7 @@ object HistoryBackup {
 
     suspend fun restore(db: ScanDatabase, input: Reader, progress: (Int) -> Unit = {}): ImportSummary {
         try {
-            return db.writeTransaction {
-                HistoryBackupFormat.restore(AndroidBackupJsonInput(input), progress) { invoice, timestamp, annotation ->
-                    db.scans().saveIfNew(ScanEntity.from(invoice, timestamp).copy(
-                        invoiceNumber = annotation.invoiceNumber, category = annotation.category,
-                        note = annotation.note)).alreadyExists
-                }
-            }
+            return DatabaseBackup.restore(db, AndroidBackupJsonInput(input), progress)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: android.util.MalformedJsonException) {

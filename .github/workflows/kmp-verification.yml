@@ -95,7 +95,7 @@ jobs:
             adb install -t -r -g app/build/outputs/apk/debug/app-debug.apk &&
             adb install -t -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk &&
             adb shell am instrument -w -r
-            -e class com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.StatisticsStorageTest,com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.AppLanguageUiTest#sharedScreensKeepLanguageDirectionAndSelectedTab,com.poetscorner.invoiceqr.VerificationLevelsUiTest,com.poetscorner.invoiceqr.ZxingQrReaderTest
+            -e class com.poetscorner.invoiceqr.InvoiceAnnotationMigrationTest,com.poetscorner.invoiceqr.DataStoreCompatibilityTest,com.poetscorner.invoiceqr.HistoryOverviewTest,com.poetscorner.invoiceqr.HistoryStorageTest,com.poetscorner.invoiceqr.HistoryBackupTest,com.poetscorner.invoiceqr.HistoryPagerTest,com.poetscorner.invoiceqr.DataTransferTest,com.poetscorner.invoiceqr.ImageImportTest,com.poetscorner.invoiceqr.PdfInvoiceImportTest,com.poetscorner.invoiceqr.ResultRestorationTest,com.poetscorner.invoiceqr.ContinuousScanningTest,com.poetscorner.invoiceqr.StatisticsNavigationTest,com.poetscorner.invoiceqr.StatisticsStorageTest,com.poetscorner.invoiceqr.LocalizationTest,com.poetscorner.invoiceqr.AppLanguageUiTest#sharedScreensKeepLanguageDirectionAndSelectedTab,com.poetscorner.invoiceqr.VerificationLevelsUiTest,com.poetscorner.invoiceqr.ZxingQrReaderTest
             "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')/androidx.test.runner.AndroidJUnitRunner"
             > "$RUNNER_TEMP/android-tests.txt" &&
             adb shell settings put system font_scale 1.6 &&
@@ -139,6 +139,12 @@ jobs:
           assert completed["com.poetscorner.invoiceqr.VerificationLevelsUiTest"] == 2
           assert completed["com.poetscorner.invoiceqr.NavigationAccessibilityUiTest"] == 1
           assert completed["com.poetscorner.invoiceqr.ZxingQrReaderTest"] == 1
-          assert sum(completed.values()) == 32
+          assert completed["com.poetscorner.invoiceqr.DataTransferTest"] == 1
+          assert completed["com.poetscorner.invoiceqr.ImageImportTest"] == 1
+          assert completed["com.poetscorner.invoiceqr.PdfInvoiceImportTest"] == 6
+          assert completed["com.poetscorner.invoiceqr.ResultRestorationTest"] == 5
+          assert completed["com.poetscorner.invoiceqr.ContinuousScanningTest"] == 1
+          assert completed["com.poetscorner.invoiceqr.StatisticsNavigationTest"] == 1
+          assert sum(completed.values()) == 47
           print(f"Android: {sum(completed.values())} passed.")
           PY

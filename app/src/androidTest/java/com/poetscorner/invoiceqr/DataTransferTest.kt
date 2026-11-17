@@ -1,5 +1,7 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.resources.*
+
 import com.poetscorner.invoiceqr.data.openScanDatabase
 import android.app.Application
 import android.net.Uri
@@ -47,35 +49,35 @@ class DataTransferTest {
                 assertNull(model.importBackup(Uri.fromFile(file)))
                 export.join()
                 assertNull(model.transfer.value)
-                assertEquals(R.string.export_success, model.message.value?.id)
+                assertEquals(Res.string.export_success, model.message.value?.id)
                 assertEquals(1, JSONArray(file.readText()).length())
 
                 val missingDestination = File(app.cacheDir, "missing-${System.nanoTime()}/export.csv")
                 requireNotNull(model.export(Uri.fromFile(missingDestination), true, HistoryFilter(seller))).join()
-                assertEquals(R.string.export_error, model.message.value?.id)
+                assertEquals(Res.string.export_error, model.message.value?.id)
                 assertNull(model.transfer.value)
 
                 file.writeText("not a backup")
                 requireNotNull(model.importBackup(Uri.fromFile(file))).join()
-                assertEquals(R.string.backup_invalid, model.message.value?.id)
+                assertEquals(Res.string.backup_invalid, model.message.value?.id)
                 assertNull(model.transfer.value)
 
                 requireNotNull(model.backup(Uri.fromFile(file))).join()
-                assertEquals(R.string.backup_success, model.message.value?.id)
+                assertEquals(Res.string.backup_success, model.message.value?.id)
                 val rows = JSONObject(file.readText()).getJSONArray("invoices")
                 assertTrue(rows.length() >= 1)
                 val original = (0 until rows.length()).map { rows.getJSONObject(it) }
                     .first { it.getString("raw") == model.result.value!!.invoice.raw }
                 assertEquals(originalTime, original.getLong("checkedAt"))
                 requireNotNull(model.importBackup(Uri.fromFile(file))).join()
-                assertEquals(R.string.backup_import_success, model.message.value?.id)
+                assertEquals(Res.string.backup_import_success, model.message.value?.id)
                 assertEquals(0, model.message.value?.args?.first())
                 assertNull(model.transfer.value)
 
                 val cancel = requireNotNull(model.export(Uri.fromFile(file), true, HistoryFilter()))
                 cancel.cancelAndJoin()
                 assertNull(model.transfer.value)
-                assertNotEquals(R.string.export_error, model.message.value?.id)
+                assertNotEquals(Res.string.export_error, model.message.value?.id)
             }
         } finally {
             withContext(Dispatchers.Main) {

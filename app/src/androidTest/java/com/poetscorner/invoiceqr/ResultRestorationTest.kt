@@ -1,5 +1,7 @@
 package com.poetscorner.invoiceqr
 
+import com.poetscorner.invoiceqr.resources.*
+
 import com.poetscorner.invoiceqr.data.openScanDatabase
 import android.app.Application
 import android.os.Parcel
@@ -220,7 +222,7 @@ class ResultRestorationTest {
                 val vm = create(store, restoredState)
                 withTimeout(5000) { vm.restoringResult.first { !it } }
                 assertNull(vm.result.value)
-                assertEquals(R.string.history_entry_missing, vm.message.value?.id)
+                assertEquals(Res.string.history_entry_missing, vm.message.value?.id)
                 assertFalse(restoredState.contains("result_scan_id"))
             }
         } finally {
