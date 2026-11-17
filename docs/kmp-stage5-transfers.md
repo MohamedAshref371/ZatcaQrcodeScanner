@@ -19,8 +19,9 @@ the adapters enforce the existing 64 MiB input limit before opening the write tr
 - IosScannerFiles uses sandbox URLs and PDFKit/UIImage rendering, then passes decoded invoices to the shared
   controller. It writes a temporary file, waits for the system export picker, and removes it after completion
   or cancellation. Progress and success messages come from shared transfer logic.
-- IosInvoiceSession owns the database and coroutine lifetime and copies picker input into app-owned temporary
-  directories. Copies are released only after the shared operation completes. It contains no invoice rules.
+- IosInvoiceSession owns the database and coroutine lifetime. Document pickers supply sandbox copies;
+  Photos transfers ownership of its temporary copies to the session until the shared import completes.
+  No second large-file copy runs on the UI thread. The session contains no invoice rules.
 - IosSystemActions offers Photos and Files through the existing import action. PHPicker is needed to access
   Photos; UIDocumentPicker is needed for PDFs, arbitrary images, JSON imports and document exports. Failed
   Photos item-provider results remain unreadable items in the shared batch instead of disappearing silently.

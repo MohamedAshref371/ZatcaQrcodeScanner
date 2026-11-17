@@ -26,33 +26,19 @@ class IosInvoiceSession(savedState: ScannerSavedState = MemoryScannerSavedState(
             }
         }), savedState, files, scope)
 
-    /** Copies are app-owned. Keep them until the shared import, including single-photo scanning, finishes. */
+    /** UIDocumentPicker(asCopy=true) already supplies sandbox copies. PHPicker copies are handed off here. */
     internal fun importInvoices(urls: List<NSURL>) {
-        val owned = mutableListOf<NSURL>()
-        val imports = urls.map { url ->
-            copyForImport(url)?.also(owned::add) ?: url
+        val owned = urls.filter { url ->
+            url.path?.startsWith(NSTemporaryDirectory()) == true &&
+                url.URLByDeletingLastPathComponent?.lastPathComponent?.startsWith("invoiceqr-photo-") == true
         }
-        val task = controller.importInvoiceFiles(imports.mapNotNull { it.absoluteString })
+        val task = controller.importInvoiceFiles(urls.mapNotNull { it.absoluteString })
         if (task == null) owned.forEach(::removeCopy)
         else task.invokeOnCompletion { owned.forEach(::removeCopy) }
     }
     internal fun importBackup(url: NSURL) {
-        val copy = copyForImport(url)
-        val task = (copy ?: url).absoluteString?.let(controller::importBackup)
-        if (copy != null) {
-            if (task == null) removeCopy(copy)
-            else task.invokeOnCompletion { removeCopy(copy) }
-        }
-    }
-    private fun copyForImport(url: NSURL): NSURL? {
-        val directory = NSURL.fileURLWithPath(NSTemporaryDirectory())
-            .URLByAppendingPathComponent("invoiceqr-import-${NSUUID().UUIDString}") ?: return null
-        val target = directory.URLByAppendingPathComponent(url.lastPathComponent ?: "invoice-image") ?: return null
-        val manager = NSFileManager.defaultManager
-        manager.createDirectoryAtURL(directory, withIntermediateDirectories = true, attributes = null, error = null)
-        if (manager.copyItemAtURL(url, target, error = null)) return target
-        manager.removeItemAtURL(directory, error = null)
-        return null
+        // The system picker completes its copy before this callback and before the shared transaction.
+        url.absoluteString?.let(controller::importBackup)
     }
     suspend fun close() { job.cancelAndJoin(); database.close() }
     private fun removeCopy(url: NSURL) {
