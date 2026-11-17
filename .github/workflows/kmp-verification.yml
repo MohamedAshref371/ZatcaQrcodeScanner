@@ -29,7 +29,7 @@ jobs:
           bash gradlew --no-daemon --stacktrace \
             :shared:compileKotlinIosArm64 \
             :shared:iosSimulatorArm64Test
-      - name: Verify all 69 tests executed
+      - name: Verify all 72 tests executed
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -42,7 +42,7 @@ jobs:
               for name in ("tests", "failures", "errors", "skipped")
           }
           print(totals)
-          assert totals == {"tests": 69, "failures": 0, "errors": 0, "skipped": 0}
+          assert totals == {"tests": 72, "failures": 0, "errors": 0, "skipped": 0}
           PY
 
   android-ui-and-persistence:
@@ -66,10 +66,10 @@ jobs:
           done
           echo "::error::Android command-line tools were not found under $ANDROID_HOME"
           exit 1
-      - name: Build Android and run host tests
+      - name: Build Android variants and run host tests
         run: |
           bash gradlew --no-daemon --stacktrace --max-workers=2 \
-            :shared:testAndroidHostTest :app:testDebugUnitTest :app:assembleRelease
+            -PisolatedValidation=true :shared:testAndroidHostTest :app:testDebugUnitTest :app:assembleRelease :app:assembleDebugAndroidTest
       - name: Enable hardware virtualization
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

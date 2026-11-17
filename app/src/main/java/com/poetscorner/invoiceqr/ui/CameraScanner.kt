@@ -1,6 +1,8 @@
 package com.poetscorner.invoiceqr.ui
 
 import com.poetscorner.invoiceqr.resources.Res
+import com.poetscorner.invoiceqr.resources.camera_frame_error
+import com.poetscorner.invoiceqr.resources.camera_start_error
 import com.poetscorner.invoiceqr.resources.ic_scan
 import com.poetscorner.invoiceqr.resources.ic_flash
 import androidx.compose.ui.res.stringResource
@@ -257,19 +259,19 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
                             }
                         }
                     } catch (_: Exception) {
-                        ContextCompat.getMainExecutor(context).execute { if (!disposed) error = UiText(R.string.camera_frame_error) }
+                        ContextCompat.getMainExecutor(context).execute { if (!disposed) error = UiText(Res.string.camera_frame_error) }
                     } finally { image.close() }
                 }
                 camera = p.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, pv, a)
                 boundPreview = pv; boundAnalysis = a
                 error = null
-            } catch (_: Exception) { error = UiText(R.string.camera_start_error) }
+            } catch (_: Exception) { error = UiText(Res.string.camera_start_error) }
         }, ContextCompat.getMainExecutor(context))
         onDispose {
             disposed = true; analysis?.clearAnalyzer()
             val uses = listOfNotNull(preview, analysis).toTypedArray()
             if (uses.isNotEmpty()) provider?.unbind(*uses)
-            // Close after the in-flight frame finishes, including any asynchronous ML Kit task.
+            // Close after the in-flight frame finishes.
             executor.execute { decoder.close() }
             executor.shutdown(); camera = null; boundPreview = null; boundAnalysis = null
         }
