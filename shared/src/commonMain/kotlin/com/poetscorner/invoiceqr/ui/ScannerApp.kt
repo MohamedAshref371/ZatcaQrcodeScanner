@@ -322,18 +322,18 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             vm.continuousNotices.collectLatest { notice ->
                 val title = when (notice.status) {
-                    ContinuousScanStatus.SAVED -> Res.continuous_scan_saved
-                    ContinuousScanStatus.REVIEW -> Res.continuous_scan_review
-                    ContinuousScanStatus.DUPLICATE -> Res.continuous_scan_duplicate
-                    ContinuousScanStatus.SAVE_FAILED -> Res.history_save_error
+                    ContinuousScanStatus.SAVED -> Res.string.continuous_scan_saved
+                    ContinuousScanStatus.REVIEW -> Res.string.continuous_scan_review
+                    ContinuousScanStatus.DUPLICATE -> Res.string.continuous_scan_duplicate
+                    ContinuousScanStatus.SAVE_FAILED -> Res.string.history_save_error
                 }
                 val invoice = notice.result.invoice
-                val details = getString(resources, Res.continuous_scan_details,
-                    invoice.value(1).ifBlank { getString(resources, Res.unknown_seller) },
-                    invoice.value(4).ifBlank { getString(resources, Res.missing) })
+                val details = getString(resources, Res.string.continuous_scan_details,
+                    invoice.value(1).ifBlank { getString(resources, Res.string.unknown_seller) },
+                    invoice.value(4).ifBlank { getString(resources, Res.string.missing) })
                 snackbar.currentSnackbarData?.dismiss()
                 val action = snackbar.showSnackbar(getString(resources, title) + "\n" + details,
-                    actionLabel = getString(resources, Res.continuous_scan_view_result),
+                    actionLabel = getString(resources, Res.string.continuous_scan_view_result),
                     duration = SnackbarDuration.Short)
                 if (action == SnackbarResult.ActionPerformed) vm.viewContinuousResult(notice)
             }
@@ -358,10 +358,10 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
             topBar = { Column { TopAppBar(modifier = Modifier.testTag("app_title_bar"),
             windowInsets = safeWindowInsets.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
             scrollBehavior = if (screen == 0) null else titleScrollBehavior, navigationIcon = {
-            IconTile(Res.ic_scan, Modifier.padding(start = 16.dp, end = 8.dp))
+            IconTile(Res.drawable.ic_scan, Modifier.padding(start = 16.dp, end = 8.dp))
         }, title = { Column {
-            Text(stringResource(Res.app_name), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(Res.app_tagline), style = MaterialTheme.typography.labelMedium,
+            Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.app_tagline), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = if (screen == 0) 0.88f else 1f)))
             val pageProgress = imageImport?.takeIf {
@@ -378,19 +378,19 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
                         .padding(start = 16.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         val label = when (progress.phase) {
-                            ImageImportPhase.OPENING -> stringResource(Res.image_import_progress,
+                            ImageImportPhase.OPENING -> stringResource(Res.string.image_import_progress,
                                 progress.current, progress.total, progress.fileName)
-                            ImageImportPhase.READING_PAGE -> stringResource(Res.image_import_page_progress,
+                            ImageImportPhase.READING_PAGE -> stringResource(Res.string.image_import_page_progress,
                                 progress.current, progress.total, progress.fileName, progress.page, progress.pageCount)
-                            ImageImportPhase.SAVING -> stringResource(Res.image_import_saving,
+                            ImageImportPhase.SAVING -> stringResource(Res.string.image_import_saving,
                                 progress.current, progress.total, progress.fileName)
                         }
                         Text(label, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodySmall)
                         TextButton(onClick = vm::cancelFileImport, enabled = !progress.cancelling,
                             modifier = Modifier.testTag("file_import_cancel")) {
-                            Text(stringResource(if (progress.cancelling) Res.image_import_stopping
-                                else Res.image_import_cancel))
+                            Text(stringResource(if (progress.cancelling) Res.string.image_import_stopping
+                                else Res.string.image_import_cancel))
                         }
                     }
                 }
@@ -401,13 +401,13 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
             NavigationBar(containerColor = androidx.compose.ui.graphics.Color.Transparent, tonalElevation = 0.dp,
                 windowInsets = safeWindowInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)) {
-            listOf(0 to Res.nav_scanner, 1 to Res.nav_result, 2 to Res.nav_history,
-                4 to Res.nav_statistics, 3 to Res.nav_settings).forEach { (index, label) ->
+            listOf(0 to Res.string.nav_scanner, 1 to Res.string.nav_result, 2 to Res.string.nav_history,
+                4 to Res.string.nav_statistics, 3 to Res.string.nav_settings).forEach { (index, label) ->
                 NavigationBarItem(selected = screen == index, onClick = {
                     if (index == 2 && (screen == 0 || screen == 1)) reviewOpportunity++
                     vm.selectTab(index)
-                }, icon = { AppIcon(listOf(Res.ic_scan, Res.ic_receipt,
-                    Res.ic_history, Res.ic_settings, Res.ic_statistics)[index],
+                }, icon = { AppIcon(listOf(Res.drawable.ic_scan, Res.drawable.ic_receipt,
+                    Res.drawable.ic_history, Res.drawable.ic_settings, Res.drawable.ic_statistics)[index],
                     description = if (compactNavigation) stringResource(label) else null) },
                     label = if (compactNavigation) null else ({ Text(stringResource(label),
                         style = MaterialTheme.typography.labelMedium) }),
@@ -425,7 +425,7 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
                         platform, padding) { vm.update { it.copy(torch = !it.torch) } }
                     1 -> if (result != null) resultScreenState.SaveableStateProvider("result") {
                         ResultScreen(result!!, vm::saveAnnotation, platform::copyVat, onShare = {
-                            if (!platform.shareInvoice(result!!.invoice)) vm.message.value = UiText(Res.share_error)
+                            if (!platform.shareInvoice(result!!.invoice)) vm.message.value = UiText(Res.string.share_error)
                         }) {
                             vm.navigate(0)
                         }
@@ -441,40 +441,40 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
                         val tooltipPosition = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above)
                         val filtersActive = historyCategory != null || historyAnnotationQuery.isNotBlank() ||
                             historyFrom != null || historyTo != null
-                        val filterState = stringResource(if (filtersActive) Res.stats_filters_active
-                            else Res.stats_filters_inactive)
+                        val filterState = stringResource(if (filtersActive) Res.string.stats_filters_active
+                            else Res.string.stats_filters_inactive)
                         Row(horizontalArrangement = Arrangement.spacedBy(0.dp),
                             verticalAlignment = Alignment.CenterVertically) {
                             TooltipBox(positionProvider = tooltipPosition,
-                                tooltip = { PlainTooltip { Text(stringResource(Res.export_csv)) } },
+                                tooltip = { PlainTooltip { Text(stringResource(Res.string.export_csv)) } },
                                 state = rememberTooltipState()) {
                                 IconButton(onClick = {
                                     platform.exportHistory(activeHistoryFilter)
                                 }, enabled = visibleHistory.canExport && !transferLocked,
                                     modifier = Modifier.size(48.dp)) {
-                                    AppIcon(Res.ic_download, description = stringResource(Res.export_csv))
+                                    AppIcon(Res.drawable.ic_download, description = stringResource(Res.string.export_csv))
                                 }
                             }
                             TooltipBox(positionProvider = tooltipPosition,
-                                tooltip = { PlainTooltip { Text(stringResource(Res.history_filter_title)) } },
+                                tooltip = { PlainTooltip { Text(stringResource(Res.string.history_filter_title)) } },
                                 state = rememberTooltipState()) {
                                 IconButton(onClick = { historyFilterDialog = true },
                                     modifier = Modifier.size(48.dp).semantics { stateDescription = filterState }) {
                                     BadgedBox(badge = { if (filtersActive) Badge() }) {
-                                        AppIcon(Res.ic_filter,
-                                            description = stringResource(Res.history_filter_title))
+                                        AppIcon(Res.drawable.ic_filter,
+                                            description = stringResource(Res.string.history_filter_title))
                                     }
                                 }
                             }
                             TooltipBox(positionProvider = tooltipPosition,
-                                tooltip = { PlainTooltip { Text(stringResource(Res.clear_title)) } },
+                                tooltip = { PlainTooltip { Text(stringResource(Res.string.clear_title)) } },
                                 state = rememberTooltipState()) {
                                 IconButton(onClick = { clearDialog = true },
                                     enabled = history.total > 0 && !transferLocked,
                                     modifier = Modifier.size(48.dp),
                                     colors = IconButtonDefaults.iconButtonColors(
                                         contentColor = MaterialTheme.colorScheme.error)) {
-                                    AppIcon(Res.ic_delete, description = stringResource(Res.clear_title))
+                                    AppIcon(Res.drawable.ic_delete, description = stringResource(Res.string.clear_title))
                                 }
                             }
                         } }, onClearFilters = {
@@ -505,9 +505,9 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
                                             colors = ButtonDefaults.outlinedButtonColors(
                                                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                                                 contentColor = MaterialTheme.colorScheme.onSurface)) {
-                                            AppIcon(Res.ic_arrow_back, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                            AppIcon(Res.drawable.ic_arrow_back, modifier = Modifier.size(ButtonDefaults.IconSize))
                                             Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                            Text(stringResource(Res.stats_back))
+                                            Text(stringResource(Res.string.stats_back))
                                         }
                                     }
                                 })
@@ -527,8 +527,8 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
                     else -> SettingsScreen(settings, vm::update,
                         listState = settingsListState, platform = platform,
                         transfersEnabled = !transferLocked,
-                        onRate = { if (!platform.openStore()) vm.message.value = UiText(Res.store_open_error) },
-                        onShare = { if (!platform.shareApp()) vm.message.value = UiText(Res.share_error) })
+                        onRate = { if (!platform.openStore()) vm.message.value = UiText(Res.string.store_open_error) },
+                        onShare = { if (!platform.shareApp()) vm.message.value = UiText(Res.string.share_error) })
                 }
             }
         }
@@ -542,25 +542,25 @@ private fun ScannerContent(vm: ScannerUiState, platform: ScannerPlatform) {
         imageImportSummary?.let { summary ->
             AlertDialog(onDismissRequest = vm::dismissImageImportSummary,
                 title = { Text(stringResource(when {
-                    summary.cancelled -> Res.image_import_cancelled
-                    summary.interrupted -> Res.image_import_interrupted
-                    else -> Res.image_import_title
+                    summary.cancelled -> Res.string.image_import_cancelled
+                    summary.interrupted -> Res.string.image_import_interrupted
+                    else -> Res.string.image_import_title
                 })) },
                 text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (summary.interrupted) Text(stringResource(Res.image_import_processed_files,
+                    if (summary.interrupted) Text(stringResource(Res.string.image_import_processed_files,
                         summary.processedFiles, summary.totalFiles))
-                    Text(stringResource(Res.image_import_summary, summary.added,
+                    Text(stringResource(Res.string.image_import_summary, summary.added,
                         summary.duplicates, summary.needsReview, summary.invalidQr,
                         summary.unreadable, summary.saveFailed))
-                    if (summary.cancelled) Text(stringResource(Res.image_import_cancelled_hint))
+                    if (summary.cancelled) Text(stringResource(Res.string.image_import_cancelled_hint))
                 } },
                 confirmButton = { TextButton(onClick = vm::dismissImageImportSummary) {
-                    Text(stringResource(Res.image_import_done))
+                    Text(stringResource(Res.string.image_import_done))
                 } })
         }
         invoiceToDelete?.let { invoice ->
             key(invoice.id) {
-                InvoiceDeleteDialog(invoice.seller.ifBlank { stringResource(Res.unknown_seller) },
+                InvoiceDeleteDialog(invoice.seller.ifBlank { stringResource(Res.string.unknown_seller) },
                     onDismiss = { invoiceToDelete = null }, onConfirm = { skip ->
                         vm.delete(invoice.id, skip)
                         invoiceToDelete = null
@@ -588,13 +588,13 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        IconTile(Res.ic_receipt)
-        SectionHeading(stringResource(Res.no_invoice), stringResource(Res.manual_base64_hint))
+        IconTile(Res.drawable.ic_receipt)
+        SectionHeading(stringResource(Res.string.no_invoice), stringResource(Res.string.manual_base64_hint))
         OutlinedTextField(
             value = raw,
             onValueChange = { raw = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(Res.manual_base64_label)) },
+            label = { Text(stringResource(Res.string.manual_base64_label)) },
             textStyle = MaterialTheme.typography.bodyLarge.copy(textDirection = TextDirection.Ltr),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
             minLines = 4,
@@ -606,7 +606,7 @@ private fun ManualInvoiceEntry(busy: Boolean, inspect: (String) -> Unit) {
             onClick = { keyboard?.hide(); inspect(raw.trim()) },
             enabled = raw.isNotBlank() && !busy,
             modifier = Modifier.fillMaxWidth()
-        ) { Text(stringResource(Res.manual_base64_inspect)) }
+        ) { Text(stringResource(Res.string.manual_base64_inspect)) }
     }
 }
 
@@ -625,32 +625,32 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
         item { Card(colors = CardDefaults.cardColors(containerColor = if(invoice.passed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer)) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    IconTile(if (invoice.passed) Res.ic_check else Res.ic_info,
+                    IconTile(if (invoice.passed) Res.drawable.ic_check else Res.drawable.ic_info,
                         container = MaterialTheme.colorScheme.surfaceContainerLowest,
                         tint = if (invoice.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-                    Text(if(invoice.passed) stringResource(Res.result_passed) else stringResource(Res.result_failed),
+                    Text(if(invoice.passed) stringResource(Res.string.result_passed) else stringResource(Res.string.result_failed),
                         Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                     IconButton(onClick = onShare) {
-                        AppIcon(Res.ic_share, description = stringResource(Res.share_invoice))
+                        AppIcon(Res.drawable.ic_share, description = stringResource(Res.string.share_invoice))
                     }
                 }
-                Text(stringResource(Res.invoice_summary, stringResource(invoice.type.label.resourceId), stringResource(if (invoice.phase2) Res.phase_two else Res.phase_one)))
+                Text(stringResource(Res.string.invoice_summary, stringResource(invoice.type.label.resourceId), stringResource(if (invoice.phase2) Res.string.phase_two else Res.string.phase_one)))
                 invoice.error?.let { Text(it.asUiText().localized()) }
-                if (!invoice.passed) Text(stringResource(Res.result_review_hint), style = MaterialTheme.typography.bodyMedium)
+                if (!invoice.passed) Text(stringResource(Res.string.result_review_hint), style = MaterialTheme.typography.bodyMedium)
                 relevantChecks.filterNot { it.passed }.forEach { check ->
-                    Text(stringResource(Res.check_status, "✕", check.label.asUiText().localized(), check.phase),
+                    Text(stringResource(Res.string.check_status, "✕", check.label.asUiText().localized(), check.phase),
                         style = MaterialTheme.typography.bodySmall)
                 }
-                Text(stringResource(Res.result_checked_at, checkedAtText), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.result_checked_at, checkedAtText), style = MaterialTheme.typography.bodySmall)
             }
         } }
-        item { Text(stringResource(Res.structural_disclaimer), style = MaterialTheme.typography.bodySmall,
+        item { Text(stringResource(Res.string.structural_disclaimer), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (result.scanId != null) item {
             InvoiceAnnotationCard(result.annotation, onSaveAnnotation)
         }
         item {
-            Text(stringResource(Res.invoice_details_heading),
+            Text(stringResource(Res.string.invoice_details_heading),
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
@@ -658,7 +658,7 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
         if (invoice.phase2) {
             item {
                 OutlinedButton(onClick = { advanced = !advanced }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(if (advanced) Res.result_hide_advanced else Res.result_show_advanced))
+                    Text(stringResource(if (advanced) Res.string.result_hide_advanced else Res.string.result_show_advanced))
                 }
             }
             if (advanced) items((7..9).toList()) { tag -> InvoiceField(invoice, tag, copyVat) }
@@ -666,19 +666,19 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
         item { VerificationLevels(invoice) }
         item {
             TextButton(onClick = { checks = !checks }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(if (checks) Res.result_hide_checks else Res.check_details))
+                Text(stringResource(if (checks) Res.string.result_hide_checks else Res.string.check_details))
             }
         }
         if (checks) {
             item {
-                Text(stringResource(Res.phase_one_report, stringResource(if (invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }) Res.checks_passed else Res.checks_failed)))
-                if (invoice.phase2) Text(stringResource(Res.phase_two_report, stringResource(if (invoice.error == null && relevantChecks.all { it.passed }) Res.structural_passed else Res.checks_failed)))
+                Text(stringResource(Res.string.phase_one_report, stringResource(if (invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }) Res.string.checks_passed else Res.string.checks_failed)))
+                if (invoice.phase2) Text(stringResource(Res.string.phase_two_report, stringResource(if (invoice.error == null && relevantChecks.all { it.passed }) Res.string.structural_passed else Res.string.checks_failed)))
             }
-            items(relevantChecks) { check -> Text(stringResource(Res.check_status, if(check.passed) "✓" else "✕", check.label.asUiText().localized(), check.phase), color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
+            items(relevantChecks) { check -> Text(stringResource(Res.string.check_status, if(check.passed) "✓" else "✕", check.label.asUiText().localized(), check.phase), color = if(check.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
         }
         item {
             TextButton(onClick = { raw = !raw }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(if (raw) Res.result_hide_raw else Res.raw_qr))
+                Text(stringResource(if (raw) Res.string.result_hide_raw else Res.string.raw_qr))
             }
         }
         if (raw) item {
@@ -686,7 +686,7 @@ private fun ResultScreen(result: ScanResult, onSaveAnnotation: (InvoiceAnnotatio
                 RawQrText(invoice.raw, Modifier.fillMaxWidth())
             }
         }
-        item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text(stringResource(Res.scan_again)) } }
+        item { Button(onClick = again, modifier = Modifier.fillMaxWidth()) { Text(stringResource(Res.string.scan_again)) } }
     }
 }
 
@@ -703,10 +703,10 @@ private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (Invoic
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(Res.invoice_your_data), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(Res.string.invoice_your_data), style = MaterialTheme.typography.titleSmall)
                 if (annotation.invoiceNumber.isNotBlank() || annotation.category != 0 || annotation.note.isNotBlank()) {
                     val numberText = annotation.invoiceNumber.takeIf { it.isNotBlank() }
-                        ?.let { stringResource(Res.invoice_number) + ": " + it }
+                        ?.let { stringResource(Res.string.invoice_number) + ": " + it }
                     val categoryText = annotation.category.takeIf { it != 0 }
                         ?.let { stringResource(InvoiceCategories.resource(it)) }
                     if (numberText != null && categoryText != null) {
@@ -734,28 +734,28 @@ private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (Invoic
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            val editDescription = stringResource(Res.invoice_edit_details_action)
+            val editDescription = stringResource(Res.string.invoice_edit_details_action)
             TextButton(onClick = {
                 number = annotation.invoiceNumber; category = annotation.category; note = annotation.note
                 editing = true
             }, modifier = Modifier.semantics { contentDescription = editDescription }) {
-                Text(stringResource(Res.invoice_edit_details))
+                Text(stringResource(Res.string.invoice_edit_details))
             }
         }
     }
     if (editing) AlertDialog(onDismissRequest = { editing = false },
-        title = { Text(stringResource(Res.invoice_your_data)) },
+        title = { Text(stringResource(Res.string.invoice_your_data)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(number, { number = it.take(120) },
-                    label = { Text(stringResource(Res.invoice_number)) },
+                    label = { Text(stringResource(Res.string.invoice_number)) },
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 ExposedDropdownMenuBox(expanded = categoryExpanded,
                     onExpandedChange = { categoryExpanded = it }) {
                     OutlinedTextField(value = stringResource(InvoiceCategories.resource(category)),
                         onValueChange = {}, readOnly = true,
-                        label = { Text(stringResource(Res.invoice_category)) },
+                        label = { Text(stringResource(Res.string.invoice_category)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
                         modifier = Modifier.fillMaxWidth().testTag("invoice_annotation_category")
                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
@@ -769,40 +769,40 @@ private fun InvoiceAnnotationCard(annotation: InvoiceAnnotation, onSave: (Invoic
                     }
                 }
                 OutlinedTextField(note, { note = it.take(2_000) },
-                    label = { Text(stringResource(Res.invoice_note)) },
+                    label = { Text(stringResource(Res.string.invoice_note)) },
                     minLines = 3, maxLines = 6, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = { Button(onClick = {
             onSave(InvoiceAnnotation(number.trim(), category, note.trim()))
             editing = false
-        }) { Text(stringResource(Res.invoice_save_details)) } },
-        dismissButton = { TextButton(onClick = { editing = false }) { Text(stringResource(Res.cancel)) } })
+        }) { Text(stringResource(Res.string.invoice_save_details)) } },
+        dismissButton = { TextButton(onClick = { editing = false }) { Text(stringResource(Res.string.cancel)) } })
 }
 
 @Composable
 fun VerificationLevels(invoice: Invoice) {
     var expanded by rememberSaveable(invoice.raw) { mutableStateOf(false) }
     TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(if (expanded) Res.verification_hide_levels else Res.verification_levels))
+        Text(stringResource(if (expanded) Res.string.verification_hide_levels else Res.string.verification_levels))
     }
     if (!expanded) return
     val corePassed = invoice.error == null && invoice.checks.filter { it.phase == 1 }.all { it.passed }
     val phaseTwoPassed = invoice.error == null && invoice.checks.filter { it.phase == 2 }.all { it.passed }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            VerificationLevelRow(Res.verification_qr_structure,
-                if (invoice.error == null) Res.verification_local_passed else Res.verification_local_failed)
-            VerificationLevelRow(Res.verification_core_fields,
-                if (corePassed) Res.verification_local_passed else Res.verification_local_failed)
-            VerificationLevelRow(Res.verification_phase_two_fields, when {
-                !invoice.phase2 -> Res.verification_not_present
-                phaseTwoPassed -> Res.verification_local_passed
-                else -> Res.verification_local_failed
+            VerificationLevelRow(Res.string.verification_qr_structure,
+                if (invoice.error == null) Res.string.verification_local_passed else Res.string.verification_local_failed)
+            VerificationLevelRow(Res.string.verification_core_fields,
+                if (corePassed) Res.string.verification_local_passed else Res.string.verification_local_failed)
+            VerificationLevelRow(Res.string.verification_phase_two_fields, when {
+                !invoice.phase2 -> Res.string.verification_not_present
+                phaseTwoPassed -> Res.string.verification_local_passed
+                else -> Res.string.verification_local_failed
             })
-            VerificationLevelRow(Res.verification_signature,
-                if (invoice.phase2) Res.verification_not_checked else Res.verification_not_present)
-            VerificationLevelRow(Res.verification_official, Res.verification_not_checked)
+            VerificationLevelRow(Res.string.verification_signature,
+                if (invoice.phase2) Res.string.verification_not_checked else Res.string.verification_not_present)
+            VerificationLevelRow(Res.string.verification_official, Res.string.verification_not_checked)
         }
     }
 }
@@ -812,7 +812,7 @@ private fun VerificationLevelRow(label: StringResource, status: StringResource) 
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(stringResource(label), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Text(stringResource(status), style = MaterialTheme.typography.bodySmall,
-            color = if (status == Res.verification_local_failed) MaterialTheme.colorScheme.error
+            color = if (status == Res.string.verification_local_failed) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -846,18 +846,18 @@ private fun InvoiceField(invoice: Invoice, tag: Int, copyVat: (String) -> Unit) 
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SelectionContainer(Modifier.weight(1f)) {
                 Text(invoice.value(tag).ifBlank {
-                    if (tag == 9 && invoice.type == InvoiceType.STANDARD) stringResource(Res.stamp_optional) else stringResource(Res.missing)
+                    if (tag == 9 && invoice.type == InvoiceType.STANDARD) stringResource(Res.string.stamp_optional) else stringResource(Res.string.missing)
                 }, style = (if (tag == 4) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge).let {
                     if (tag >= 2 && invoice.value(tag).isNotBlank()) it.copy(textDirection = TextDirection.Ltr) else it
                 }, fontWeight = if (tag == 1 || tag == 4) FontWeight.Bold else FontWeight.Normal)
             }
             if (tag == 2) IconButton(onClick = { copyVat(invoice.value(2)) }, enabled = invoice.value(2).isNotBlank()) {
-                AppIcon(Res.ic_copy, description = stringResource(Res.copy_vat))
+                AppIcon(Res.drawable.ic_copy, description = stringResource(Res.string.copy_vat))
             }
         }
         }
-        if (tag in 6..7) Text(stringResource(Res.base64_original), style = MaterialTheme.typography.labelSmall)
-        if (tag >= 8) Text(stringResource(Res.base64_binary), style = MaterialTheme.typography.labelSmall)
+        if (tag in 6..7) Text(stringResource(Res.string.base64_original), style = MaterialTheme.typography.labelSmall)
+        if (tag >= 8) Text(stringResource(Res.string.base64_binary), style = MaterialTheme.typography.labelSmall)
     } }
 }
 
@@ -870,82 +870,161 @@ private fun SettingsScreen(s: ScannerSettings, update: ((ScannerSettings) -> Sca
     var showPrivacy by rememberSaveable { mutableStateOf(false) }
     LazyColumn(Modifier.testTag("settings_list"), state = listState,
         contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { SectionHeading(stringResource(Res.settings_heading), stringResource(Res.settings_subtitle)) }
-        item { Text(stringResource(Res.settings_camera), style = MaterialTheme.typography.titleSmall,
+        item { SectionHeading(stringResource(Res.string.settings_heading), stringResource(Res.string.settings_subtitle)) }
+        item { Text(stringResource(Res.string.settings_camera), style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary) }
         item {
-            Choice(stringResource(Res.resolution), s.resolution, listOf(
-                "SD" to stringResource(Res.resolution_sd),
-                "HD" to stringResource(Res.resolution_hd),
-                "FHD" to stringResource(Res.resolution_fhd),
-                "QHD" to stringResource(Res.resolution_qhd),
-                "UHD" to stringResource(Res.resolution_uhd)
+            Choice(stringResource(Res.string.resolution), s.resolution, listOf(
+                "SD" to stringResource(Res.string.resolution_sd),
+                "HD" to stringResource(Res.string.resolution_hd),
+                "FHD" to stringResource(Res.string.resolution_fhd),
+                "QHD" to stringResource(Res.string.resolution_qhd),
+                "UHD" to stringResource(Res.string.resolution_uhd)
             ), singleLine = true, warningDescription = when (s.resolution) {
-                "SD" -> stringResource(Res.resolution_sd_warning)
-                "UHD" -> stringResource(Res.resolution_uhd_warning)
+                "SD" -> stringResource(Res.string.resolution_sd_warning)
+                "UHD" -> stringResource(Res.string.resolution_uhd_warning)
                 else -> null
             }) { v -> update { it.copy(resolution = v) } }
         }
-        item { Choice(stringResource(Res.scan_frequency), s.speed, listOf("NORMAL" to stringResource(Res.speed_normal), "FAST" to stringResource(Res.speed_fast), "FASTEST" to stringResource(Res.speed_fastest)), singleLine = true) { v -> update { it.copy(speed = v) } } }
-        item { Toggle(stringResource(Res.scan_crop), s.cropEnabled) { v -> update { it.copy(cropEnabled = v) } } }
-        item { Text(stringResource(Res.settings_advanced), Modifier.padding(top = 12.dp),
+        item { Choice(stringResource(Res.string.scan_frequency), s.speed, listOf("NORMAL" to stringResource(Res.string.speed_normal), "FAST" to stringResource(Res.string.speed_fast), "FASTEST" to stringResource(Res.string.speed_fastest)), singleLine = true) { v -> update { it.copy(speed = v) } } }
+        item { Toggle(stringResource(Res.string.scan_crop), s.cropEnabled) { v -> update { it.copy(cropEnabled = v) } } }
+        item { Text(stringResource(Res.string.settings_advanced), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
-        item { Toggle(stringResource(Res.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
-        item { Toggle(stringResource(Res.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }
-        item { Toggle(stringResource(Res.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
-        item { Toggle(stringResource(Res.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
-        item { Choice(stringResource(Res.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(Res.bin_local), "GLOBAL_HISTOGRAM" to stringResource(Res.bin_global), "FIXED_THRESHOLD" to stringResource(Res.bin_fixed), "BOOL_CAST" to stringResource(Res.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
-        item { Toggle(stringResource(Res.multi_frame_recovery), s.multiFrameRecovery) { v ->
+        item { Toggle(stringResource(Res.string.try_harder), s.harder) { v -> update { it.copy(harder = v) } } }
+        item { Toggle(stringResource(Res.string.try_denoise), s.denoise) { v -> update { it.copy(denoise = v) } } }
+        item { Toggle(stringResource(Res.string.try_rotate), s.rotate) { v -> update { it.copy(rotate = v) } } }
+        item { Toggle(stringResource(Res.string.try_inverted), s.inverted) { v -> update { it.copy(inverted = v) } } }
+        item { Choice(stringResource(Res.string.binarizer), s.binarizer, listOf("LOCAL_AVERAGE" to stringResource(Res.string.bin_local), "GLOBAL_HISTOGRAM" to stringResource(Res.string.bin_global), "FIXED_THRESHOLD" to stringResource(Res.string.bin_fixed), "BOOL_CAST" to stringResource(Res.string.bin_bool))) { v -> update { it.copy(binarizer = v) } } }
+        item { Toggle(stringResource(Res.string.multi_frame_recovery), s.multiFrameRecovery) { v ->
             update { it.copy(multiFrameRecovery = v) }
         } }
-        item { Text(stringResource(Res.camera_settings_note), style = MaterialTheme.typography.bodySmall,
+        item { Text(stringResource(Res.string.camera_settings_note), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { BackupSection(transfersEnabled, platform::createBackup, platform::importBackup) }
-        item { Text(stringResource(Res.settings_app), Modifier.padding(top = 12.dp),
+        item { Text(stringResource(Res.string.settings_app), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
         item { AppLanguagePicker(platform.language, platform::setLanguage) }
         item { AppThemePicker(s.appTheme) { value ->
             update { it.copy(appTheme = value, goldenTheme = value == "GOLD") }
         } }
-        item { Choice(stringResource(Res.appearance), s.theme, listOf("SYSTEM" to stringResource(Res.theme_system), "LIGHT" to stringResource(Res.theme_light), "DARK" to stringResource(Res.theme_dark)), singleLine = true) { v -> update { it.copy(theme = v) } } }
+        item { Choice(stringResource(Res.string.appearance), s.theme, listOf("SYSTEM" to stringResource(Res.string.theme_system), "LIGHT" to stringResource(Res.string.theme_light), "DARK" to stringResource(Res.string.theme_dark)), singleLine = true) { v -> update { it.copy(theme = v) } } }
         if (platform.portraitLockSupported) {
-            item { Toggle(stringResource(Res.lock_portrait), s.lockPortrait) { v -> update { it.copy(lockPortrait = v) } } }
+            item { Toggle(stringResource(Res.string.lock_portrait), s.lockPortrait) { v -> update { it.copy(lockPortrait = v) } } }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) {
-                    SettingsAction(stringResource(Res.rate_app), Res.ic_star, onRate)
+                    SettingsAction(stringResource(Res.string.rate_app), Res.drawable.ic_star, onRate)
                 }
                 Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest,
                     shape = MaterialTheme.shapes.medium) {
                     IconButton(onClick = onShare, modifier = Modifier.size(56.dp)) {
-                        AppIcon(Res.ic_share, description = stringResource(Res.share_app),
+                        AppIcon(Res.drawable.ic_share, description = stringResource(Res.string.share_app),
                             tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
         }
-        item { SettingsAction(stringResource(Res.privacy_policy), Res.ic_info) { showPrivacy = true } }
-        item { SettingsAction(stringResource(Res.about_app), Res.ic_info) { showAbout = true } }
+        item { SettingsAction(stringResource(Res.string.privacy_policy), Res.drawable.ic_info) { showPrivacy = true } }
+        item { SettingsAction(stringResource(Res.string.about_app), Res.drawable.ic_info) { showAbout = true } }
     }
     if (showPrivacy) PrivacyPolicyDialog(platform::openPrivacyPolicy) { showPrivacy = false }
     if (showAbout) AlertDialog(onDismissRequest = { showAbout = false },
-        title = { Text(stringResource(Res.app_name)) },
+        title = { Text(stringResource(Res.string.app_name)) },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(Res.about_version, platform.versionName))
-            Text(stringResource(Res.about_details))
-        } }, confirmButton = { TextButton(onClick = { showAbout = false }) { Text(stringResource(Res.close)) } })
+            Text(stringResource(Res.string.about_version, platform.versionName))
+            Text(stringResource(Res.string.about_details))
+        } }, confirmButton = { TextButton(onClick = { showAbout = false }) { Text(stringResource(Res.string.close)) } })
 }
 
 @Composable
 private fun AppThemePicker(selected: String, onChange: (String) -> Unit) {
-    Choice(stringResource(Res.app_appearance), selected, listOf(
-        "DEFAULT" to stringResource(Res.default_theme),
-        "GOLD" to stringResource(Res.gold_theme),
-        "PURPLE" to stringResource(Res.purple_theme),
-        "BLUE" to stringResource(Res.blue_theme)
+    Choice(stringResource(Res.string.app_appearance), selected, listOf(
+        "DEFAULT" to stringResource(Res.string.default_theme),
+        "GOLD" to stringResource(Res.string.gold_theme),
+        "PURPLE" to stringResource(Res.string.purple_theme),
+        "BLUE" to stringResource(Res.string.blue_theme)
     ), singleLine = true, onChange = onChange)
+}
+
+@Composable
+private fun Toggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.medium) {
+        Row(Modifier.fillMaxWidth().toggleable(checked, role = Role.Switch, onValueChange = onChange)
+            .padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Switch(checked, onCheckedChange = null)
+        }
+    }
+}
+@Composable
+internal fun Choice(label: String, selected: String, values: List<Pair<String,String>>,
+    singleLine: Boolean = false, border: BorderStroke? = null, equalWidth: Boolean = false,
+    warningDescription: String? = null,
+    onChange: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val largeText = LocalDensity.current.fontScale >= 1.5f
+    val selectedLabel = values.firstOrNull { it.first == selected }?.second ?: selected
+    Box {
+        Surface(onClick = { expanded = true }, color = MaterialTheme.colorScheme.surfaceContainerLowest,
+            shape = MaterialTheme.shapes.medium, border = border,
+            modifier = Modifier.semantics { stateDescription = selectedLabel }) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (largeText) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(label, style = MaterialTheme.typography.bodyLarge)
+                            if (warningDescription != null) AppIcon(Res.drawable.ic_warning,
+                                modifier = Modifier.size(20.dp), description = warningDescription,
+                                tint = Color(0xFFF9A825))
+                        }
+                        Text(selectedLabel, style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
+                } else if (equalWidth) {
+                    Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(values.firstOrNull { it.first == selected }?.second ?: selected,
+                            Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.End,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        AppIcon(Res.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else if (singleLine) {
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(label, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (warningDescription != null) {
+                            AppIcon(Res.drawable.ic_warning, modifier = Modifier.size(20.dp),
+                                description = warningDescription, tint = Color(0xFFF9A825))
+                        }
+                    }
+                    Text(values.firstOrNull { it.first == selected }?.second ?: selected,
+                        if (warningDescription != null) Modifier else Modifier.weight(1.35f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.End,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                } else Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(label, style = MaterialTheme.typography.bodyLarge)
+                    Text(values.firstOrNull { it.first == selected }?.second ?: selected,
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                }
+                if (!equalWidth) AppIcon(Res.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            values.forEach { (key, title) -> DropdownMenuItem(text = { Text(title) },
+                onClick = { onChange(key); expanded = false },
+                modifier = Modifier.semantics { this.selected = key == selected }) }
+        }
+    }
 }
 
 @Composable
@@ -956,7 +1035,7 @@ private fun SettingsAction(label: String, icon: DrawableResource, onClick: () ->
             verticalAlignment = Alignment.CenterVertically) {
             AppIcon(icon, tint = MaterialTheme.colorScheme.primary)
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            AppIcon(Res.ic_chevron, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppIcon(Res.drawable.ic_chevron, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

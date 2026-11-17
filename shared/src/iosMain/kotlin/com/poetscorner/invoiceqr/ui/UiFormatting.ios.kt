@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
 package com.poetscorner.invoiceqr.ui
 
 import androidx.compose.runtime.Composable
@@ -47,7 +49,7 @@ private fun dateFormatter(language: String, utc: Boolean = true) = NSDateFormatt
     if (utc) timeZone = NSTimeZone.timeZoneForSecondsFromGMT(0)
 }
 
-private fun date(seconds: Double) = NSDate(timeIntervalSince1970 = seconds)
+private fun date(seconds: Double) = NSDate.dateWithTimeIntervalSince1970(seconds)
 
 internal actual fun formatDay(epochDay: Long, locale: String, short: Boolean): String =
     dateFormatter(locale).apply {

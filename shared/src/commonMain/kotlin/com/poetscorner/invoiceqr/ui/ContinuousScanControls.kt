@@ -30,13 +30,13 @@ internal fun ContinuousScanControls(state: ContinuousScanState, onEnabled: (Bool
         Row(Modifier.fillMaxWidth().heightIn(min = 40.dp).padding(horizontal = 14.dp)
             .testTag("continuous_scan_toggle").toggleable(state.enabled,
             role = Role.Switch, onValueChange = onEnabled), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(Res.continuous_scan), Modifier.weight(1f).padding(end = 8.dp),
+            Text(stringResource(Res.string.continuous_scan), Modifier.weight(1f).padding(end = 8.dp),
                 style = typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     if (state.enabled) {
-                        Text(stringResource(Res.continuous_scan_count, formatInteger(state.added.toLong(), locale)),
+                        Text(stringResource(Res.string.continuous_scan_count, formatInteger(state.added.toLong(), locale)),
                             Modifier.testTag("continuous_scan_count"), style = typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)

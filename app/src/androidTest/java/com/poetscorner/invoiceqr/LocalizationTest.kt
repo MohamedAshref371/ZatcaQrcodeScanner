@@ -43,9 +43,9 @@ class LocalizationTest {
     }
 
     @Test fun retainedChecksAndErrorsResolveInTheCurrentLanguage() = runBlocking<Unit> {
-        val check = UiText(Res.check_present, UiText(Res.tag_seller))
+        val check = UiText(Res.string.check_present, UiText(Res.string.tag_seller))
         val bad = ZatcaParser.parse("https://example.org")
-        val formatted = UiText(Res.error_tag_duplicate, 6)
+        val formatted = UiText(Res.string.error_tag_duplicate, 6)
         val original = LocaleList.getDefault()
         try {
             for ((language, expected) in listOf("en" to "Seller name is present", "ar" to "وجود اسم البائع")) {

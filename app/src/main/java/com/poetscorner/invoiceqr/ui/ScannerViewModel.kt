@@ -186,7 +186,7 @@ class ScannerViewModel(
                     statisticsGroupTitle(context, request, it)
                 }
             }
-            UiText(Res.stats_export_success)
+            UiText(Res.string.stats_export_success)
         }
         if (job != null) cancelStatisticsExport()
         return job
@@ -266,7 +266,7 @@ class ScannerViewModel(
                 val scan = db.scans().byId(id)
                 if (scan == null) {
                     savedState.remove<Long>("result_scan_id")
-                    message.value = UiText(Res.history_entry_missing)
+                    message.value = UiText(Res.string.history_entry_missing)
                 } else {
                     mutableResult.value = withContext(Dispatchers.Default) {
                         ScanResult(ZatcaParser.parse(scan.raw), scan.scannedAt, scan.id, InvoiceAnnotation.from(scan))
@@ -275,7 +275,7 @@ class ScannerViewModel(
                 }
             } catch (error: Exception) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
-                message.value = UiText(Res.history_load_error)
+                message.value = UiText(Res.string.history_load_error)
             } finally {
                 if (version == resultVersion) mutableRestoringResult.value = false
             }
@@ -329,7 +329,7 @@ class ScannerViewModel(
         fun currentSession() = session == null || session == cameraSession
         val invoice = withContext(Dispatchers.Default) { ZatcaParser.parse(raw) }
         if (invoice.error != null) {
-            if (currentSession()) message.value = UiText(Res.scan_invalid)
+            if (currentSession()) message.value = UiText(Res.string.scan_invalid)
             return false
         }
         val checkedAt = System.currentTimeMillis()
@@ -360,7 +360,7 @@ class ScannerViewModel(
                     mutableScanFeedback.tryEmit(Unit)
                 } else {
                     showResult(scan)
-                    if (saved.alreadyExists) message.value = UiText(Res.invoice_already_saved)
+                    if (saved.alreadyExists) message.value = UiText(Res.string.invoice_already_saved)
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -374,7 +374,7 @@ class ScannerViewModel(
                 }
                 else {
                     showResult(ScanResult(invoice, checkedAt))
-                    message.value = UiText(Res.history_save_error)
+                    message.value = UiText(Res.string.history_save_error)
                 }
             }
         }
@@ -399,13 +399,13 @@ class ScannerViewModel(
                     db.scans().updateAnnotation(id, annotation.invoiceNumber, annotation.category, annotation.note)
                 }
                 if (updated == 0) {
-                    message.value = UiText(Res.history_entry_missing)
+                    message.value = UiText(Res.string.history_entry_missing)
                 } else if (mutableResult.value?.scanId == id) {
                     mutableResult.value = mutableResult.value?.copy(annotation = annotation)
                 }
             } catch (error: Exception) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
-                message.value = UiText(Res.invoice_details_save_error)
+                message.value = UiText(Res.string.invoice_details_save_error)
             }
         }
     }
@@ -430,15 +430,15 @@ class ScannerViewModel(
                     try { ZxingDecoder().use { it.readImportedImage(bitmap, scanSettings) } }
                     finally { bitmap.recycle() }
                 }
-                if (raw == null) message.value = UiText(Res.gallery_no_qr) else process(raw)
+                if (raw == null) message.value = UiText(Res.string.gallery_no_qr) else process(raw)
             } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-            catch (_: Exception) { message.value = UiText(Res.gallery_error) }
+            catch (_: Exception) { message.value = UiText(Res.string.gallery_error) }
             finally { busy.value = false }
         }
     }
     fun importInvoiceFiles(uris: List<Uri>) {
         if (uris.isEmpty()) return
-        if (busy.value) { message.value = UiText(Res.image_import_busy); return }
+        if (busy.value) { message.value = UiText(Res.string.image_import_busy); return }
         busy.value = true
         mutableImageImportSummary.value = null
         val job = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
@@ -452,12 +452,12 @@ class ScannerViewModel(
                 throw cancelled
             } catch (_: Exception) {
                 busy.value = false
-                message.value = UiText(Res.import_unsupported)
+                message.value = UiText(Res.string.import_unsupported)
                 return@launch
             }
             if (files.all { it.second == null }) {
                 busy.value = false
-                message.value = UiText(Res.import_unsupported)
+                message.value = UiText(Res.string.import_unsupported)
                 return@launch
             }
             if (files.size == 1 && files.single().second == InvoiceFileType.IMAGE) {
@@ -575,7 +575,7 @@ class ScannerViewModel(
                 }
             }
         }
-        UiText(Res.export_success)
+        UiText(Res.string.export_success)
     }
 
     fun backup(uri: Uri): Job? = startTransfer(TransferKind.BACKUP) {
@@ -584,7 +584,7 @@ class ScannerViewModel(
                 mutableTransfer.value = DataTransferState(TransferKind.BACKUP, count, total)
             }
         }
-        UiText(Res.backup_success)
+        UiText(Res.string.backup_success)
     }
 
     fun importBackup(uri: Uri): Job? = startTransfer(TransferKind.IMPORT) {
@@ -599,7 +599,7 @@ class ScannerViewModel(
                     mutableTransfer.value = DataTransferState(TransferKind.IMPORT, count)
                 }
             }
-            UiText(Res.backup_import_success, summary.added, summary.duplicates)
+            UiText(Res.string.backup_import_success, summary.added, summary.duplicates)
         } finally {
             cache.delete()
         }
@@ -615,14 +615,14 @@ class ScannerViewModel(
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (_: BackupTooLargeException) {
-                message.value = UiText(Res.backup_too_large)
+                message.value = UiText(Res.string.backup_too_large)
             } catch (_: InvalidBackupException) {
-                message.value = UiText(Res.backup_invalid)
+                message.value = UiText(Res.string.backup_invalid)
             } catch (_: Exception) {
                 message.value = UiText(when (kind) {
-                    TransferKind.EXPORT -> Res.export_error
-                    TransferKind.BACKUP -> Res.backup_error
-                    TransferKind.IMPORT -> Res.backup_import_error
+                    TransferKind.EXPORT -> Res.string.export_error
+                    TransferKind.BACKUP -> Res.string.backup_error
+                    TransferKind.IMPORT -> Res.string.backup_import_error
                 })
             } finally {
                 mutableTransfer.value = null
@@ -650,7 +650,7 @@ class ScannerViewModel(
     }
     override fun deleteHistory(plan: HistoryDeletionPlan) { viewModelScope.launch {
         runCatching { db.scans().deleteSelection(plan) }
-            .onFailure { message.value = UiText(Res.history_delete_error) }
+            .onFailure { message.value = UiText(Res.string.history_delete_error) }
     } }
     // Memory only: navigating within the app keeps this choice; leaving the app resets it.
     override var skipInvoiceDeleteConfirmation = false
@@ -660,7 +660,7 @@ class ScannerViewModel(
         if (skipConfirmationForSession) skipInvoiceDeleteConfirmation = true
         viewModelScope.launch {
         runCatching { db.scans().delete(id) }
-            .onFailure { message.value = UiText(Res.history_delete_error) }
+            .onFailure { message.value = UiText(Res.string.history_delete_error) }
         }
     }
     override fun onCleared() { db.close() }

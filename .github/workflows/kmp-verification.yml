@@ -82,6 +82,7 @@ jobs:
             sudo chmod u+rw /dev/kvm
           fi
       - name: Run Android UI and storage compatibility tests
+        id: android-tests
         uses: reactivecircus/android-emulator-runner@c9c93e6ba9c4194322e114c40970d5983d9a07cc # v2.38.0
         with:
           api-level: 35
@@ -98,7 +99,7 @@ jobs:
             "$(python3 -c 'import json; print(json.load(open("app/build/outputs/apk/androidTest/debug/output-metadata.json"))["applicationId"])')/androidx.test.runner.AndroidJUnitRunner"
             > "$RUNNER_TEMP/storage-tests.txt"
       - name: Report Android UI and storage test results
-        if: always()
+        if: always() && steps.android-tests.outcome != 'skipped' && steps.android-tests.outcome != ''
         run: |
           python3 - <<'PY'
           from collections import Counter

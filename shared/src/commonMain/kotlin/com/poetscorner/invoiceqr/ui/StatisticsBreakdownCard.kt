@@ -34,7 +34,7 @@ internal fun StatisticsBreakdownCard(breakdown: StatisticsGroupBreakdown) {
     @Composable fun amount(totals: StatisticsTotals, tax: Boolean): String {
         val missing = if (tax) totals.missingTax else totals.missingTotal
         val contributing = totals.count - totals.ignoredCount
-        if (contributing > 0 && missing == contributing) return stringResource(Res.history_total_unavailable)
+        if (contributing > 0 && missing == contributing) return stringResource(Res.string.history_total_unavailable)
         return formatDecimal((if (tax) totals.tax else totals.total).toPlainString(), locale)
     }
     @Composable fun amountRow(label: String, original: StatisticsTotals, contribution: StatisticsTotals,
@@ -51,18 +51,18 @@ internal fun StatisticsBreakdownCard(breakdown: StatisticsGroupBreakdown) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(Res.stats_breakdown_title), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(Res.stats_count, breakdown.net.count), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(Res.string.stats_breakdown_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.stats_count, breakdown.net.count), style = MaterialTheme.typography.bodySmall)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Spacer(Modifier.weight(1.15f))
-                Text(stringResource(Res.stats_breakdown_original), Modifier.weight(1f),
+                Text(stringResource(Res.string.stats_breakdown_original), Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
-                Text(stringResource(Res.stats_breakdown_contribution), Modifier.weight(1f),
+                Text(stringResource(Res.string.stats_breakdown_contribution), Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
             }
-            amountRow(stringResource(Res.stats_total_including_tax), breakdown.original, breakdown.net,
+            amountRow(stringResource(Res.string.stats_total_including_tax), breakdown.original, breakdown.net,
                 tax = false, emphasized = true)
-            amountRow(stringResource(Res.tag_tax), breakdown.original, breakdown.net,
+            amountRow(stringResource(Res.string.tag_tax), breakdown.original, breakdown.net,
                 tax = true, emphasized = true)
             breakdown.categories.forEach { line ->
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -71,17 +71,17 @@ internal fun StatisticsBreakdownCard(breakdown: StatisticsGroupBreakdown) {
                     StatisticsCategoryCalculation.SUBTRACT -> "−"
                     StatisticsCategoryCalculation.IGNORE -> "⊘"
                 }
-                Text(stringResource(Res.stats_breakdown_category_line, symbol,
+                Text(stringResource(Res.string.stats_breakdown_category_line, symbol,
                     stringResource(InvoiceCategories.resource(line.category)),
-                    stringResource(Res.stats_count, line.original.count)),
+                    stringResource(Res.string.stats_count, line.original.count)),
                     style = MaterialTheme.typography.titleSmall)
-                amountRow(stringResource(Res.stats_total_including_tax), line.original, line.contribution, tax = false)
-                amountRow(stringResource(Res.tag_tax), line.original, line.contribution, tax = true)
+                amountRow(stringResource(Res.string.stats_total_including_tax), line.original, line.contribution, tax = false)
+                amountRow(stringResource(Res.string.tag_tax), line.original, line.contribution, tax = true)
                 if (line.original.missingTotal > 0) Text(
-                    stringResource(Res.stats_breakdown_missing_total, line.original.missingTotal),
+                    stringResource(Res.string.stats_breakdown_missing_total, line.original.missingTotal),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 if (line.original.missingTax > 0) Text(
-                    stringResource(Res.stats_breakdown_missing_tax, line.original.missingTax),
+                    stringResource(Res.string.stats_breakdown_missing_tax, line.original.missingTax),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }

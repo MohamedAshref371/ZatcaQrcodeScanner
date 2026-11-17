@@ -112,22 +112,22 @@ import androidx.compose.ui.semantics.selected
 import com.poetscorner.invoiceqr.data.*
 
 internal fun StatisticsGrouping.label(): StringResource = when (this) {
-    StatisticsGrouping.SELLER -> Res.tag_seller
-    StatisticsGrouping.VAT -> Res.tag_vat
-    StatisticsGrouping.CATEGORY -> Res.invoice_category
-    StatisticsGrouping.DAY -> Res.stats_day
-    StatisticsGrouping.MONTH -> Res.stats_month
-    StatisticsGrouping.QUARTER -> Res.stats_quarter
-    StatisticsGrouping.HALF_YEAR -> Res.stats_half_year
-    StatisticsGrouping.YEAR -> Res.stats_year
+    StatisticsGrouping.SELLER -> Res.string.tag_seller
+    StatisticsGrouping.VAT -> Res.string.tag_vat
+    StatisticsGrouping.CATEGORY -> Res.string.invoice_category
+    StatisticsGrouping.DAY -> Res.string.stats_day
+    StatisticsGrouping.MONTH -> Res.string.stats_month
+    StatisticsGrouping.QUARTER -> Res.string.stats_quarter
+    StatisticsGrouping.HALF_YEAR -> Res.string.stats_half_year
+    StatisticsGrouping.YEAR -> Res.string.stats_year
 }
 
 internal fun StatisticsPreset.label(): StringResource = when (this) {
-    StatisticsPreset.THIS_MONTH -> Res.stats_this_month
-    StatisticsPreset.LAST_MONTH -> Res.stats_last_month
-    StatisticsPreset.THIS_QUARTER -> Res.stats_this_quarter
-    StatisticsPreset.LAST_QUARTER -> Res.stats_last_quarter
-    StatisticsPreset.THIS_YEAR -> Res.stats_this_year
+    StatisticsPreset.THIS_MONTH -> Res.string.stats_this_month
+    StatisticsPreset.LAST_MONTH -> Res.string.stats_last_month
+    StatisticsPreset.THIS_QUARTER -> Res.string.stats_this_quarter
+    StatisticsPreset.LAST_QUARTER -> Res.string.stats_last_quarter
+    StatisticsPreset.THIS_YEAR -> Res.string.stats_this_year
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -148,8 +148,8 @@ fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Un
     var categoryCalculationDialog by rememberSaveable { mutableStateOf(false) }
     val locale = uiLocaleTag()
     val groupSortLabel = request.grouping.label()
-    val sortLabels = mapOf(StatisticsSort.GROUP to groupSortLabel, StatisticsSort.COUNT to Res.stats_count_label,
-        StatisticsSort.TOTAL to Res.stats_total_including_tax, StatisticsSort.TAX to Res.tag_tax)
+    val sortLabels = mapOf(StatisticsSort.GROUP to groupSortLabel, StatisticsSort.COUNT to Res.string.stats_count_label,
+        StatisticsSort.TOTAL to Res.string.stats_total_including_tax, StatisticsSort.TAX to Res.string.tag_tax)
     ScrollToTopContainer(listState) {
     LazyColumn(Modifier.fillMaxSize().testTag("statistics_list"), state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 72.dp),
@@ -158,26 +158,26 @@ fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Un
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.weight(1f)) {
-                    SectionHeading(stringResource(Res.nav_statistics), stringResource(Res.stats_hint))
+                    SectionHeading(stringResource(Res.string.nav_statistics), stringResource(Res.string.stats_hint))
                 }
-                val filterState = stringResource(if (request.filtered) Res.stats_filters_active else Res.stats_filters_inactive)
+                val filterState = stringResource(if (request.filtered) Res.string.stats_filters_active else Res.string.stats_filters_inactive)
                 TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                    tooltip = { PlainTooltip { Text(stringResource(Res.history_filter_title)) } },
+                    tooltip = { PlainTooltip { Text(stringResource(Res.string.history_filter_title)) } },
                     state = rememberTooltipState()) {
                     IconButton(onClick = { filters = true },
                         modifier = Modifier.size(48.dp).semantics { stateDescription = filterState }) {
                         BadgedBox(badge = { if (request.filtered) Badge() }) {
-                            AppIcon(Res.ic_filter, description = stringResource(Res.history_filter_title))
+                            AppIcon(Res.drawable.ic_filter, description = stringResource(Res.string.history_filter_title))
                         }
                     }
                 }
                 TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                    tooltip = { PlainTooltip { Text(stringResource(Res.stats_export)) } },
+                    tooltip = { PlainTooltip { Text(stringResource(Res.string.stats_export)) } },
                     state = rememberTooltipState()) {
                     IconButton(onClick = onExport,
                         enabled = exportEnabled && !state.loading && !state.failed && state.result.groups.isNotEmpty(),
                         modifier = Modifier.size(48.dp)) {
-                        AppIcon(Res.ic_download, description = stringResource(Res.stats_export))
+                        AppIcon(Res.drawable.ic_download, description = stringResource(Res.string.stats_export))
                     }
                 }
             }
@@ -185,7 +185,7 @@ fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Un
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                CompactStatisticsChoice(stringResource(Res.stats_group_by),
+                CompactStatisticsChoice(stringResource(Res.string.stats_group_by),
                     stringResource(groupSortLabel), request.grouping.name,
                     StatisticsGrouping.entries.filterNot { it == StatisticsGrouping.HALF_YEAR }
                         .map { it.name to stringResource(it.label()) }, modifier = Modifier.weight(1f)) {
@@ -193,12 +193,12 @@ fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Un
                 }
                 if (request.grouping != StatisticsGrouping.CATEGORY) {
                     TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                        tooltip = { PlainTooltip { Text(stringResource(Res.stats_category_calculation)) } },
+                        tooltip = { PlainTooltip { Text(stringResource(Res.string.stats_category_calculation)) } },
                         state = rememberTooltipState()) {
                         IconButton(onClick = { categoryCalculationDialog = true }, modifier = Modifier.size(48.dp)) {
                             BadgedBox(badge = { if (request.categoryCalculations.isNotEmpty()) Badge() }) {
-                                AppIcon(Res.ic_calculator,
-                                    description = stringResource(Res.stats_category_calculation))
+                                AppIcon(Res.drawable.ic_calculator,
+                                    description = stringResource(Res.string.stats_category_calculation))
                             }
                         }
                     }
@@ -206,20 +206,20 @@ fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Un
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                CompactStatisticsChoice(stringResource(Res.stats_sort_by),
+                CompactStatisticsChoice(stringResource(Res.string.stats_sort_by),
                     stringResource(sortLabels.getValue(request.sort)), request.sort.name,
                     StatisticsSort.entries.map { it.name to stringResource(sortLabels.getValue(it)) }, modifier = Modifier.weight(1f)) {
                     onChange(request.copy(sort = StatisticsSort.valueOf(it)))
                 }
-                val direction = stringResource(if (request.descending) Res.stats_descending else Res.stats_ascending)
+                val direction = stringResource(if (request.descending) Res.string.stats_descending else Res.string.stats_ascending)
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                         tooltip = { PlainTooltip { Text(direction) } }, state = rememberTooltipState()) {
                         IconButton(onClick = { onChange(request.copy(descending = !request.descending)) },
                             modifier = Modifier.size(48.dp).semantics { stateDescription = direction }) {
-                            AppIcon(Res.ic_sort_direction,
+                            AppIcon(Res.drawable.ic_sort_direction,
                                 modifier = Modifier.rotate(if (request.descending) 180f else 0f),
-                                description = stringResource(Res.stats_sort_direction))
+                                description = stringResource(Res.string.stats_sort_direction))
                         }
                     }
                 }
@@ -228,17 +228,17 @@ fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Un
                 TextButton(onClick = {
                     onChange(request.copy(seller = "", vat = "", excludedVat = "", vatMode = StatisticsVatMode.INCLUDE,
                         fromDay = null, toDay = null, datePreset = null))
-                }) { Text(stringResource(Res.stats_clear_filters)) }
+                }) { Text(stringResource(Res.string.stats_clear_filters)) }
             }
-            if (request.seller.isNotBlank()) Text(stringResource(Res.stats_filter_value,
-                stringResource(Res.tag_seller), request.seller), style = MaterialTheme.typography.bodySmall)
-            if (request.vat.isNotBlank()) Text(stringResource(Res.stats_filter_value,
-                stringResource(Res.tag_vat), request.vat), style = MaterialTheme.typography.bodySmall)
-            if (request.excludedVat.isNotBlank()) Text(stringResource(Res.stats_filter_value,
-                stringResource(Res.stats_exclude_vat), request.excludedVat), style = MaterialTheme.typography.bodySmall)
-            request.fromDay?.let { Text(stringResource(Res.stats_filter_value, stringResource(Res.history_from),
+            if (request.seller.isNotBlank()) Text(stringResource(Res.string.stats_filter_value,
+                stringResource(Res.string.tag_seller), request.seller), style = MaterialTheme.typography.bodySmall)
+            if (request.vat.isNotBlank()) Text(stringResource(Res.string.stats_filter_value,
+                stringResource(Res.string.tag_vat), request.vat), style = MaterialTheme.typography.bodySmall)
+            if (request.excludedVat.isNotBlank()) Text(stringResource(Res.string.stats_filter_value,
+                stringResource(Res.string.stats_exclude_vat), request.excludedVat), style = MaterialTheme.typography.bodySmall)
+            request.fromDay?.let { Text(stringResource(Res.string.stats_filter_value, stringResource(Res.string.history_from),
                 formatDay(it, locale)), style = MaterialTheme.typography.bodySmall) }
-            request.toDay?.let { Text(stringResource(Res.stats_filter_value, stringResource(Res.history_to),
+            request.toDay?.let { Text(stringResource(Res.string.stats_filter_value, stringResource(Res.string.history_to),
                 formatDay(it, locale)), style = MaterialTheme.typography.bodySmall) }
         }
         item(key = "statistics_progress") {
@@ -247,17 +247,17 @@ fun StatisticsScreen(state: StatisticsState, onChange: (StatisticsRequest) -> Un
             }
         }
         if (state.failed) item {
-            Text(stringResource(Res.history_load_error))
-            TextButton(onClick = onRetry) { Text(stringResource(Res.history_retry)) }
+            Text(stringResource(Res.string.history_load_error))
+            TextButton(onClick = onRetry) { Text(stringResource(Res.string.history_retry)) }
         }
         if (state.hasResult) {
             item(key = "statistics_summary") {
-                StatisticsCard(stringResource(Res.stats_summary_with_groups, state.result.groups.size),
+                StatisticsCard(stringResource(Res.string.stats_summary_with_groups, state.result.groups.size),
                     state.result.summary, summary = true,
                     net = state.resultRequest.categoryCalculationActive)
             }
             if (!state.loading && !state.failed && state.result.groups.isEmpty()) item {
-                Text(stringResource(if (request.filtered) Res.stats_empty else Res.stats_no_invoices))
+                Text(stringResource(if (request.filtered) Res.string.stats_empty else Res.string.stats_no_invoices))
             }
             itemsIndexed(state.result.groups, key = { index, _ -> "statistics_card_$index" },
                 contentType = { _, _ -> "statistics_card" }) { index, group ->
@@ -283,26 +283,26 @@ private fun StatisticsCategoryCalculationDialog(request: StatisticsRequest,
     onDismiss: () -> Unit, onApply: (StatisticsRequest) -> Unit) {
     var selections by remember(request) { mutableStateOf(request.categoryCalculations) }
     AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.stats_category_calculation)) },
+        title = { Text(stringResource(Res.string.stats_category_calculation)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(Res.stats_category_calculation_hint), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.stats_category_calculation_hint), style = MaterialTheme.typography.bodySmall)
                 InvoiceCategories.ids.forEach { category ->
                     val categoryName = stringResource(InvoiceCategories.resource(category))
                     Row(Modifier.fillMaxWidth().selectableGroup(),
                         verticalAlignment = Alignment.CenterVertically) {
                         StatisticsCategoryCalculation.entries.forEach { calculation ->
                             val label = stringResource(when (calculation) {
-                                StatisticsCategoryCalculation.ADD -> Res.stats_calculation_add
-                                StatisticsCategoryCalculation.SUBTRACT -> Res.stats_calculation_subtract
-                                StatisticsCategoryCalculation.IGNORE -> Res.stats_calculation_ignore
+                                StatisticsCategoryCalculation.ADD -> Res.string.stats_calculation_add
+                                StatisticsCategoryCalculation.SUBTRACT -> Res.string.stats_calculation_subtract
+                                StatisticsCategoryCalculation.IGNORE -> Res.string.stats_calculation_ignore
                             })
                             val symbol = when (calculation) {
                                 StatisticsCategoryCalculation.ADD -> "+"
                                 StatisticsCategoryCalculation.SUBTRACT -> "−"
                                 StatisticsCategoryCalculation.IGNORE -> "⊘"
                             }
-                            val choiceDescription = stringResource(Res.stats_calculation_choice, categoryName, label)
+                            val choiceDescription = stringResource(Res.string.stats_calculation_choice, categoryName, label)
                             val selected = (selections[category] ?: StatisticsCategoryCalculation.ADD) == calculation
                             Box(Modifier.size(44.dp).selectable(selected = selected, role = Role.RadioButton,
                                 onClick = {
@@ -328,8 +328,8 @@ private fun StatisticsCategoryCalculationDialog(request: StatisticsRequest,
                 }
             }
         }, confirmButton = { TextButton(onClick = { onApply(request.copy(categoryCalculations = selections)) }) {
-            Text(stringResource(Res.history_apply_date))
-        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) } })
+            Text(stringResource(Res.string.history_apply_date))
+        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } })
 }
 
 @Composable
@@ -354,7 +354,7 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
                 Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.width(8.dp))
-                AppIcon(Res.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppIcon(Res.drawable.ic_expand, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 values.forEach { (key, text) ->
@@ -362,7 +362,7 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
                         expanded = false
                         onChange(key)
                     }, modifier = Modifier.semantics { this.selected = key == selected },
-                        leadingIcon = if (key == selected) { { AppIcon(Res.ic_check) } } else null)
+                        leadingIcon = if (key == selected) { { AppIcon(Res.drawable.ic_check) } } else null)
                 }
             }
         }
@@ -380,7 +380,7 @@ private fun CompactStatisticsChoice(description: String, label: String, selected
 private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Modifier = Modifier,
     summary: Boolean = false, net: Boolean = false, onClick: (() -> Unit)? = null) {
     val locale = uiLocaleTag()
-    val actionLabel = stringResource(Res.stats_view_invoices)
+    val actionLabel = stringResource(Res.string.stats_view_invoices)
     Card(modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(
         onClickLabel = actionLabel, role = Role.Button, onClick = onClick) else Modifier),
         shape = RoundedCornerShape(16.dp),
@@ -391,37 +391,37 @@ private fun StatisticsCard(title: String, totals: StatisticsTotals, modifier: Mo
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(Res.stats_count, totals.count), style = MaterialTheme.typography.bodyMedium,
+                Text(stringResource(Res.string.stats_count, totals.count), style = MaterialTheme.typography.bodyMedium,
                     color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
             }
             val contributingCount = totals.count - totals.ignoredCount
-            val total = if (contributingCount > 0 && totals.missingTotal == contributingCount) stringResource(Res.history_total_unavailable) else formatDecimal(totals.total.toPlainString(), locale)
-            val tax = if (contributingCount > 0 && totals.missingTax == contributingCount) stringResource(Res.history_total_unavailable) else formatDecimal(totals.tax.toPlainString(), locale)
+            val total = if (contributingCount > 0 && totals.missingTotal == contributingCount) stringResource(Res.string.history_total_unavailable) else formatDecimal(totals.total.toPlainString(), locale)
+            val tax = if (contributingCount > 0 && totals.missingTax == contributingCount) stringResource(Res.string.history_total_unavailable) else formatDecimal(totals.tax.toPlainString(), locale)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(if (net) {
-                        if (totals.missingTotal > 0) Res.stats_available_net_total else Res.stats_net_total
-                    } else if (totals.missingTotal > 0) Res.stats_available_total else Res.stats_total_including_tax),
+                        if (totals.missingTotal > 0) Res.string.stats_available_net_total else Res.string.stats_net_total
+                    } else if (totals.missingTotal > 0) Res.string.stats_available_total else Res.string.stats_total_including_tax),
                         style = MaterialTheme.typography.labelMedium)
                     Text(total, style = MaterialTheme.typography.headlineSmall,
                         color = if (summary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(if (net) {
-                        if (totals.missingTax > 0) Res.stats_available_net_tax else Res.stats_net_tax
-                    } else if (totals.missingTax > 0) Res.stats_available_tax else Res.tag_tax),
+                        if (totals.missingTax > 0) Res.string.stats_available_net_tax else Res.string.stats_net_tax
+                    } else if (totals.missingTax > 0) Res.string.stats_available_tax else Res.string.tag_tax),
                         style = MaterialTheme.typography.labelMedium)
                     Text(tax, style = MaterialTheme.typography.titleMedium)
                 }
             }
-            if (totals.missingTotal > 0) Text(stringResource(Res.stats_excluded_total, totals.missingTotal),
+            if (totals.missingTotal > 0) Text(stringResource(Res.string.stats_excluded_total, totals.missingTotal),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            if (totals.missingTax > 0) Text(stringResource(Res.stats_excluded_tax, totals.missingTax),
+            if (totals.missingTax > 0) Text(stringResource(Res.string.stats_excluded_tax, totals.missingTax),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             if (summary && totals.count > 0) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f))
-                Text(stringResource(Res.stats_groups_hint), style = MaterialTheme.typography.bodySmall,
+                Text(stringResource(Res.string.stats_groups_hint), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         }
@@ -442,7 +442,7 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
     var pickingFrom by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val locale = uiLocaleTag()
     val normalizedVat = normalizeVatNumber(vat)
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(Res.history_filter_title)) },
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(Res.string.history_filter_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SellerFilterField(seller, { seller = it }, sellerSuggestions)
@@ -459,24 +459,24 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary),
                                 leadingIcon = if (selected) {
-                                    { AppIcon(Res.ic_check, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                                    { AppIcon(Res.drawable.ic_check, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
                                 } else null,
-                                label = { Text(stringResource(if (mode == StatisticsVatMode.INCLUDE) Res.stats_vat_include else Res.stats_vat_exclude)) })
+                                label = { Text(stringResource(if (mode == StatisticsVatMode.INCLUDE) Res.string.stats_vat_include else Res.string.stats_vat_exclude)) })
                         }
                     }
                     OutlinedTextField(vat, { vat = it }, label = {
-                        Text(stringResource(if (vatMode == StatisticsVatMode.EXCLUDE) Res.stats_exclude_vat else Res.tag_vat))
+                        Text(stringResource(if (vatMode == StatisticsVatMode.EXCLUDE) Res.string.stats_exclude_vat else Res.string.tag_vat))
                     }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 }
-                Text(stringResource(Res.stats_date_hint), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.stats_date_hint), style = MaterialTheme.typography.bodySmall)
                 val today = today()
                 ExposedDropdownMenuBox(expanded = shortcutsExpanded,
                     onExpandedChange = { shortcutsExpanded = it }) {
                     OutlinedTextField(
                         value = stringResource(datePreset?.label()
-                            ?: if (from == null && to == null) Res.stats_choose_period else Res.stats_custom_period),
+                            ?: if (from == null && to == null) Res.string.stats_choose_period else Res.string.stats_custom_period),
                         onValueChange = {}, readOnly = true,
-                        label = { Text(stringResource(Res.stats_date_shortcuts)) },
+                        label = { Text(stringResource(Res.string.stats_date_shortcuts)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(shortcutsExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
                     ExposedDropdownMenu(expanded = shortcutsExpanded, onDismissRequest = { shortcutsExpanded = false }) {
@@ -491,23 +491,23 @@ private fun StatisticsFilterDialog(request: StatisticsRequest, sellerSuggestions
                     }
                 }
                 OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(Res.stats_filter_value, stringResource(Res.history_from),
-                        from?.let { formatDay(it, locale) } ?: stringResource(Res.stats_any_date)))
+                    Text(stringResource(Res.string.stats_filter_value, stringResource(Res.string.history_from),
+                        from?.let { formatDay(it, locale) } ?: stringResource(Res.string.stats_any_date)))
                 }
                 OutlinedButton(onClick = { pickingFrom = false }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(Res.stats_filter_value, stringResource(Res.history_to),
-                        to?.let { formatDay(it, locale) } ?: stringResource(Res.stats_any_date)))
+                    Text(stringResource(Res.string.stats_filter_value, stringResource(Res.string.history_to),
+                        to?.let { formatDay(it, locale) } ?: stringResource(Res.string.stats_any_date)))
                 }
                 TextButton(onClick = { seller = ""; vat = ""; vatMode = StatisticsVatMode.INCLUDE; from = null; to = null; datePreset = null }) {
-                    Text(stringResource(Res.stats_clear_filters))
+                    Text(stringResource(Res.string.stats_clear_filters))
                 }
             }
         }, confirmButton = { TextButton(onClick = {
             onApply(request.copy(seller = seller.trim(), fromDay = from, toDay = to, datePreset = datePreset)
                 .withVatFilter(vatMode, normalizedVat))
         }) {
-            Text(stringResource(Res.history_apply_date))
-        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) } })
+            Text(stringResource(Res.string.history_apply_date))
+        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } })
     pickingFrom?.let { isFrom ->
         HistoryDatePicker(initial = (if (isFrom) from else to) ?: (if (isFrom) to else from),
             minimum = if (isFrom) null else from, maximum = if (isFrom) to else null,
@@ -550,7 +550,7 @@ private fun SellerFilterField(value: String, onValueChange: (String) -> Unit,
                 dismissed = false
                 onValueChange(it.text)
             }
-        }, label = { Text(stringResource(Res.tag_seller)) }, singleLine = true,
+        }, label = { Text(stringResource(Res.string.tag_seller)) }, singleLine = true,
             modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
                 .onFocusChanged { focused = it.isFocused })
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { dismissed = true }) {

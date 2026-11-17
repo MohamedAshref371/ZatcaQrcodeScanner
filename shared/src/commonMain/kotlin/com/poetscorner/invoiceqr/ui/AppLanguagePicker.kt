@@ -10,9 +10,9 @@ import com.poetscorner.invoiceqr.ui.text.stringResource
 
 @Composable
 internal fun AppLanguagePicker(selected: String, onChange: (String) -> Unit) {
-    Choice(stringResource(Res.app_language), selected, listOf(
-        "" to stringResource(Res.language_system),
-        "ar" to stringResource(Res.language_arabic),
-        "en" to stringResource(Res.language_english)
+    Choice(stringResource(Res.string.app_language), selected, listOf(
+        "" to stringResource(Res.string.language_system),
+        "ar" to stringResource(Res.string.language_arabic),
+        "en" to stringResource(Res.string.language_english)
     ), singleLine = true, onChange = onChange)
 }

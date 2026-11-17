@@ -64,7 +64,7 @@ internal fun ScrollToTopContainer(listState: LazyListState, content: @Composable
         viewportHeight > 0 && maxOf(distanceFromTop, estimatedDistance) > viewportHeight * 2f
     } }
     val scope = rememberCoroutineScope()
-    val label = stringResource(Res.scroll_to_top)
+    val label = stringResource(Res.string.scroll_to_top)
     Box(Modifier.fillMaxSize().nestedScroll(scrollConnection)) {
         content()
         AnimatedVisibility(visible = showButton, enter = fadeIn(), exit = fadeOut(),
@@ -78,7 +78,7 @@ internal fun ScrollToTopContainer(listState: LazyListState, content: @Composable
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     shadowElevation = 3.dp) {
                     Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                        Icon(painterResource(Res.ic_arrow_up), contentDescription = null,
+                        Icon(painterResource(Res.drawable.ic_arrow_up), contentDescription = null,
                             modifier = Modifier.size(20.dp))
                     }
                 }

@@ -152,16 +152,16 @@ fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> U
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (groupTitle == null) item {
             if (largeText) Column(Modifier.fillMaxWidth()) {
-                SectionHeading(stringResource(Res.history_heading), stringResource(Res.history_subtitle))
+                SectionHeading(stringResource(Res.string.history_heading), stringResource(Res.string.history_subtitle))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { actions?.invoke() }
             } else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) {
-                    SectionHeading(stringResource(Res.history_heading), stringResource(Res.history_subtitle))
+                    SectionHeading(stringResource(Res.string.history_heading), stringResource(Res.string.history_subtitle))
                 }
                 actions?.invoke()
             }
         } else {
-            item { SectionHeading(groupTitle, stringResource(Res.stats_view_invoices)) }
+            item { SectionHeading(groupTitle, stringResource(Res.string.stats_view_invoices)) }
             if (actions != null) item { actions() }
         }
         if (showGroupBreakdown) item(key = "statistics_breakdown") {
@@ -170,24 +170,24 @@ fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> U
             when {
                 current == null || current.loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
                 current.failed -> {
-                    Text(stringResource(Res.history_load_error))
-                    TextButton(onClick = onBreakdownRetry) { Text(stringResource(Res.history_retry)) }
+                    Text(stringResource(Res.string.history_load_error))
+                    TextButton(onClick = onBreakdownRetry) { Text(stringResource(Res.string.history_retry)) }
                 }
                 breakdown != null -> StatisticsBreakdownCard(breakdown)
             }
         }
         if (groupTitle == null) item {
             OutlinedTextField(value = query, onValueChange = onQuery,
-                label = { Text(stringResource(Res.history_search)) },
+                label = { Text(stringResource(Res.string.history_search)) },
                 shape = MaterialTheme.shapes.medium,
-                leadingIcon = { AppIcon(Res.ic_search) },
+                leadingIcon = { AppIcon(Res.drawable.ic_search) },
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
                 trailingIcon = if (query.isNotEmpty()) ({
-                    TextButton(onClick = { onQuery("") }) { Text(stringResource(Res.history_clear_search)) }
+                    TextButton(onClick = { onQuery("") }) { Text(stringResource(Res.string.history_clear_search)) }
                 }) else null)
         }
         if (groupTitle == null && (state.filter.category != null || state.filter.annotationQuery.isNotBlank() ||
@@ -199,12 +199,12 @@ fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> U
                     overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = onClearFilters) {
-                    Text(stringResource(Res.history_clear_all_filters))
+                    Text(stringResource(Res.string.history_clear_all_filters))
                 }
             }
         }
         if (groupTitle == null) item {
-            Text(stringResource(Res.history_export_filtered), style = MaterialTheme.typography.bodySmall,
+            Text(stringResource(Res.string.history_export_filtered), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item(key = "history_progress") {
@@ -222,11 +222,11 @@ fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> U
                     horizontalArrangement = Arrangement.spacedBy(24.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(stringResource(if (filtered) Res.history_summary_result_count else Res.history_summary_count,
+                    Text(stringResource(if (filtered) Res.string.history_summary_result_count else Res.string.history_summary_count,
                         formatInteger(state.matching.toLong(), locale)),
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Text(stringResource(if (filtered) Res.history_summary_result_total else Res.history_summary_total,
-                        state.amount?.let { formatDecimal(it.toPlainString(), locale) } ?: stringResource(Res.history_total_unavailable)),
+                    Text(stringResource(if (filtered) Res.string.history_summary_result_total else Res.string.history_summary_total,
+                        state.amount?.let { formatDecimal(it.toPlainString(), locale) } ?: stringResource(Res.string.history_total_unavailable)),
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
@@ -235,8 +235,8 @@ fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> U
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.large) {
                 Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    IconTile(Res.ic_history)
-                    Text(stringResource(if (state.total == 0) Res.no_history else Res.history_no_matches),
+                    IconTile(Res.drawable.ic_history)
+                    Text(stringResource(if (state.total == 0) Res.string.no_history else Res.string.history_no_matches),
                         style = MaterialTheme.typography.bodyLarge)
                 }
             }
@@ -250,37 +250,37 @@ fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> U
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(row.seller.ifBlank { stringResource(Res.unknown_seller) },
+                        Text(row.seller.ifBlank { stringResource(Res.string.unknown_seller) },
                             modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
-                        if (row.vat.isNotBlank()) Text(stringResource(Res.history_vat, row.vat),
+                        if (row.vat.isNotBlank()) Text(stringResource(Res.string.history_vat, row.vat),
                             style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (row.invoiceNumber.isNotBlank()) Text(listOfNotNull(
-                            stringResource(Res.invoice_number) + ": " + row.invoiceNumber,
+                            stringResource(Res.string.invoice_number) + ": " + row.invoiceNumber,
                             row.category.takeIf { it != 0 }?.let { stringResource(InvoiceCategories.resource(it)) }
                         ).joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         else if (row.category != 0) Text(
-                            stringResource(Res.invoice_category) + ": " +
+                            stringResource(Res.string.invoice_category) + ": " +
                                 stringResource(InvoiceCategories.resource(row.category)),
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(stringResource(Res.history_invoice_total,
-                            row.total.ifBlank { stringResource(Res.missing) }),
+                        Text(stringResource(Res.string.history_invoice_total,
+                            row.total.ifBlank { stringResource(Res.string.missing) }),
                             style = MaterialTheme.typography.titleSmall)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             val statusColor = if (row.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                            AppIcon(if (row.passed) Res.ic_check else Res.ic_info,
+                            AppIcon(if (row.passed) Res.drawable.ic_check else Res.drawable.ic_info,
                                 modifier = Modifier.size(16.dp), tint = statusColor)
-                            Text(if (row.passed) stringResource(Res.history_passed, row.phase) else stringResource(Res.history_failed),
+                            Text(if (row.passed) stringResource(Res.string.history_passed, row.phase) else stringResource(Res.string.history_failed),
                                 style = MaterialTheme.typography.labelMedium, color = statusColor)
                         }
                     }
                     if (groupTitle == null) IconButton(onClick = { onDelete(row) }, enabled = !state.loading && !state.failed) {
-                        AppIcon(Res.ic_delete, description = stringResource(Res.history_delete_invoice_action,
-                            row.seller.ifBlank { stringResource(Res.unknown_seller) }),
+                        AppIcon(Res.drawable.ic_delete, description = stringResource(Res.string.history_delete_invoice_action,
+                            row.seller.ifBlank { stringResource(Res.string.unknown_seller) }),
                             tint = MaterialTheme.colorScheme.error)
                     }
                 }
@@ -288,8 +288,8 @@ fun HistoryScreen(state: HistoryPageState, query: String, onQuery: (String) -> U
         }
         if (state.loadingMore) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         if (state.failed) item {
-            Text(stringResource(Res.history_load_error))
-            TextButton(onClick = onRetry) { Text(stringResource(Res.history_retry)) }
+            Text(stringResource(Res.string.history_load_error))
+            TextButton(onClick = onRetry) { Text(stringResource(Res.string.history_retry)) }
         }
     }
     }
@@ -304,12 +304,12 @@ private fun historyActiveFiltersSummary(filter: HistoryFilter): String {
         val from = filter.fromDay
         val to = filter.toDay
         val preset = when {
-            from == today.toEpochDays() && to == from -> Res.history_today
-            from == today.minus(1, DateTimeUnit.DAY).toEpochDays() && to == from -> Res.history_yesterday
-            from == today.minus(6, DateTimeUnit.DAY).toEpochDays() && to == today.toEpochDays() -> Res.history_last_seven_days
-            from == today.firstOfMonth().toEpochDays() && to == today.toEpochDays() -> Res.stats_this_month
+            from == today.toEpochDays() && to == from -> Res.string.history_today
+            from == today.minus(1, DateTimeUnit.DAY).toEpochDays() && to == from -> Res.string.history_yesterday
+            from == today.minus(6, DateTimeUnit.DAY).toEpochDays() && to == today.toEpochDays() -> Res.string.history_last_seven_days
+            from == today.firstOfMonth().toEpochDays() && to == today.toEpochDays() -> Res.string.stats_this_month
             from == today.minus(1, DateTimeUnit.MONTH).firstOfMonth().toEpochDays() &&
-                to == today.firstOfMonth().minus(1, DateTimeUnit.DAY).toEpochDays() -> Res.history_last_month
+                to == today.firstOfMonth().minus(1, DateTimeUnit.DAY).toEpochDays() -> Res.string.history_last_month
             else -> null
         }
         val locale = uiLocaleTag()
@@ -318,18 +318,18 @@ private fun historyActiveFiltersSummary(filter: HistoryFilter): String {
             from == to -> formatDay(requireNotNull(from), locale, short = true)
             from != null && to != null ->
                 "${formatDay(from, locale, short = true)}–${formatDay(to, locale, short = true)}"
-            from != null -> stringResource(Res.stats_filter_value,
-                stringResource(Res.history_from), formatDay(from, locale, short = true))
-            else -> stringResource(Res.stats_filter_value,
-                stringResource(Res.history_to), formatDay(requireNotNull(to), locale, short = true))
+            from != null -> stringResource(Res.string.stats_filter_value,
+                stringResource(Res.string.history_from), formatDay(from, locale, short = true))
+            else -> stringResource(Res.string.stats_filter_value,
+                stringResource(Res.string.history_to), formatDay(requireNotNull(to), locale, short = true))
         }
         parts += if (filter.dateSource == HistoryDateSource.SCAN)
-            stringResource(Res.stats_filter_value, stringResource(Res.history_scan_date), range)
+            stringResource(Res.string.stats_filter_value, stringResource(Res.string.history_scan_date), range)
         else range
     }
     filter.annotationQuery.trim().takeIf(String::isNotEmpty)?.let {
-        parts += stringResource(Res.stats_filter_value,
-            stringResource(Res.history_annotation_filter_label), it)
+        parts += stringResource(Res.string.stats_filter_value,
+            stringResource(Res.string.history_annotation_filter_label), it)
     }
     return parts.joinToString(" · ")
 }
@@ -338,31 +338,31 @@ private fun historyActiveFiltersSummary(filter: HistoryFilter): String {
 internal fun InvoiceDeleteDialog(seller: String, onDismiss: () -> Unit, onConfirm: (Boolean) -> Unit) {
     var skip by remember { mutableStateOf(false) }
     AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.history_delete_invoice_title)) },
+        title = { Text(stringResource(Res.string.history_delete_invoice_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(Res.history_delete_invoice_body, seller))
+                Text(stringResource(Res.string.history_delete_invoice_body, seller))
                 Row(Modifier.fillMaxWidth().toggleable(value = skip, role = Role.Checkbox,
                     onValueChange = { skip = it }), verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = skip, onCheckedChange = null)
-                    Text(stringResource(Res.history_delete_skip_session), Modifier.padding(start = 8.dp))
+                    Text(stringResource(Res.string.history_delete_skip_session), Modifier.padding(start = 8.dp))
                 }
             }
         },
         confirmButton = { TextButton(onClick = { onConfirm(skip) }) {
-            Text(stringResource(Res.clear), color = MaterialTheme.colorScheme.error)
+            Text(stringResource(Res.string.clear), color = MaterialTheme.colorScheme.error)
         } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } })
 }
 
 private fun deletionPeriodLabel(period: HistoryDeletionPeriod): StringResource = when (period) {
-    HistoryDeletionPeriod.ALL -> Res.delete_all
-    HistoryDeletionPeriod.THREE_DAYS -> Res.history_delete_three_days
-    HistoryDeletionPeriod.SEVEN_DAYS -> Res.history_delete_seven_days
-    HistoryDeletionPeriod.ONE_MONTH -> Res.history_delete_one_month
-    HistoryDeletionPeriod.THREE_MONTHS -> Res.history_delete_three_months
-    HistoryDeletionPeriod.ONE_YEAR -> Res.history_delete_one_year
-    HistoryDeletionPeriod.TWO_YEARS -> Res.history_delete_two_years
+    HistoryDeletionPeriod.ALL -> Res.string.delete_all
+    HistoryDeletionPeriod.THREE_DAYS -> Res.string.history_delete_three_days
+    HistoryDeletionPeriod.SEVEN_DAYS -> Res.string.history_delete_seven_days
+    HistoryDeletionPeriod.ONE_MONTH -> Res.string.history_delete_one_month
+    HistoryDeletionPeriod.THREE_MONTHS -> Res.string.history_delete_three_months
+    HistoryDeletionPeriod.ONE_YEAR -> Res.string.history_delete_one_year
+    HistoryDeletionPeriod.TWO_YEARS -> Res.string.history_delete_two_years
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -374,18 +374,18 @@ internal fun HistoryDeleteSelectionDialog(onDismiss: () -> Unit,
     var periodExpanded by remember { mutableStateOf(false) }
     val largeText = LocalDensity.current.fontScale >= 1.5f
     AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.clear_title)) },
+        title = { Text(stringResource(Res.string.clear_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(stringResource(Res.history_delete_scope), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.history_delete_scope), style = MaterialTheme.typography.bodySmall)
                 if (period != HistoryDeletionPeriod.ALL) {
-                    Text(stringResource(Res.history_delete_date_source))
+                    Text(stringResource(Res.string.history_delete_date_source))
                     if (largeText) Column(Modifier.fillMaxWidth()) {
                         listOf(HistoryDateSource.SCAN, HistoryDateSource.INVOICE).forEach { option ->
                             FilterChip(selected = source == option, onClick = { source = option },
                                 label = { Text(stringResource(if (option == HistoryDateSource.SCAN)
-                                    Res.history_scan_date else Res.history_invoice_date)) },
+                                    Res.string.history_scan_date else Res.string.history_invoice_date)) },
                                 modifier = Modifier.fillMaxWidth())
                         }
                     } else SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -393,7 +393,7 @@ internal fun HistoryDeleteSelectionDialog(onDismiss: () -> Unit,
                             SegmentedButton(selected = source == option, onClick = { source = option },
                                 shape = SegmentedButtonDefaults.itemShape(index, 2)) {
                                 Text(stringResource(if (option == HistoryDateSource.SCAN)
-                                    Res.history_scan_date else Res.history_invoice_date))
+                                    Res.string.history_scan_date else Res.string.history_invoice_date))
                             }
                         }
                     }
@@ -401,7 +401,7 @@ internal fun HistoryDeleteSelectionDialog(onDismiss: () -> Unit,
                 ExposedDropdownMenuBox(expanded = periodExpanded,
                     onExpandedChange = { periodExpanded = it }) {
                     OutlinedTextField(value = stringResource(deletionPeriodLabel(period)), onValueChange = {},
-                        readOnly = true, label = { Text(stringResource(Res.history_delete_period)) },
+                        readOnly = true, label = { Text(stringResource(Res.string.history_delete_period)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(periodExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
                     ExposedDropdownMenu(expanded = periodExpanded,
@@ -414,18 +414,18 @@ internal fun HistoryDeleteSelectionDialog(onDismiss: () -> Unit,
                     }
                 }
                 if (source == HistoryDateSource.INVOICE && period != HistoryDeletionPeriod.ALL)
-                    Text(stringResource(Res.history_delete_invalid_date_hint),
+                    Text(stringResource(Res.string.history_delete_invalid_date_hint),
                         style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = { TextButton(onClick = { onDelete(source, period) }) {
-            Text(stringResource(Res.clear), color = MaterialTheme.colorScheme.error)
+            Text(stringResource(Res.string.clear), color = MaterialTheme.colorScheme.error)
         } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } })
 }
 
 @Composable
-internal fun HistoryDeleteConfirmationDialog(plan: HistoryDeletionPlan,
+fun HistoryDeleteConfirmationDialog(plan: HistoryDeletionPlan,
     countMatching: suspend (HistoryDeletionPlan) -> Int, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     var count by remember(plan) { mutableStateOf<Int?>(null) }
     var failed by remember(plan) { mutableStateOf(false) }
@@ -435,37 +435,37 @@ internal fun HistoryDeleteConfirmationDialog(plan: HistoryDeletionPlan,
         catch (_: Exception) { failed = true }
     }
     val source = stringResource(if (plan.source == HistoryDateSource.SCAN)
-        Res.history_scan_date else Res.history_invoice_date)
+        Res.string.history_scan_date else Res.string.history_invoice_date)
     val period = stringResource(deletionPeriodLabel(plan.period))
     val matching = count
     val empty = matching == 0
     AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (empty) Res.history_delete_empty_title
-            else Res.history_delete_confirm_title)) },
+        title = { Text(stringResource(if (empty) Res.string.history_delete_empty_title
+            else Res.string.history_delete_confirm_title)) },
         text = {
             if (empty) Text(if (plan.period == HistoryDeletionPeriod.ALL)
-                stringResource(Res.history_delete_empty_all)
-            else stringResource(Res.history_delete_empty_period, period, source))
+                stringResource(Res.string.history_delete_empty_all)
+            else stringResource(Res.string.history_delete_empty_period, period, source))
             else Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(if (plan.period == HistoryDeletionPeriod.ALL)
-                    stringResource(Res.history_delete_confirm_all)
-                else stringResource(Res.history_delete_confirm_period, period, source))
+                    stringResource(Res.string.history_delete_confirm_all)
+                else stringResource(Res.string.history_delete_confirm_period, period, source))
                 when {
-                    failed -> Text(stringResource(Res.history_delete_error))
+                    failed -> Text(stringResource(Res.string.history_delete_error))
                     matching == null -> CircularProgressIndicator()
-                    else -> Text(stringResource(Res.history_delete_count, matching))
+                    else -> Text(stringResource(Res.string.history_delete_count, matching))
                 }
-                Text(stringResource(Res.history_delete_irreversible),
+                Text(stringResource(Res.string.history_delete_irreversible),
                     style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = { TextButton(onClick = if (empty) onDismiss else onConfirm,
             enabled = empty || (matching != null && matching > 0 && !failed)) {
-            Text(stringResource(if (empty) Res.history_delete_empty_action
-                else Res.history_delete_confirm_action),
+            Text(stringResource(if (empty) Res.string.history_delete_empty_action
+                else Res.string.history_delete_confirm_action),
                 color = if (empty) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
         } },
-        dismissButton = { if (!empty) TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) } })
+        dismissButton = { if (!empty) TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -490,20 +490,20 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
     val selectedTo = if (source == HistoryDateSource.INVOICE) invoiceTo else scanTo
     val today = today()
     val presets = listOf(
-        Triple(Res.history_today, today, today),
-        Triple(Res.history_yesterday, today.minus(1, DateTimeUnit.DAY), today.minus(1, DateTimeUnit.DAY)),
-        Triple(Res.history_last_seven_days, today.minus(6, DateTimeUnit.DAY), today),
-        Triple(Res.stats_this_month, today.firstOfMonth(), today),
-        Triple(Res.history_last_month, today.minus(1, DateTimeUnit.MONTH).firstOfMonth(), today.firstOfMonth().minus(1, DateTimeUnit.DAY))
+        Triple(Res.string.history_today, today, today),
+        Triple(Res.string.history_yesterday, today.minus(1, DateTimeUnit.DAY), today.minus(1, DateTimeUnit.DAY)),
+        Triple(Res.string.history_last_seven_days, today.minus(6, DateTimeUnit.DAY), today),
+        Triple(Res.string.stats_this_month, today.firstOfMonth(), today),
+        Triple(Res.string.history_last_month, today.minus(1, DateTimeUnit.MONTH).firstOfMonth(), today.firstOfMonth().minus(1, DateTimeUnit.DAY))
     )
     val matchingPreset = presets.firstOrNull { (_, from, to) ->
         selectedFrom == from.toEpochDays() && selectedTo == to.toEpochDays()
     }
     val selectedPeriodLabel = when {
-        customRangeOpen -> Res.history_custom_range
-        selectedFrom == null && selectedTo == null -> Res.history_any_period
+        customRangeOpen -> Res.string.history_custom_range
+        selectedFrom == null && selectedTo == null -> Res.string.history_any_period
         matchingPreset != null -> matchingPreset.first
-        else -> Res.history_custom_range
+        else -> Res.string.history_custom_range
     }
     val showCustomRange = customRangeOpen ||
         (selectedFrom != null || selectedTo != null) && matchingPreset == null
@@ -515,22 +515,22 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
         }
     }
     AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.history_filter_title)) },
+        title = { Text(stringResource(Res.string.history_filter_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(stringResource(Res.history_filter_hint), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.history_filter_hint), style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(value = annotationTerm, onValueChange = { annotationTerm = it },
-                    label = { Text(stringResource(Res.history_annotation_search)) },
+                    label = { Text(stringResource(Res.string.history_annotation_search)) },
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 ExposedDropdownMenuBox(expanded = categoryExpanded,
                     onExpandedChange = { categoryExpanded = it }) {
-                    OutlinedTextField(value = stringResource(selectedCategory?.let(InvoiceCategories::label)
-                        ?: Res.history_all_categories), onValueChange = {}, readOnly = true,
-                        label = { Text(stringResource(Res.invoice_category)) },
+                    OutlinedTextField(value = stringResource(selectedCategory?.let(InvoiceCategories::resource)
+                        ?: Res.string.history_all_categories), onValueChange = {}, readOnly = true,
+                        label = { Text(stringResource(Res.string.invoice_category)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
                     ExposedDropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(Res.history_all_categories)) },
+                        DropdownMenuItem(text = { Text(stringResource(Res.string.history_all_categories)) },
                             onClick = { selectedCategory = null; categoryExpanded = false },
                             modifier = Modifier.semantics { selected = selectedCategory == null })
                         InvoiceCategories.ids.forEach { id ->
@@ -544,7 +544,7 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                     HistoryDateSource.entries.forEach { option ->
                         FilterChip(selected = source == option, onClick = { source = option; customRangeOpen = false },
                             label = { Text(stringResource(if (option == HistoryDateSource.INVOICE)
-                                Res.history_invoice_date else Res.history_scan_date)) },
+                                Res.string.history_invoice_date else Res.string.history_scan_date)) },
                             modifier = Modifier.fillMaxWidth())
                     }
                 } else SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -554,19 +554,19 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                             shape = SegmentedButtonDefaults.itemShape(index,
                                 HistoryDateSource.entries.size)) {
                             Text(stringResource(if (option == HistoryDateSource.INVOICE)
-                                Res.history_invoice_date else Res.history_scan_date))
+                                Res.string.history_invoice_date else Res.string.history_scan_date))
                         }
                     }
                 }
                 ExposedDropdownMenuBox(expanded = periodExpanded,
                     onExpandedChange = { periodExpanded = it }) {
                     OutlinedTextField(value = stringResource(selectedPeriodLabel), onValueChange = {},
-                        readOnly = true, label = { Text(stringResource(Res.history_period)) },
+                        readOnly = true, label = { Text(stringResource(Res.string.history_period)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(periodExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable))
                     ExposedDropdownMenu(expanded = periodExpanded, onDismissRequest = { periodExpanded = false }) {
-                        HistoryPeriodMenuItem(Res.history_any_period,
-                            selectedPeriodLabel == Res.history_any_period,
+                        HistoryPeriodMenuItem(Res.string.history_any_period,
+                            selectedPeriodLabel == Res.string.history_any_period,
                             modifier = Modifier.fillMaxWidth()) {
                             setRange(null, null); customRangeOpen = false; periodExpanded = false
                         }
@@ -606,8 +606,8 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                                 }
                             }
                         }
-                        HistoryPeriodMenuItem(Res.history_custom_range,
-                            selectedPeriodLabel == Res.history_custom_range,
+                        HistoryPeriodMenuItem(Res.string.history_custom_range,
+                            selectedPeriodLabel == Res.string.history_custom_range,
                             modifier = Modifier.fillMaxWidth()) {
                             customRangeOpen = true; periodExpanded = false
                         }
@@ -617,29 +617,29 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
                     if (largeText) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.medium) {
-                            Text(stringResource(Res.history_from) + ": " +
+                            Text(stringResource(Res.string.history_from) + ": " +
                                 (selectedFrom?.let { formatDay(it, locale) }
-                                    ?: stringResource(Res.history_any_date)))
+                                    ?: stringResource(Res.string.history_any_date)))
                         }
                         OutlinedButton(onClick = { pickingFrom = false }, modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.medium) {
-                            Text(stringResource(Res.history_to) + ": " +
+                            Text(stringResource(Res.string.history_to) + ": " +
                                 (selectedTo?.let { formatDay(it, locale) }
-                                    ?: stringResource(Res.history_any_date)))
+                                    ?: stringResource(Res.string.history_any_date)))
                         }
                     } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { pickingFrom = true }, modifier = Modifier.weight(1f),
                             shape = MaterialTheme.shapes.medium) {
                             Column {
-                                Text(stringResource(Res.history_from))
-                                Text(selectedFrom?.let { formatDay(it, locale) } ?: stringResource(Res.history_any_date))
+                                Text(stringResource(Res.string.history_from))
+                                Text(selectedFrom?.let { formatDay(it, locale) } ?: stringResource(Res.string.history_any_date))
                             }
                         }
                         OutlinedButton(onClick = { pickingFrom = false }, modifier = Modifier.weight(1f),
                             shape = MaterialTheme.shapes.medium) {
                             Column {
-                                Text(stringResource(Res.history_to))
-                                Text(selectedTo?.let { formatDay(it, locale) } ?: stringResource(Res.history_any_date))
+                                Text(stringResource(Res.string.history_to))
+                                Text(selectedTo?.let { formatDay(it, locale) } ?: stringResource(Res.string.history_any_date))
                             }
                         }
                     }
@@ -648,10 +648,10 @@ internal fun HistoryFilterDialog(dateSource: HistoryDateSource, fromDay: Long?, 
         },
         confirmButton = {
             Button(onClick = { onApply(source, selectedFrom, selectedTo, selectedCategory, annotationTerm.trim()) }) {
-                Text(stringResource(Res.history_confirm_filters))
+                Text(stringResource(Res.string.history_confirm_filters))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } })
     pickingFrom?.let { from ->
         HistoryDatePicker(initial = (if (from) selectedFrom else selectedTo) ?: (if (from) selectedTo else selectedFrom),
             minimum = if (from) null else selectedFrom, maximum = if (from) selectedTo else null,
@@ -696,9 +696,9 @@ internal fun HistoryDatePicker(initial: Long?, minimum: Long?, maximum: Long?,
     DatePickerDialog(onDismissRequest = onDismiss, confirmButton = {
         TextButton(enabled = state.selectedDateMillis != null, onClick = {
             state.selectedDateMillis?.let { onSelect(it.floorDiv(MILLIS_PER_DAY)) }
-        }) { Text(stringResource(Res.history_apply_date)) }
+        }) { Text(stringResource(Res.string.history_apply_date)) }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) }
+        TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) }
     }) { DatePicker(state) }
 }
 

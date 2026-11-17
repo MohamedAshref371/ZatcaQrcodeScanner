@@ -26,10 +26,10 @@ internal fun ScannerHome(settings: ScannerSettings, state: ContinuousScanState, 
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(Modifier.weight(1f)) {
-                        SectionHeading(stringResource(Res.scanner_heading), stringResource(Res.scan_local))
+                        SectionHeading(stringResource(Res.string.scanner_heading), stringResource(Res.string.scan_local))
                     }
                     FilledTonalIconButton(onClick = onGallery, enabled = !busy) {
-                        AppIcon(Res.ic_image, description = stringResource(Res.gallery_pick_multiple))
+                        AppIcon(Res.drawable.ic_image, description = stringResource(Res.string.gallery_pick_multiple))
                     }
                 }
                 ContinuousScanControls(state, onContinuous)

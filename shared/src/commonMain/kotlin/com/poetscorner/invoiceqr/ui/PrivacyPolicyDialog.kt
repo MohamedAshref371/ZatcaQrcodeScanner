@@ -16,15 +16,15 @@ import com.poetscorner.invoiceqr.ui.text.stringResource
 internal fun PrivacyPolicyDialog(openPrivacyPolicy: () -> Boolean, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.privacy_policy)) },
-        text = { Text(stringResource(Res.privacy_open_message)) },
+        title = { Text(stringResource(Res.string.privacy_policy)) },
+        text = { Text(stringResource(Res.string.privacy_open_message)) },
         confirmButton = {
             TextButton(onClick = {
                 if (openPrivacyPolicy()) onDismiss()
-            }) { Text(stringResource(Res.privacy_open_link)) }
+            }) { Text(stringResource(Res.string.privacy_open_link)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.cancel)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) }
         }
     )
 }

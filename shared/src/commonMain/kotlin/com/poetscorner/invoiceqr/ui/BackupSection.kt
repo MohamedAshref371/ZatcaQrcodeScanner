@@ -24,16 +24,16 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun BackupSection(enabled: Boolean, onBackup: () -> Unit, onImport: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(Res.settings_backup), Modifier.padding(top = 12.dp),
+        Text(stringResource(Res.string.settings_backup), Modifier.padding(top = 12.dp),
             style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(Res.backup_description), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(Res.string.backup_description), style = MaterialTheme.typography.bodyMedium)
                 Button(onClick = onBackup, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(Res.backup_create))
+                    Text(stringResource(Res.string.backup_create))
                 }
                 OutlinedButton(onClick = onImport, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(Res.backup_import))
+                    Text(stringResource(Res.string.backup_import))
                 }
             }
         }
@@ -46,17 +46,17 @@ internal fun TransferProgress(state: DataTransferState) {
     Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
             .semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(stringResource(if (state.saving) Res.transfer_saving else when (state.kind) {
-                TransferKind.EXPORT -> Res.export_in_progress
-                TransferKind.BACKUP -> Res.backup_in_progress
-                TransferKind.IMPORT -> Res.backup_import_in_progress
+            Text(stringResource(if (state.saving) Res.string.transfer_saving else when (state.kind) {
+                TransferKind.EXPORT -> Res.string.export_in_progress
+                TransferKind.BACKUP -> Res.string.backup_in_progress
+                TransferKind.IMPORT -> Res.string.backup_import_in_progress
             }), style = MaterialTheme.typography.bodyMedium)
             if (!state.saving) {
                 state.total?.let { total ->
-                    Text(stringResource(Res.transfer_progress, formatInteger(state.processed.toLong(), locale), formatInteger(total.toLong(), locale)),
+                    Text(stringResource(Res.string.transfer_progress, formatInteger(state.processed.toLong(), locale), formatInteger(total.toLong(), locale)),
                         style = MaterialTheme.typography.bodySmall)
                 } ?: if (state.processed > 0) {
-                    Text(stringResource(Res.transfer_processed, formatInteger(state.processed.toLong(), locale)),
+                    Text(stringResource(Res.string.transfer_processed, formatInteger(state.processed.toLong(), locale)),
                         style = MaterialTheme.typography.bodySmall)
                 } else Unit
             }

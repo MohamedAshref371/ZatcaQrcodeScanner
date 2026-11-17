@@ -100,7 +100,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
-            IconTile(Res.ic_scan)
+            IconTile(Res.drawable.ic_scan)
             Text(stringResource(R.string.camera_permission_note))
             Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.camera_allow)) }
             TextButton(onClick = { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())) }) { Text(stringResource(R.string.permission_settings)) }
@@ -367,7 +367,7 @@ fun CameraScanner(settings: ScannerSettings, continuous: Boolean, zoom: Float, o
                             Slider(zoom, onValueChange = onZoom,
                                 modifier = Modifier.weight(1f), enabled = camera != null)
                             FilledTonalIconButton(onClick = onTorch, enabled = camera?.cameraInfo?.hasFlashUnit() == true) {
-                                AppIcon(Res.ic_flash, description = stringResource(if (settings.torch) R.string.torch_off else R.string.torch))
+                                AppIcon(Res.drawable.ic_flash, description = stringResource(if (settings.torch) R.string.torch_off else R.string.torch))
                             }
                         }
                     }

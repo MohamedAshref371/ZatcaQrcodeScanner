@@ -15,15 +15,16 @@ import androidx.compose.runtime.Composable
 import com.poetscorner.invoiceqr.ui.text.stringResource
 import com.poetscorner.invoiceqr.data.*
 import com.poetscorner.invoiceqr.data.dateFromEpochDay
+import kotlinx.datetime.number
 
 @Composable
-internal fun statisticsGroupTitle( request: StatisticsRequest, key: StatisticsKey): String {
+internal fun statisticsGroupTitle(request: StatisticsRequest, key: StatisticsKey): String {
     val grouping = request.grouping
     if (key.unknown) return stringResource(when (grouping) {
-        StatisticsGrouping.SELLER -> Res.stats_unknown_seller
-        StatisticsGrouping.VAT -> Res.stats_unknown_vat
-        StatisticsGrouping.CATEGORY -> Res.invoice_category_none
-        else -> Res.stats_unknown_date
+        StatisticsGrouping.SELLER -> Res.string.stats_unknown_seller
+        StatisticsGrouping.VAT -> Res.string.stats_unknown_vat
+        StatisticsGrouping.CATEGORY -> Res.string.invoice_category_none
+        else -> Res.string.stats_unknown_date
     })
     if (grouping == StatisticsGrouping.CATEGORY) {
         val category = key.text?.toIntOrNull() ?: InvoiceCategories.NONE
@@ -36,9 +37,9 @@ internal fun statisticsGroupTitle( request: StatisticsRequest, key: StatisticsKe
     return when (grouping) {
         StatisticsGrouping.DAY -> formatDay(epochDay, locale)
         StatisticsGrouping.MONTH -> formatMonth(epochDay, locale)
-        StatisticsGrouping.QUARTER -> stringResource(listOf(Res.stats_quarter_first, Res.stats_quarter_second,
-            Res.stats_quarter_third, Res.stats_quarter_fourth)[(day.month.number - 1) / 3], day.year)
-        StatisticsGrouping.HALF_YEAR -> stringResource(if (day.month.number <= 6) Res.stats_half_first else Res.stats_half_second, day.year)
+        StatisticsGrouping.QUARTER -> stringResource(listOf(Res.string.stats_quarter_first, Res.string.stats_quarter_second,
+            Res.string.stats_quarter_third, Res.string.stats_quarter_fourth)[(day.month.number - 1) / 3], day.year)
+        StatisticsGrouping.HALF_YEAR -> stringResource(if (day.month.number <= 6) Res.string.stats_half_first else Res.string.stats_half_second, day.year)
         else -> day.year.toString()
     }
 }
