@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (مثلا v1.2.7-ios)"
+        description: 'Enter the release tag (v1.2.7-ios)'
         required: true
-        default: "v1.2.7-ios"
+        type: string
 
 permissions:
   contents: read
