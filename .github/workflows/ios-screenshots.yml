@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       attach_to_tag:
-        description: "اختياري: tag لـ Release موجود عشان يترفع عليه Screenshots.zip"
+        description: "اختياري: tag لـ Release عشان يترفع عليه Screenshots.zip (بيتعمل لو مش موجود)"
         required: false
         default: ""
 
@@ -23,9 +23,6 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-
-      - name: Build the Kotlin framework (simulator)
-        run: bash gradlew --no-daemon --stacktrace "-Dorg.gradle.jvmargs=-Xmx5g -Dfile.encoding=UTF-8" :shared:linkDebugFrameworkIosSimulatorArm64
 
       - name: Generate the Xcode project
         run: |
@@ -75,6 +72,13 @@ jobs:
                 -AppleLanguages "($lang)" -AppleLocale "${lang}_${region}" \
                 -InvoiceQRLanguage "$lang" -seedDemoData "$lang" -startTab "${tabs[$i]}"
               sleep 10
+              if ! xcrun simctl spawn "$UDID" launchctl list | grep -q "$BUNDLE_ID"; then
+                echo "::error::App is not running after launch ($lang tab ${tabs[$i]})"
+                xcrun simctl spawn "$UDID" log show --last 3m --style compact \
+                  --predicate 'process == "iosApp" OR eventMessage CONTAINS "iosApp"' | tail -n 80 || true
+                ls -t ~/Library/Logs/DiagnosticReports 2>/dev/null | head || true
+                exit 1
+              fi
               xcrun simctl io "$UDID" screenshot "$OUT/$lang/${names[$i]}-$lang.png"
             done
           done
@@ -92,4 +96,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           (cd "$RUNNER_TEMP/shots" && zip -qr "$GITHUB_WORKSPACE/Screenshots.zip" .)
+          if ! gh release view "${{ inputs.attach_to_tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release create "${{ inputs.attach_to_tag }}" --repo "${{ github.repository }}" \
+              --target "${{ github.sha }}" --title "${{ inputs.attach_to_tag }}" --notes "Screenshots"
+          fi
           gh release upload "${{ inputs.attach_to_tag }}" Screenshots.zip --clobber --repo "${{ github.repository }}"

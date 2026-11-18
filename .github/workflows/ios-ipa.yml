@@ -25,9 +25,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Build the Kotlin framework (device, release)
-        run: bash gradlew --no-daemon --stacktrace "-Dorg.gradle.jvmargs=-Xmx5g -Dfile.encoding=UTF-8" :shared:linkReleaseFrameworkIosArm64
-
       - name: Generate the Xcode project
         run: |
           brew install xcodegen
