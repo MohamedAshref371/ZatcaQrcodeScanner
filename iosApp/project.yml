@@ -43,26 +43,12 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         # بيتقرا من publishing/privacy-policy-url.txt في الـ workflow
         PrivacyPolicyURL: ${PRIVACY_POLICY_URL}
-  iosAppUITests:
-    type: bundle.ui-testing
-    platform: iOS
-    sources: [iosAppUITests]
-    dependencies:
-      - target: iosApp
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: "YES"
-        PRODUCT_BUNDLE_IDENTIFIER: com.poetscorner.invoiceqr.uitests
 schemes:
   iosApp:
     build:
       targets:
         iosApp: all
-        iosAppUITests: [test]
     run:
       config: Debug
-    test:
-      config: Debug
-      targets: [iosAppUITests]
     archive:
       config: Release

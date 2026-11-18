@@ -1,0 +1,116 @@
+name: iOS release IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (مثلا v1.2.7-ios)"
+        required: true
+        default: "v1.2.7-ios"
+
+permissions:
+  contents: write
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      HAS_SIGNING: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Build the Kotlin framework (device, release)
+        run: bash gradlew --no-daemon --stacktrace "-Dorg.gradle.jvmargs=-Xmx5g -Dfile.encoding=UTF-8" :shared:linkReleaseFrameworkIosArm64
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          export PRIVACY_POLICY_URL="$(tr -d '[:space:]' < publishing/privacy-policy-url.txt)"
+          cd iosApp && xcodegen generate
+
+      # ---- من غير شهادات: IPA غير موقّع (للفحص بس، مش بيتثبّت على جهاز) ----
+      - name: Archive (unsigned)
+        if: env.HAS_SIGNING != 'true'
+        run: |
+          xcodebuild archive \
+            -project iosApp/iosApp.xcodeproj -scheme iosApp \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          APP=$(ls -d "$RUNNER_TEMP"/App.xcarchive/Products/Applications/*.app | head -n1)
+          mkdir -p "$RUNNER_TEMP/ipa/Payload" out
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qry "$GITHUB_WORKSPACE/out/InvoiceQR-unsigned.ipa" Payload)
+
+      # ---- مع شهادات (Secrets): IPA موقّع ----
+      - name: Import signing assets
+        if: env.HAS_SIGNING == 'true'
+        env:
+          CERT_B64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          CERT_PASS: ${{ secrets.P12_PASSWORD }}
+          PROFILE_B64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          KC="$RUNNER_TEMP/build.keychain-db"
+          echo "$CERT_B64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          echo "$PROFILE_B64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          security create-keychain -p tmp "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p tmp "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERT_PASS" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple: -k tmp "$KC"
+          security list-keychain -d user -s "$KC"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$RUNNER_TEMP/profile.mobileprovision" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Archive + export (signed)
+        if: env.HAS_SIGNING == 'true'
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PROFILE_NAME: ${{ secrets.PROVISIONING_PROFILE_NAME }}
+          EXPORT_METHOD: ${{ secrets.EXPORT_METHOD || 'app-store-connect' }}
+        run: |
+          xcodebuild archive \
+            -project iosApp/iosApp.xcodeproj -scheme iosApp \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" CODE_SIGN_IDENTITY="Apple Distribution"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" << PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>$EXPORT_METHOD</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict><key>com.poetscorner.invoiceqr</key><string>$PROFILE_NAME</string></dict>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          mkdir -p out && cp "$RUNNER_TEMP"/export/*.ipa out/InvoiceQR.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ipa
+          path: out/*.ipa
+          if-no-files-found: error
+
+      - name: Publish GitHub Release (create or update)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/*.ipa --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" out/*.ipa --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "$TAG" --notes "iOS build #${{ github.run_number }}"
+          fi

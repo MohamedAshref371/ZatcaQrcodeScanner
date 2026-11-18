@@ -20,26 +20,35 @@ fun MainViewController(version: String, privacyPolicyUrl: String, storeUrl: Stri
         IosScanner(session, { host }, version, privacyPolicyUrl, storeUrl, {}, {})
     }
     host = controller
-    // Only set by the screenshot UI test (`-seedDemoData en|ar`); never in a normal launch.
-    NSUserDefaults.standardUserDefaults.stringForKey("seedDemoData")?.let { seedDemoInvoices(session.controller, it) }
+    // Launch arguments used only by the screenshot workflow:
+    //   -seedDemoData en|ar   adds 6 demo invoices
+    //   -startTab 0..4        opens that tab (0 scanner, 1 result, 2 history, 3 settings, 4 statistics)
+    val defaults = NSUserDefaults.standardUserDefaults
+    val seed = defaults.stringForKey("seedDemoData")
+    val startTab = defaults.stringForKey("startTab")?.toIntOrNull()
+    if (seed != null || startTab != null) prepareScreenshotState(session.controller, seed, startTab)
     return controller
 }
 
-private fun seedDemoInvoices(controller: ScannerController, language: String) {
-    val sellers = if (language == "ar") listOf("متجر تجريبي", "مقهى تجريبي", "مكتبة تجريبية")
-        else listOf("Sample Store", "Sample Cafe", "Sample Bookshop")
-    val totals = listOf("230.00", "57.50", "115.00")
-    val vats = listOf("30.00", "7.50", "15.00")
+private fun prepareScreenshotState(controller: ScannerController, seedLanguage: String?, startTab: Int?) {
     MainScope().launch {
-        controller.update { it.copy(theme = "LIGHT") }
-        for (index in (0..5).reversed()) {
-            val fields = listOf(1 to sellers[index % 3], 2 to "300000000000003",
-                3 to "2026-10-${20 - index}T10:30:00", 4 to totals[index % 3], 5 to vats[index % 3])
-            val bytes = fields.fold(ByteArray(0)) { all, (tag, text) ->
-                val data = text.encodeToByteArray()
-                all + byteArrayOf(tag.toByte(), data.size.toByte()) + data
+        if (seedLanguage != null) {
+            controller.update { it.copy(theme = "LIGHT") }
+            val sellers = if (seedLanguage == "ar") listOf("متجر تجريبي", "مقهى تجريبي", "مكتبة تجريبية")
+                else listOf("Sample Store", "Sample Cafe", "Sample Bookshop")
+            val totals = listOf("230.00", "57.50", "115.00")
+            val vats = listOf("30.00", "7.50", "15.00")
+            for (index in (0..5).reversed()) {
+                val fields = listOf(1 to sellers[index % 3], 2 to "300000000000003",
+                    3 to "2026-10-${20 - index}T10:30:00", 4 to totals[index % 3], 5 to vats[index % 3])
+                val bytes = fields.fold(ByteArray(0)) { all, (tag, text) ->
+                    val data = text.encodeToByteArray()
+                    all + byteArrayOf(tag.toByte(), data.size.toByte()) + data
+                }
+                controller.scanned(Base64.encode(bytes))
             }
-            controller.scanned(Base64.encode(bytes))
         }
+        startTab?.let { controller.selectTab(it) }
+        controller.message.value = null
     }
 }

@@ -1,0 +1,95 @@
+name: iOS screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      attach_to_tag:
+        description: "اختياري: tag لـ Release موجود عشان يترفع عليه Screenshots.zip"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+  BUNDLE_ID: com.poetscorner.invoiceqr
+
+jobs:
+  screenshots:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Build the Kotlin framework (simulator)
+        run: bash gradlew --no-daemon --stacktrace "-Dorg.gradle.jvmargs=-Xmx5g -Dfile.encoding=UTF-8" :shared:linkDebugFrameworkIosSimulatorArm64
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          export PRIVACY_POLICY_URL="$(tr -d '[:space:]' < publishing/privacy-policy-url.txt)"
+          cd iosApp && xcodegen generate
+
+      - name: Pick and boot an iPhone simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          rows=[d for r,v in json.load(sys.stdin)['devices'].items() if 'iOS' in r for d in v if d['name'].startswith('iPhone')]
+          pick=next((d for d in rows if 'Pro Max' in d['name']), None) or next((d for d in rows if 'Pro' in d['name']), None) or rows[0]
+          print(pick['udid'])")
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+
+      - name: Build the app for the simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
+            -sdk iphonesimulator -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO
+
+      - name: Capture the five screens (en + ar)
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/iosApp.app"
+          OUT="$RUNNER_TEMP/shots"
+          names=(01-scanner 02-result 03-history 04-statistics 05-settings)
+          tabs=(0 1 2 4 3)   # ترتيب الـ NavigationBar: scanner, result, history, statistics, settings
+          for lang in en ar; do
+            region=US; [ "$lang" = ar ] && region=SA
+            mkdir -p "$OUT/$lang"
+            for i in 0 1 2 3 4; do
+              xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+              xcrun simctl uninstall "$UDID" "$BUNDLE_ID" 2>/dev/null || true   # بيمسح الداتا عشان الـ seed ما يتكررش
+              xcrun simctl install "$UDID" "$APP"
+              xcrun simctl privacy "$UDID" grant camera "$BUNDLE_ID" || true
+              xcrun simctl privacy "$UDID" grant photos "$BUNDLE_ID" || true
+              xcrun simctl launch "$UDID" "$BUNDLE_ID" \
+                -AppleLanguages "($lang)" -AppleLocale "${lang}_${region}" \
+                -InvoiceQRLanguage "$lang" -seedDemoData "$lang" -startTab "${tabs[$i]}"
+              sleep 10
+              xcrun simctl io "$UDID" screenshot "$OUT/$lang/${names[$i]}-$lang.png"
+            done
+          done
+          find "$OUT" -name '*.png' | sort
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: ${{ runner.temp }}/shots
+          if-no-files-found: error
+
+      - name: Attach to an existing release (optional)
+        if: inputs.attach_to_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          (cd "$RUNNER_TEMP/shots" && zip -qr "$GITHUB_WORKSPACE/Screenshots.zip" .)
+          gh release upload "${{ inputs.attach_to_tag }}" Screenshots.zip --clobber --repo "${{ github.repository }}"
