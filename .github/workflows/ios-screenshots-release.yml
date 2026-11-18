@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Enter the release tag (v1.2.7-ios)'
+        description: 'Enter the release tag (eg, v1.2.7-ios)'
         required: true
         type: string
 
@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
 
       - name: Build the Kotlin framework (simulator)
-        run: bash gradlew --no-daemon --stacktrace :shared:linkDebugFrameworkIosSimulatorArm64
+        run: bash gradlew --no-daemon --stacktrace "-Dorg.gradle.jvmargs=-Xmx5g -Dfile.encoding=UTF-8" :shared:linkDebugFrameworkIosSimulatorArm64
 
       - name: Generate the Xcode project
         run: |
@@ -63,6 +63,38 @@ jobs:
           done
           find "$RUNNER_TEMP/shots" -name '*.png' | sort
 
+      - name: Diagnose launch crash
+        if: failure()
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/iosApp.app"
+          xcrun simctl terminate "$UDID" com.poetscorner.invoiceqr || true
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch --console "$UDID" com.poetscorner.invoiceqr > "$RUNNER_TEMP/launch.log" 2>&1 &
+          LPID=$!
+          sleep 25
+          kill $LPID || true
+          echo "===== app console ====="; tail -n 80 "$RUNNER_TEMP/launch.log" || true
+          sleep 5
+          echo "===== crash reports ====="
+          ls -t ~/Library/Logs/DiagnosticReports/ 2>/dev/null | head
+          for f in $(ls -t ~/Library/Logs/DiagnosticReports/*.ips 2>/dev/null | head -2); do
+            echo "=== $f"
+            python3 - "$f" << 'PY'
+          import json, sys
+          raw = open(sys.argv[1]).read().split("\n", 1)
+          d = json.loads(raw[1])
+          print("exception:", d.get("exception"))
+          print("termination:", d.get("termination"))
+          print("asi:", d.get("asi"))
+          imgs = d.get("usedImages", [])
+          threads = d.get("threads", [])
+          t = threads[d.get("faultingThread", 0)] if threads else {}
+          for fr in t.get("frames", [])[:30]:
+              print(fr.get("symbol"), "|", imgs[fr["imageIndex"]].get("name") if imgs else "")
+          PY
+          done
+
       - uses: actions/upload-artifact@v4
         with:
           name: screenshots
@@ -86,7 +118,7 @@ jobs:
           persist-credentials: false
 
       - name: Build the Kotlin framework (device, release)
-        run: bash gradlew --no-daemon --stacktrace :shared:linkReleaseFrameworkIosArm64
+        run: bash gradlew --no-daemon --stacktrace "-Dorg.gradle.jvmargs=-Xmx5g -Dfile.encoding=UTF-8" :shared:linkReleaseFrameworkIosArm64
 
       - name: Generate the Xcode project
         run: |
