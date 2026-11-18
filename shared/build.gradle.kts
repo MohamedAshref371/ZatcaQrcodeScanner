@@ -22,8 +22,12 @@ kotlin {
         withHostTest { }
     }
 
-    iosArm64()
-    iosSimulatorArm64()
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "Shared"
+            isStatic = true
+        }
+    }
     val bridge = layout.projectDirectory.dir("src/nativeInterop/cinterop")
     val nativeBuildScript = rootProject.file("tools/build_ios_zxing.sh")
     targets.withType<KotlinNativeTarget>().configureEach {
